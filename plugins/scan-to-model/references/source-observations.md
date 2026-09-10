@@ -1,0 +1,84 @@
+# Photograph observations that survive model changes
+
+Use this record contract for visible construction inventories from scan RGB or standalone photographs, including photographs embedded in documents. It extends the [project records](project-records.md); reuse existing project IDs and records where they already carry the information. No new database or particular filename is required. The example below illustrates the fields; there is no photo-only CLI or automatic object recognition in the package.
+
+## Keep three things separate
+
+| Record | What it identifies | What can change independently |
+| --- | --- | --- |
+| Observation | A specific visible feature or span in one identified source image, with native pixel marks | A corrected annotation is a new revision with a reason; preserve the reviewed predecessor. |
+| Feature relation | A supported or tentative assertion that observations depict the same physical thing | Identity can be confirmed, rejected or left unresolved without deleting either observation. |
+| Placement | A measurement or authored position in a named capture/model coordinate system | A later candidate can supersede the placement while keeping source observations unchanged. |
+
+Keep IDs stable when room names, coordinates, Blender object names or an interpretation such as “hot water” change. Treat legacy IDs as opaque identifiers; a room name embedded in one is not a reason to rename it. An observation can remain unlocated. Reference an older trace ID where the physical match is established; record a possible match as possible rather than silently merging it. A crossing in an image is not proof of a physical junction.
+
+## Source identity and image coordinates
+
+For each source, record:
+
+- Original path or archive/document reference and SHA256 of the preserved bytes; frame ID where present.
+- Native decoded width/height and the decoder/EXIF orientation treatment used to define the pixel array. An optional decoded-pixel digest must name mode, channel order, dimensions and orientation.
+- Pixel convention: origin, axis directions and whether coordinates refer to pixel centers or image edges. Use finite native coordinates; record the annotation type (point, polyline or polygon) and its intended meaning (centerline, visible boundary, face or locator).
+- Any displayed image's source relationship: crop, rotation, scaling and an explicit invertible mapping into native pixels. Hash the derivative as a derivative. Keep annotations in the native convention even when selecting or presenting them upright.
+- Source-date claims and their provenance. Folder names, scan clock values, PDF metadata and EXIF dates retain their stated uncertainty; a timestamp without known epoch/units is not a calendar date.
+
+For a raw image with width W and height H, pixel-center coordinates `(u,v)` have origin at the center of the top-left pixel. A 90-degree clockwise display maps them to `(H-1-v,u)`. An SVG image rectangle instead starts at a pixel edge: place native pixel-center marks at `(u+0.5,v+0.5)` before applying the corresponding display transform. State a different convention explicitly. Check corners and a known feature so a plausible rotated overlay does not hide an incorrect mapping.
+
+For a PDF photograph, preserve the document hash, page numbering, image object/resource identifier and page placement/orientation. Record PDF color-space, decode and mask settings that affect display; a raw JPEG stream alone may not reproduce the page appearance. Inspect the extraction method. An image-export API can recompress JPEG data, alter decoded pixels or discard metadata; the word “extract” is not proof of original bytes. For a directly embedded JPEG, preserve its raw DCT image stream where accessible. Keep page renderings and recompressed exports as derivatives. For tiled, masked or composite photographs, record the reconstruction components and transforms; a rendered page is not an original camera photograph.
+
+## Observation record
+
+Each observation needs the following information, whether stored in JSON or another existing project format:
+
+- Stable observation ID and source reference.
+- Native pixel marks and their geometric meaning. A line drawn for legibility is not a measured pipe diameter or member section.
+- Plain visible facts: for example, “orange-brown cylindrical span passes behind a wood face.” Keep material, system, installation and function interpretations separately qualified with their basis.
+- A meaning for each polyline endpoint or relevant polygon boundary: **visible physical termination**, **occlusion**, **image boundary**, **annotation boundary**, or **unknown**. A deliberate review crop is an annotation boundary even when more of the object is visible beyond it. Split an interrupted span at the occlusion rather than drawing unseen continuity.
+- Any physical-feature association and its confidence/basis, separately from confidence that the pixels were traced correctly.
+- Construction state and current-survival assessment, with supporting sources or explicit unknown. A photographed installation is not proof that it is still present behind today's finish.
+- Review status and the scope actually examined. Missing from an annotated selection does not mean physically absent or absent from the entire scan.
+
+Do not force all categories into every image. A bounded packet may show cables and framing but no identifiable retrofit component. Record an unidentified metal item as such; a nearby drawing detail or inspection count does not establish its installed type, embedment or load path. Preserve observed versus prescribed properties separately.
+
+### Example: one visible span, uncertain identity
+
+The following is an illustrative record, not source evidence or reusable image coordinates. `photo-a` resolves to an immutable source record with its real hash, dimensions and display mapping.
+
+```json
+{
+  "id": "obs-017",
+  "source_id": "photo-a",
+  "marks": {
+    "type": "polyline",
+    "meaning": "visible centerline",
+    "coordinates": [[124, 318], [168, 300], [203, 297]],
+    "space": "native pixel centers; top-left origin; u right, v down"
+  },
+  "observed": "Brown cylindrical span, partly hidden by a wood face.",
+  "interpretation": {
+    "category": "pipe candidate",
+    "material": "copper-looking; unconfirmed",
+    "system_function": "unknown"
+  },
+  "endpoints": [
+    {"index": 0, "kind": "occlusion", "basis": "Disappears behind wood."},
+    {"index": -1, "kind": "annotation boundary", "basis": "Review ends here; no physical end observed."}
+  ],
+  "current_survival": {"status": "unknown", "evidence": []},
+  "review": "Source image and both endpoint meanings visually checked."
+}
+```
+
+A separate relation can say that `obs-017` possibly matches another photo's span, citing fixed neighboring features and the unresolved discrepancy. Do not assign a shared physical feature merely because both spans have the same color.
+
+## Measurement and placement after observation
+
+Link optional measurement records to observation IDs and exact source selections. Retain native depth/confidence, calibration, pose variant and capture-local coordinates where available. A missing depth return does not invalidate a photographic observation and does not justify inventing a metric position. The existing `surfaces.py` requires a complete native scan frame; it is not a standalone-photo or PDF measurement command.
+
+A placement record identifies the observation/feature IDs, candidate/model hash, target coordinate frame and units, object IDs, proposed or accepted transform, measurement references, uncertainty, review status and supersession relationship. Model A and model B may carry different placements of the same observation. Review the new placement against independent evidence; keep A's placement as historical rather than rewriting the source marks to fit B. Rebuilding base geometry can invalidate a placement without invalidating source identity or a reviewed observation.
+
+## Reviewable output
+
+Deliver the source manifest, observation/feature-relation records, annotated source sheets and a concise scope/unknowns report. A vector overlay referencing or embedding unchanged source bytes can reproduce marks without repainting the photograph. Keep annotation labels readable and distinguish locator lines from measured outlines. Record output hashes and the script/command used to reproduce them when a generator is used.
+
+Check source hashes, image dimensions, finite/in-bounds marks, coordinate round trips, unique IDs and source/relation references. Then visually inspect the annotated originals: structural checks cannot prove feature identity or endpoint meaning. Inspect every authored mark in the packet; separately sample proposed cross-view matches in both full images. Report excluded/ambiguous features and what remains unexamined. A saved overlay proves reproducibility, not depth, room assignment, hidden continuity or present-day survival.

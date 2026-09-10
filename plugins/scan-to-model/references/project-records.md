@@ -14,6 +14,10 @@ Use one row per room surface or connection: floor, each wall/opening, ceiling/so
 
 Record the owner's statement, date and affected element. Preserve the distinction between an observation, an approximate estimate and a measured value. Do not promote a guessed wood species into a confirmed material or a unit conversion into scanner precision. Use owner corrections immediately for topology/identity; find metric support separately.
 
+## Source observations
+
+For photograph-first construction inventories, read [source-observations.md](source-observations.md). Store source-native annotations and visible/uncertain facts independently of physical-feature identity and candidate-specific placement. Preserve original bytes and explicit display/PDF extraction mappings so evidence remains usable when model geometry changes.
+
 ## Registration ledger
 
 For each transform name source and target frames, metre scale, axes, camera convention, rigid matrix direction, source frame/pixel selections, fitting method, fit and withheld checks, and accepted regional scope. Keep rejected alternatives with the reason if they prevent repeating a known error. Never apply an accepted transform to another capture by filename resemblance. Never scale or warp a capture to conceal misalignment.
