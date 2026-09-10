@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Scan To Model",
     "shortDescription": "Turn scan evidence into reviewable Blender models.",
-    "longDescription": "A local workflow with five skills and Python tools for source preservation, calibrated native depth, surface measurement, rigid registration, coverage planning, and Blender review. Keeps unknown geometry and registration limits explicit.",
+    "longDescription": "A local workflow with six skills and Python tools for source preservation, calibrated native depth, surface measurement, rigid registration, coverage planning, and Blender review. Keeps unknown geometry and registration limits explicit.",
     "developerName": "Jesse",
     "category": "Productivity",
     "capabilities": [],

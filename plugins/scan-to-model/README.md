@@ -1,6 +1,6 @@
 # Scan to Model
 
-Five Codex skills and local Python tools for turning scan evidence into reviewable Blender architectural models. The tools preserve Polycam exports, unproject calibrated native depth, measure photographed surface patches, fit rigid registration, and inspect saved Blender candidates. They do not infer an entire house automatically from a ZIP.
+Six Codex skills and local Python tools for turning scan evidence into reviewable Blender architectural models. The tools preserve Polycam exports, unproject calibrated native depth, measure photographed surface patches, fit rigid registration, and inspect saved Blender candidates. They do not infer an entire house automatically from a ZIP.
 
 The package contains no project address, private scans, accepted house transforms, or owner observations. Keep those in the working project. No server or API key is required. Blender and a Python 3.11+ environment with NumPy, Pillow, SciPy and Matplotlib are required for the respective tools; install the Python dependencies from `requirements.txt` into an existing suitable environment or a dedicated virtual environment.
 
@@ -12,6 +12,7 @@ Follow the [repository installation instructions](https://github.com/obra/scan-t
 | --- | --- |
 | `scan-to-model` | Plan the evidence workflow, update room/connection coverage, and choose the next bounded model increment. |
 | `scan-ingest` | Preserve archives, audit pairing and variants, create frame indices and contact sheets. |
+| `source-observe` | Annotate visible construction in original photographs, retaining uncertain identity and endpoints independently of model placement. |
 | `depth-inspect` | Select physical surfaces in actual photos; inspect native confidence, depth, calibration and local repeatability. |
 | `scan-register` | Establish rigid transforms with withheld observations and explicit regional validity. |
 | `blender-reconstruct` | Build source-tagged candidates, inspect saved scenes, render and promote supported changes. |
