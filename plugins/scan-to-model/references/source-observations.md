@@ -71,6 +71,18 @@ The following is an illustrative record, not source evidence or reusable image c
 
 A separate relation can say that `obs-017` possibly matches another photo's span, citing fixed neighboring features and the unresolved discrepancy. Do not assign a shared physical feature merely because both spans have the same color.
 
+## Cross-photo identity and construction state
+
+Match a bounded fixed feature or feature group, not an entire room's construction state. Several distinctive joints can establish that two photographs show the same wall while an intervening member or installation differs. Record the retained correspondences and the differences together; neither erases the other. A group-level match does not establish that every individual member is the same physical piece.
+
+For each proposed relation, record the observation IDs in both photographs, the precise physical-identity scope, supporting fixed features, contradictions or state differences, and relevant occlusions. Use a status such as supported, candidate/held or rejected, with the reason. Similar color, a generic stud pattern, loose offcuts, tools, packaging or temporarily leaning parts do not independently establish fixed identity.
+
+An absence claim requires an examined corresponding region where the feature would have been visible. Distinguish an exposed region showing a different state from a region hidden by foreground framing, darkness, furnishings, the image edge or the review selection. Preserve native locators for the comparison region even when no corresponding feature is present. Do not turn a missing annotation into a missing physical object.
+
+Assess chronology separately. Record camera timestamps verbatim with their device, time-zone/clock uncertainty and any conflicting metadata. Page order is not capture order. A state difference can be supported even when its sequence or cause is unknown. Matching a historical installation does not prove that it survives behind present finishes, and matching a photographed enclosure does not by itself assign a current room, storey or model transform.
+
+Keep comparison locators distinct from detailed feature traces. When both reference the same source region, link them and report their counts separately; they are not additional installed objects. Present proposed matches side by side in original-image context, retaining the unmatched and occluded features that limit the conclusion.
+
 ## Measurement and placement after observation
 
 Link optional measurement records to observation IDs and exact source selections. Retain native depth/confidence, calibration, pose variant and capture-local coordinates where available. A missing depth return does not invalidate a photographic observation and does not justify inventing a metric position. The existing `surfaces.py` requires a complete native scan frame; it is not a standalone-photo or PDF measurement command.
