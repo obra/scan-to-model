@@ -26,6 +26,8 @@ For a raw image with width W and height H, pixel-center coordinates `(u,v)` have
 
 For a PDF photograph, preserve the document hash, page numbering, image object/resource identifier and page placement/orientation. Record PDF color-space, decode and mask settings that affect display; a raw JPEG stream alone may not reproduce the page appearance. Inspect the extraction method. An image-export API can recompress JPEG data, alter decoded pixels or discard metadata; the word “extract” is not proof of original bytes. For a directly embedded JPEG, preserve its raw DCT image stream where accessible. Keep page renderings and recompressed exports as derivatives. For tiled, masked or composite photographs, record the reconstruction components and transforms; a rendered page is not an original camera photograph.
 
+When preserving PDF drawing commands, distinguish the encoded stream bytes stored in the document (compressed when applicable), their original decoded bytes, parsed semantic operations and any parser-normalized serialization. Read and preserve original bytes before accessing mutable parser operations: deserialization or later serialization can normalize whitespace without changing the drawing. Hash and label each representation independently, and compare the purported original against a fresh read of the document stream. A correct placement matrix does not prove exact command-text preservation.
+
 ## Observation record
 
 Each observation needs the following information, whether stored in JSON or another existing project format:
