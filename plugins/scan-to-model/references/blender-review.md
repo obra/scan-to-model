@@ -1,5 +1,9 @@
 # Blender review helper
 
+Before reviewing a manufactured component, distinguish immutable photo/depth controls from the geometry fitted to them. A projected four-corner trace can be skewed by perspective, a poor projection plane, uncertain calibration or imprecise selection. If evidence establishes a rectangular physical part, use an explicit rectangle constraint in its local frame; record the constraint source, fitted dimensions and residual from every original control. Do not silently move the source marks, enlarge their allowance to absorb a failed fit, or treat the constraint as an independent metric measurement. Large residuals require investigation. Shape constraints do not establish matching product sizes, hidden profiles or house placement.
+
+Show the constrained component clearly by default and label any raw trace overlay as evidence. Verify right angles and opposite-edge relationships on the saved mesh, including recessed/inset profiles and dependent holes or adjoining faces. A rectangular diagram alone does not establish rectangular Blender geometry; a corrected panel can still leave a mismatched opening around it.
+
 Run:
 
 ```text
