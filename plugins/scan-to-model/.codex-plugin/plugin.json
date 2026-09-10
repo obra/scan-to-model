@@ -1,0 +1,18 @@
+{
+  "name": "scan-to-model",
+  "version": "0.1.0",
+  "description": "Preserve Polycam exports, measure native depth, validate rigid scan alignment, and build evidence-backed Blender models.",
+  "author": {
+    "name": "Jesse"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Scan To Model",
+    "shortDescription": "Turn scan evidence into reviewable Blender models.",
+    "longDescription": "A local workflow with five skills and Python tools for source preservation, calibrated native depth, surface measurement, rigid registration, coverage planning, and Blender review. Keeps unknown geometry and registration limits explicit.",
+    "developerName": "Jesse",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use scan-to-model to inventory my scans, assess coverage and native depth, and build a source-backed Blender candidate."
+  }
+}

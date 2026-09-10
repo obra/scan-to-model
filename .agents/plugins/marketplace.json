@@ -1,0 +1,20 @@
+{
+  "name": "scan-to-model",
+  "interface": {
+    "displayName": "Scan To Model"
+  },
+  "plugins": [
+    {
+      "name": "scan-to-model",
+      "source": {
+        "source": "local",
+        "path": "./plugins/scan-to-model"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
