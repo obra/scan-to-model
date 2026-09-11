@@ -33,8 +33,10 @@ IMAGE_FORMATS = {
 }
 REVIEW_PADDING_PX = 32
 REVIEW_SCALE = "1 SVG unit per displayed source pixel"
-COORDINATE_CONTEXT_RADIUS_PX = 4
-COORDINATE_MAGNIFICATION = 12
+COORDINATE_CONTEXT_RADIUS_PX = 128
+COORDINATE_CONTEXT_MAGNIFICATION = 1
+COORDINATE_DETAIL_RADIUS_PX = 4
+COORDINATE_DETAIL_MAGNIFICATION = 12
 COORDINATE_ROWS_PER_COLUMN = 8
 COORDINATE_PADDING = 12
 COORDINATE_LABEL_HEIGHT = 62
@@ -423,8 +425,7 @@ def _display_image(source):
     return displayed
 
 
-def _coordinate_context(image, coordinate):
-    radius = COORDINATE_CONTEXT_RADIUS_PX
+def _coordinate_context(image, coordinate, radius, magnification):
     size = radius * 2 + 1
     x, y = coordinate
     left = max(0, x - radius)
@@ -437,15 +438,15 @@ def _coordinate_context(image, coordinate):
         (radius - (x - left), radius - (y - top)),
     )
     return context.resize(
-        (size * COORDINATE_MAGNIFICATION, size * COORDINATE_MAGNIFICATION),
+        (size * magnification, size * magnification),
         Image.Resampling.NEAREST,
     )
 
 
-def _draw_open_locator(image):
+def _draw_open_pixel_locator(image):
     draw = ImageDraw.Draw(image)
-    start = COORDINATE_CONTEXT_RADIUS_PX * COORDINATE_MAGNIFICATION
-    end = start + COORDINATE_MAGNIFICATION - 1
+    start = COORDINATE_DETAIL_RADIUS_PX * COORDINATE_DETAIL_MAGNIFICATION
+    end = start + COORDINATE_DETAIL_MAGNIFICATION - 1
     margin = 3
     length = 7
     corners = [
@@ -460,6 +461,21 @@ def _draw_open_locator(image):
     ]
     for points in corners:
         draw.line(points, fill=COORDINATE_LOCATOR_COLOR, width=2)
+
+
+def _draw_open_context_locator(image):
+    draw = ImageDraw.Draw(image)
+    center = COORDINATE_CONTEXT_RADIUS_PX * COORDINATE_CONTEXT_MAGNIFICATION
+    gap = 6
+    length = 18
+    lines = [
+        (center - length, center, center - gap, center),
+        (center + gap, center, center + length, center),
+        (center, center - length, center, center - gap),
+        (center, center + gap, center, center + length),
+    ]
+    for line in lines:
+        draw.line(line, fill=COORDINATE_LOCATOR_COLOR, width=3)
 
 
 def _coordinate_grid_position(index, count, columns):
@@ -477,9 +493,14 @@ def _coordinate_inspection_bytes(source, displayed, annotation):
     count = len(annotation["native_coordinates"])
     columns = math.ceil(count / COORDINATE_ROWS_PER_COLUMN)
     rows = math.ceil(count / columns)
-    panel_size = (COORDINATE_CONTEXT_RADIUS_PX * 2 + 1) * COORDINATE_MAGNIFICATION
-    cell_width = panel_size * 2 + COORDINATE_PANEL_GAP
-    cell_height = COORDINATE_LABEL_HEIGHT + panel_size + COORDINATE_CELL_GAP
+    context_size = (
+        (COORDINATE_CONTEXT_RADIUS_PX * 2 + 1) * COORDINATE_CONTEXT_MAGNIFICATION
+    )
+    detail_size = (
+        (COORDINATE_DETAIL_RADIUS_PX * 2 + 1) * COORDINATE_DETAIL_MAGNIFICATION
+    )
+    cell_width = context_size * 2 + detail_size + COORDINATE_PANEL_GAP * 2
+    cell_height = COORDINATE_LABEL_HEIGHT + context_size + COORDINATE_CELL_GAP
     width = (
         COORDINATE_PADDING * 2
         + columns * cell_width
@@ -495,14 +516,27 @@ def _coordinate_inspection_bytes(source, displayed, annotation):
     )):
         nearest_native = [_nearest_pixel_coordinate(value) for value in native]
         nearest_display = _display_point(nearest_native, source)
-        context = _coordinate_context(displayed, nearest_display)
-        located = context.copy()
-        _draw_open_locator(located)
+        context = _coordinate_context(
+            displayed,
+            nearest_display,
+            COORDINATE_CONTEXT_RADIUS_PX,
+            COORDINATE_CONTEXT_MAGNIFICATION,
+        )
+        located_context = context.copy()
+        _draw_open_context_locator(located_context)
+        detail = _coordinate_context(
+            displayed,
+            nearest_display,
+            COORDINATE_DETAIL_RADIUS_PX,
+            COORDINATE_DETAIL_MAGNIFICATION,
+        )
+        _draw_open_pixel_locator(detail)
         column, row = _coordinate_grid_position(index, count, columns)
         left = COORDINATE_PADDING + column * (cell_width + COORDINATE_COLUMN_GAP)
         top = COORDINATE_PADDING + row * cell_height
         panel_top = top + COORDINATE_LABEL_HEIGHT
-        located_left = left + panel_size + COORDINATE_PANEL_GAP
+        located_left = left + context_size + COORDINATE_PANEL_GAP
+        detail_left = located_left + context_size + COORDINATE_PANEL_GAP
         draw.text(
             (left, top),
             f"#{index} native ({_number(native[0])}, {_number(native[1])})",
@@ -521,19 +555,29 @@ def _coordinate_inspection_bytes(source, displayed, annotation):
             fill=(0, 0, 0, 255),
             font=font,
         )
-        draw.text((left, top + 42), "unmarked", fill=(0, 0, 0, 255), font=font)
-        draw.text((located_left, top + 42), "open locator", fill=(0, 0, 0, 255), font=font)
+        draw.text((left, top + 42), "unmarked context", fill=(0, 0, 0, 255), font=font)
+        draw.text(
+            (located_left, top + 42), "located context", fill=(0, 0, 0, 255), font=font
+        )
+        draw.text((detail_left, top + 42), "exact pixel", fill=(0, 0, 0, 255), font=font)
         sheet.paste(context, (left, panel_top))
-        sheet.paste(located, (located_left, panel_top))
+        sheet.paste(located_context, (located_left, panel_top))
+        sheet.paste(detail, (detail_left, panel_top))
         records.append({
             "index": index,
             "native": copy.deepcopy(native),
             "display": copy.deepcopy(display),
             "nearest_native_pixel": nearest_native,
             "nearest_display_pixel": nearest_display,
-            "unmarked_bounds": [left, panel_top, left + panel_size, panel_top + panel_size],
-            "located_bounds": [
-                located_left, panel_top, located_left + panel_size, panel_top + panel_size,
+            "unmarked_context_bounds": [
+                left, panel_top, left + context_size, panel_top + context_size,
+            ],
+            "located_context_bounds": [
+                located_left, panel_top,
+                located_left + context_size, panel_top + context_size,
+            ],
+            "detail_bounds": [
+                detail_left, panel_top, detail_left + detail_size, panel_top + detail_size,
             ],
         })
     output = BytesIO()
@@ -659,7 +703,9 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
                 "media_type": "image/png",
                 "resampling": "nearest",
                 "context_radius_display_pixels": COORDINATE_CONTEXT_RADIUS_PX,
-                "magnification": COORDINATE_MAGNIFICATION,
+                "context_magnification": COORDINATE_CONTEXT_MAGNIFICATION,
+                "detail_radius_display_pixels": COORDINATE_DETAIL_RADIUS_PX,
+                "detail_magnification": COORDINATE_DETAIL_MAGNIFICATION,
                 "nearest_pixel_rule": "floor(coordinate + 0.5) in native pixel-center coordinates",
                 "coordinates": coordinates,
             }

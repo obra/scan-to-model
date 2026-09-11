@@ -332,8 +332,10 @@ class ObservationSheetTests(unittest.TestCase):
             self.assertEqual(inspection["sha256"], hashlib.sha256(artifact.read_bytes()).hexdigest())
             self.assertEqual(inspection["media_type"], "image/png")
             self.assertEqual(inspection["resampling"], "nearest")
-            self.assertEqual(inspection["context_radius_display_pixels"], 4)
-            self.assertEqual(inspection["magnification"], 12)
+            self.assertEqual(inspection["context_radius_display_pixels"], 128)
+            self.assertEqual(inspection["context_magnification"], 1)
+            self.assertEqual(inspection["detail_radius_display_pixels"], 4)
+            self.assertEqual(inspection["detail_magnification"], 12)
             self.assertEqual(
                 [row["display"] for row in inspection["coordinates"]],
                 expected_display[observation_id],
@@ -347,25 +349,28 @@ class ObservationSheetTests(unittest.TestCase):
                 for index, row in enumerate(inspection["coordinates"]):
                     native_u, native_v = row["nearest_native_pixel"]
                     expected_color = (*source_pixels[native_u, native_v], 255)
-                    for panel_name in ("unmarked_bounds", "located_bounds"):
+                    for panel_name in ("unmarked_context_bounds", "located_context_bounds"):
                         left, top, _, _ = row[panel_name]
-                        selected = sheet.crop((
-                            left + 4 * 12,
-                            top + 4 * 12,
-                            left + 5 * 12,
-                            top + 5 * 12,
-                        ))
-                        self.assertEqual(set(selected.getdata()), {expected_color})
+                        self.assertEqual(sheet.getpixel((left + 128, top + 128)), expected_color)
 
-                    left, top, _, _ = row["unmarked_bounds"]
+                    left, top, _, _ = row["detail_bounds"]
+                    selected = sheet.crop((
+                        left + 4 * 12,
+                        top + 4 * 12,
+                        left + 5 * 12,
+                        top + 5 * 12,
+                    ))
+                    self.assertEqual(set(selected.getdata()), {expected_color})
+
+                    left, top, _, _ = row["unmarked_context_bounds"]
                     if index == 1 and observation_id == "raw-points":
-                        right_color = sheet.getpixel((left + 5 * 12 + 6, top + 4 * 12 + 6))
-                        down_color = sheet.getpixel((left + 4 * 12 + 6, top + 5 * 12 + 6))
+                        right_color = sheet.getpixel((left + 129, top + 128))
+                        down_color = sheet.getpixel((left + 128, top + 129))
                         self.assertEqual(right_color, (*source_pixels[3, 2], 255))
                         self.assertEqual(down_color, (*source_pixels[2, 3], 255))
                     if index == 1 and observation_id == "turned-points":
-                        right_color = sheet.getpixel((left + 5 * 12 + 6, top + 4 * 12 + 6))
-                        down_color = sheet.getpixel((left + 4 * 12 + 6, top + 5 * 12 + 6))
+                        right_color = sheet.getpixel((left + 129, top + 128))
+                        down_color = sheet.getpixel((left + 128, top + 129))
                         self.assertEqual(right_color, (*source_pixels[2, 1], 255))
                         self.assertEqual(down_color, (*source_pixels[3, 2], 255))
 
@@ -410,8 +415,8 @@ class ObservationSheetTests(unittest.TestCase):
         )
 
         coordinates = record["annotations"][0]["review"]["coordinate_inspection"]["coordinates"]
-        panel_rows = {row["unmarked_bounds"][1] for row in coordinates}
-        panel_columns = {row["unmarked_bounds"][0] for row in coordinates}
+        panel_rows = {row["unmarked_context_bounds"][1] for row in coordinates}
+        panel_columns = {row["unmarked_context_bounds"][0] for row in coordinates}
         self.assertEqual(len(panel_rows), 5)
         self.assertEqual(len(panel_columns), 2)
 
@@ -432,7 +437,7 @@ class ObservationSheetTests(unittest.TestCase):
         coordinates = record["annotations"][0]["review"]["coordinate_inspection"]["coordinates"]
         column_sizes = {}
         for row in coordinates:
-            column = row["unmarked_bounds"][0]
+            column = row["unmarked_context_bounds"][0]
             column_sizes[column] = column_sizes.get(column, 0) + 1
         self.assertEqual(len(column_sizes), 8)
         self.assertLessEqual(max(column_sizes.values()) - min(column_sizes.values()), 1)
@@ -467,17 +472,19 @@ class ObservationSheetTests(unittest.TestCase):
         row = inspection["coordinates"][0]
         with Image.open(root / "evidence" / inspection["path"]) as sheet:
             self.assertEqual(sheet.mode, "RGBA")
-            for panel_name in ("unmarked_bounds", "located_bounds"):
+            for panel_name in ("unmarked_context_bounds", "located_context_bounds"):
                 left, top, _, _ = row[panel_name]
-                selected = sheet.crop((
-                    left + 4 * 12,
-                    top + 4 * 12,
-                    left + 5 * 12,
-                    top + 5 * 12,
-                ))
-                self.assertEqual(set(selected.getdata()), {(255, 0, 0, 0)})
-            left, top, _, _ = row["unmarked_bounds"]
-            adjacent = sheet.getpixel((left + 5 * 12 + 6, top + 4 * 12 + 6))
+                self.assertEqual(sheet.getpixel((left + 128, top + 128)), (255, 0, 0, 0))
+            left, top, _, _ = row["detail_bounds"]
+            selected = sheet.crop((
+                left + 4 * 12,
+                top + 4 * 12,
+                left + 5 * 12,
+                top + 5 * 12,
+            ))
+            self.assertEqual(set(selected.getdata()), {(255, 0, 0, 0)})
+            left, top, _, _ = row["unmarked_context_bounds"]
+            adjacent = sheet.getpixel((left + 129, top + 128))
             self.assertEqual(adjacent, (0, 0, 255, 96))
 
     def test_review_artifact_paths_cannot_collide_with_observation_ids(self):
