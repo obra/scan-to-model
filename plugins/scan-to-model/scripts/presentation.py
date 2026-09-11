@@ -147,11 +147,14 @@ def _exact_ids(actual, expected, label):
 
 def _validate_run(receipt):
     run = _mapping(receipt.get("run"), "run")
-    command = _string_list(run.get("command"), "run command")
+    command = run.get("command")
+    if not isinstance(command, list) or not command:
+        raise ValueError("run command must be a non-empty list")
+    for argument in command:
+        _string(argument, "run command argument")
     _sha256(run.get("model_sha256"), "run model_sha256")
     _sha256(run.get("script_sha256"), "run script_sha256")
     _string(run.get("blender_version"), "run blender_version")
-    return command
 
 
 def _validate_contract(contract):
@@ -197,7 +200,7 @@ def _validate_contract(contract):
         renderer.get("required_material_ids"), "required material IDs",
     ))
     required_images = set(_string_list(
-        renderer.get("required_image_ids"), "required image IDs",
+        renderer.get("required_image_ids"), "required image IDs", allow_empty=True,
     ))
     material_overrides = _material_overrides(
         renderer.get("material_overrides"), eligible, "presentation material overrides",
@@ -311,6 +314,7 @@ def _validate_frame(frame_id, frame, coverage_root, shots, eligible, contract_va
             image.load()
             if image.width < 1 or image.height < 1:
                 raise ValueError(f"sample frame {frame_id} has empty image dimensions")
+            pixel_budget = image.width * image.height
     except (OSError, ValueError) as error:
         raise ValueError(f"sample frame {frame_id} is not a complete decodable image") from error
 
@@ -387,6 +391,8 @@ def _validate_frame(frame_id, frame, coverage_root, shots, eligible, contract_va
             "visible_pixels": visible_pixels,
             "projected_area_px2": projected_area,
         }
+    if sum(item["visible_pixels"] for item in visibility.values()) > pixel_budget:
+        raise ValueError(f"sample frame {frame_id} visibility exceeds its image pixel budget")
     measured_visible = {
         object_id for object_id, values in visibility.items() if values["visible_pixels"] > 0
     }

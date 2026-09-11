@@ -220,6 +220,20 @@ class PresentationContractTests(unittest.TestCase):
         self.assertEqual(result["required_features"], 3)
         self.assertEqual(result["sample_frames"], 3)
 
+    def test_accepts_repeated_command_arguments(self):
+        self.receipt["run"]["command"] = [
+            "blender", "--render-frame", "1", "--render-frame", "2",
+        ]
+
+        self.assertEqual(self.validate()["status"], "pass")
+
+    def test_accepts_explicitly_textureless_contract(self):
+        self.contract["presentation"]["renderer"]["required_image_ids"] = []
+        for frame in self.coverage["sample_frames"]:
+            frame["image_ids"] = []
+
+        self.assertEqual(self.validate()["status"], "pass")
+
     def test_rejects_omitted_current_eligible_object(self):
         self.receipt["scene_audit"]["included_object_ids"].remove("upper-furnishing")
 
@@ -308,6 +322,14 @@ class PresentationContractTests(unittest.TestCase):
         self.coverage["sample_frames"][0]["object_visibility"][0]["visible_pixels"] = 3
 
         with self.assertRaisesRegex(ValueError, "interior-envelope"):
+            self.validate()
+
+    def test_rejects_raster_visibility_over_the_sample_pixel_budget(self):
+        self.coverage["sample_frames"][0]["object_visibility"][0][
+            "visible_pixels"
+        ] = 13
+
+        with self.assertRaisesRegex(ValueError, "sample-0.*pixel budget"):
             self.validate()
 
     def test_rejects_feature_without_current_eligible_objects(self):
