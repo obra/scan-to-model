@@ -1,6 +1,7 @@
 """Synthetic Blender inventory contracts."""
 
 import importlib.util
+import math
 from pathlib import Path
 import unittest
 
@@ -16,6 +17,11 @@ def load_review():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def matrix_max_delta(left, right):
+    return max(abs(a - b) for row, expected_row in zip(left, right)
+               for a, b in zip(row, expected_row))
 
 
 @unittest.skipIf(bpy is None, "requires Blender's Python")
@@ -105,6 +111,56 @@ class BlenderReviewTests(unittest.TestCase):
                 "hidden_objects": ["Hidden B"],
             },
         ])
+
+    def test_evaluated_world_matrices_reject_excluded_and_wrong_scene_objects(self):
+        review = load_review()
+        excluded = bpy.data.objects.new("Excluded matrix", None)
+        bpy.data.collections["Zulu"].objects.link(excluded)
+        other_scene = bpy.data.scenes.new("Other scene")
+        wrong_scene = bpy.data.objects.new("Wrong scene matrix", None)
+        other_scene.collection.objects.link(wrong_scene)
+        bpy.context.window.scene = self.scene
+        bpy.context.window.view_layer = self.scene.view_layers["Layer A"]
+        bpy.context.view_layer.update()
+        graph = bpy.context.evaluated_depsgraph_get()
+
+        for obj in (excluded, wrong_scene):
+            with self.subTest(obj=obj.name):
+                with self.assertRaisesRegex(ValueError, obj.name):
+                    review.evaluated_world_matrices([obj], graph)
+
+    def test_evaluated_world_matrices_copy_included_rotated_parent_transform(self):
+        from mathutils import Euler, Matrix, Vector
+
+        review = load_review()
+        parent = bpy.data.objects.new("Rotated parent", None)
+        child = bpy.data.objects.new("Included child", None)
+        self.scene.collection.objects.link(parent)
+        self.scene.collection.objects.link(child)
+        child.parent = parent
+        parent.location = (2.0, -1.0, 3.0)
+        parent.rotation_euler = (0.0, 0.0, math.pi / 2)
+        child.location = (1.0, 0.0, 0.0)
+        child.rotation_euler = (0.0, 0.0, math.pi / 6)
+        expected = (
+            Matrix.Translation(Vector(parent.location))
+            @ Euler(parent.rotation_euler).to_matrix().to_4x4()
+            @ Matrix.Translation(Vector(child.location))
+            @ Euler(child.rotation_euler).to_matrix().to_4x4()
+        )
+        bpy.context.window.scene = self.scene
+        bpy.context.window.view_layer = self.scene.view_layers["Layer A"]
+        bpy.context.view_layer.update()
+        graph = bpy.context.evaluated_depsgraph_get()
+
+        self.assertEqual(review.evaluated_world_matrices([], graph), {})
+        matrices = review.evaluated_world_matrices([child], graph)
+
+        self.assertEqual(list(matrices), [child.name])
+        self.assertLess(matrix_max_delta(matrices[child.name], expected), 1e-8)
+        child.location.x = 4.0
+        bpy.context.view_layer.update()
+        self.assertLess(matrix_max_delta(matrices[child.name], expected), 1e-8)
 
 
 if __name__ == "__main__":
