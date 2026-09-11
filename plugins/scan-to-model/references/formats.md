@@ -23,6 +23,8 @@ Paths in the spec are relative to the spec's directory, or absolute. `frame_id` 
 
 Polygon edges are rasterized in the chosen RGB orientation. Rotating equivalent polygons can change a few boundary pixel memberships; the saved native `(u,v)` list is the exact measurement support. Keep selections inside the intended opaque surface rather than treating a drawn polygon edge as a measured physical boundary.
 
+For review of mapped sample locations before plane fitting, put `"fit": false` on **each patch** and leave `"comparisons": []`. The switch is per patch; a top-level `fit` value does not disable fitting. The example below selects this sample-only stage:
+
 ```json
 {
   "capture": "../derived/scan-to-model/captures/survey-one",
@@ -31,14 +33,17 @@ Polygon edges are rasterized in the chosen RGB orientation. Rotating equivalent 
   "pose_variant": "raw",
   "max_depth_m": 5,
   "confidence_value": 255,
-  "rejection_m": 0.02,
   "patches": [
-    {"id": "floor-view-a", "frame_id": "EXACT_FRAME_STEM", "physical_surface": "entry-floor", "polygon_px": [[80,600],[300,600],[300,800],[80,800]], "notes": "Opaque floor; exclude the mat and threshold."},
-    {"id": "floor-view-b", "frame_id": "SECOND_FRAME_STEM", "physical_surface": "entry-floor", "polygon_px": [[100,550],[320,550],[320,780],[100,780]], "notes": "Withheld view of the same physical floor patch."}
+    {"id": "floor-view-a", "frame_id": "EXACT_FRAME_STEM", "physical_surface": "entry-floor", "fit": false, "polygon_px": [[80,600],[300,600],[300,800],[80,800]], "notes": "Opaque floor; exclude the mat and threshold."},
+    {"id": "floor-view-b", "frame_id": "SECOND_FRAME_STEM", "physical_surface": "entry-floor", "fit": false, "polygon_px": [[100,550],[320,550],[320,780],[100,780]], "notes": "Withheld view of the same physical floor patch."}
   ],
-  "comparisons": [["floor-view-a", "floor-view-b"]]
+  "comparisons": []
 }
 ```
+
+With `fit: false`, confidence/range filtering, polygon selection, calibration and the selected transform still produce exact eligible `pixels`, `raw_points` and `points` in the NPZ. `measurements.json` reports `plane: null` and `fit_status: "not fitted"`. The all-false `inlier_mask` means no plane classification was performed; it does **not** mean those eligible samples were rejected or that native depth is absent. Read the status with the mask, and use `eligible_pixels` for support count.
+
+Review those mapped sample locations against the exact unmarked and marked native source before accepting their physical surface interpretation. Sample-only output does not complete that review. Preserve the packet; for a later fitting stage, write a new spec with `fit: true` on accepted patches (omitting a patch's `fit` also enables fitting), set the intended `rejection_m`, and run into a fresh output directory. Add comparison pairs such as `[["floor-view-a", "floor-view-b"]]` only when their physical identity and shared frame are established. Do not reuse a premature fitted plane as a substitute for sample review.
 
 These example pixels are illustrative, not selections to reuse. Each patch may override `capture`, `orientation`, `depth_variant`, `pose_variant` and `transform`. Optional `transform` is a row-major 4×4 rigid matrix mapping raw capture points into the analysis frame, in metres. When comparing captures, explicitly set a shared `analysis_frame` label and supply the appropriate transform for each capture. No transform is inferred or applied twice. Without a transform, output retains the capture's raw axes (ARKit: +Y up, camera looks along −Z).
 
