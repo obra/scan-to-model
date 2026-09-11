@@ -32,6 +32,23 @@ Record the original per-object, collection and view-layer visibility state befor
 
 Retain rejected images, partial output, process status and logs with the manifest and frozen input identities. Do not overwrite a failed attempt or present stale output as a successful sheet. After correcting the manifest, camera, cut or visibility setup, render into a fresh directory and repeat every affected inspection. Never save visibility changes into the reviewed model merely to produce a sheet.
 
+## Frame evaluated drawable geometry
+
+For camera framing and clipping checks, use the selected objects' evaluated drawable vertices, separately from source-state inventory fields. An evaluated object's `bound_box` is not necessarily the tight bound of its drawable surface. In a Blender 5.2.1 legacy-curve fixture, a control-point radius of 1 produces about one unit of bounding-box padding while a bevel depth of 0.02 produces a tube radius of 0.02. This occurs even with the curve included in the active graph and its world transform correctly evaluated. Do not resize physical geometry or widen an evidence allowance to accommodate that box.
+
+Activate the intended scene and view layer, update the layer, and obtain its dependency graph. Require every expected object to be present in `depsgraph.objects`, evaluated, and associated with the expected original object. Calling `evaluated_get` alone does not prove membership: an excluded object or an object from another scene can return unevaluated data and stale transforms. Such an object is **not checked**, not empty or in frame. If the review needs a disposable scene containing the complete declared selection, establish that scene and its visibility explicitly before evaluating it.
+
+For each evaluated mesh-convertible object, call `to_mesh()`, copy every vertex into world space with that evaluated object's `matrix_world`, then release the temporary mesh with `to_mesh_clear()` in `finally`. Reject missing or empty geometry instead of substituting a unit box. Project those copied world points through the selected camera and check image bounds and camera clipping depth. Retain the scene/view-layer identity, object membership, vertex counts and projection results with the framing review. The fixture below contains a working extraction example. Keep original transform, dimension and geometry records intact; this separate framing check does not replace preservation comparison.
+
+The check covers converted geometry in that dependency graph. Instances, volumes, renderer displacement and render-only modifier differences need their own coverage when present. Vertex containment alone does not establish visibility, lack of occlusion, shader appearance or final rendered output.
+
+The synthetic fixture preserves its source blend and results, varies curve point radius while holding bevel depth fixed, and compares against a small mesh control. The first command demonstrates false clipping from the object box and must fail. The second checks drawable bounds and camera containment and must pass. Both reject excluded/inactive objects as missing evaluation. Each output directory must be new:
+
+```text
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python tests/blender_drawable_bounds.py -- --method bound-box --output /path/to/review/curve-box-framing
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python tests/blender_drawable_bounds.py -- --output /path/to/review/curve-mesh-framing
+```
+
 ## Bind review inputs before launch
 
 Choose the exact model artifact and review-helper bytes before starting Blender. Prefer an existing saved immutable source or candidate for the model. Make an ordinary byte-for-byte copy of the helper selected from its reviewed commit or package into review-controlled storage. When the model path can be replaced during the review, copy it there as well. Invoke Blender only with the frozen model and helper paths, retain them, and leave them untouched until their post-run hashes are recorded. Do not use a hard link as a snapshot if the source may be modified in place, because both names share the same underlying bytes. Do not resave a blend merely to freeze it; saving can rewrite relative external paths.
