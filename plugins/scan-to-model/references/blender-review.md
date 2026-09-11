@@ -60,6 +60,48 @@ Before inspecting the model, confirm that `bpy.app.tempdir` and `bpy.context.pre
 
 This GUI command is for manual inspection and does not run the inventory helper. Bind any inspection script it does run in the same way as the helper. Run the inventory separately from the frozen model and helper paths described above.
 
+## Snapshot collections before visibility changes
+
+`Collection.all_objects` is a live Blender collection. A render helper that changes `hide_render` or other visibility state while iterating that live collection can invalidate the traversal, skip descendants or return invalid entries. Materialize the selected descendants before the first visibility change. Use that same tuple to capture original state, compute the complete requested state, apply it, verify it after updating the view layer, and restore and verify it in `finally`:
+
+```python
+render_objects = tuple(root.all_objects)
+original = {obj.name: obj.hide_render for obj in render_objects}
+requested = {
+    obj.name: original[obj.name] or obj.name not in included_names
+    for obj in render_objects
+}
+try:
+    for obj in render_objects:
+        obj.hide_render = requested[obj.name]
+    view_layer.update()
+    if {obj.name: obj.hide_render for obj in render_objects} != requested:
+        raise RuntimeError("render visibility assignment did not stick")
+    selected_visible = {
+        obj.name for obj in render_objects
+        if obj.type in {"CURVE", "FONT", "MESH", "SURFACE"}
+        and not obj.hide_render
+        and obj.visible_get(view_layer=view_layer)
+    }
+    if selected_visible != included_names:
+        raise RuntimeError("pre-render selection does not match the requested set")
+    # Render only after both checks pass.
+finally:
+    for obj in render_objects:
+        obj.hide_render = original[obj.name]
+    view_layer.update()
+    if {obj.name: obj.hide_render for obj in render_objects} != original:
+        raise RuntimeError("render visibility was not restored")
+```
+
+Here `included_names` is the exact set of renderable descendants expected to be enabled and visible in the selected view layer after preserving any original `hide_render=True` state. `visible_get` is a viewport and view-layer check; it does not account for collection-level `hide_render` or prove final renderer output. Audit collection render flags separately and inspect the resulting render.
+
+The synthetic fixture links one nested collection into source and disposable render scenes, applies fourteen visibility configurations to 384 descendants, checks the assigned flags and selected view-layer-visible set, and restores every original flag:
+
+```text
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python tests/blender_collection_visibility.py -- --output /path/to/review/collection-visibility
+```
+
 Run:
 
 ```text
