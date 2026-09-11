@@ -77,6 +77,19 @@ def validate_depth(depth, confidence, camera):
         raise ValueError('Depth and camera aspect ratios differ')
 
 
+def read_depth(path):
+    """Decode unsigned 16-bit grayscale PNG samples without changing their values."""
+    with Path(path).open('rb') as stream:
+        header = stream.read(26)
+        # IHDR records the source bit depth and color type, independent of Pillow's mode.
+        if (header[:16] != b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR'
+                or header[24:26] != b'\x10\x00'):
+            raise ValueError('Depth image must be a 16-bit grayscale PNG')
+        stream.seek(0)
+        with Image.open(stream) as image:
+            return np.array(image, dtype=np.uint16)
+
+
 def read_frame(root, frame_id, depth_variant='raw', pose_variant='raw'):
     """Read the requested variants without replacing missing calibration or data."""
     paths = frame_paths(root, frame_id, depth_variant, pose_variant)
@@ -85,8 +98,7 @@ def read_frame(root, frame_id, depth_variant='raw', pose_variant='raw'):
             raise FileNotFoundError(f'Missing frame component: {path}')
     camera = json.loads(paths['camera'].read_text())
     validate_camera(camera)
-    with Image.open(paths['depth']) as image:
-        depth = np.array(image)
+    depth = read_depth(paths['depth'])
     with Image.open(paths['confidence']) as image:
         confidence = np.array(image)
     with Image.open(paths['rgb']) as image:

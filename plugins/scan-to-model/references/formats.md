@@ -11,6 +11,8 @@ python "$PLUGIN/scripts/reference.py" "$CAPTURE" "$PROJECT/derived/reference-one
 
 Intake preserves the original archive in `sources/`, extracts it under `derived/scan-to-model/captures/`, and writes a frame index and inventory under `docs/scan-to-model/captures/`. Read the returned `capture_root`: exports may contain an enclosing folder. References are sampled, not a full surface reconstruction. Clean depth and corrected poses require explicit selection and actual corresponding source files.
 
+Native depth must be a 16-bit grayscale PNG (IHDR bit depth 16, color type 0), with unsigned millimetre samples. The reader verifies this source format and exposes the decoded values as `uint16`, preserving zero and the full sample range regardless of Pillow's integer storage mode. It does not rescale or clamp values, accept other image formats, or rewrite source files. The array API still requires nonempty 2-D `uint16` depth and matching 2-D `uint8` confidence.
+
 ## Surface measurement
 
 ```sh
