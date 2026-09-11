@@ -8,7 +8,7 @@ try:
 except ImportError:
     bpy = None
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def value_snapshot(value):
@@ -189,7 +189,8 @@ def inventory():
                        for light in sorted(bpy.data.lights, key=lambda x: x.name)],
             "worlds": [{"name": w.name, "settings": properties(w), "nodes": node_tree_snapshot(w.node_tree)}
                        for w in sorted(bpy.data.worlds, key=lambda x: x.name)],
-            "images": [{"name": img.name, "settings": properties(img, {'pixels'}), "colorspace": properties(img.colorspace_settings)}
+            "images": [{"name": img.name, "settings": properties(img, {'pixels'}),
+                        "colorspace": properties(img.colorspace_settings), "tags": tags(img)}
                        for img in sorted(bpy.data.images, key=lambda x: x.name) if img.type != 'RENDER_RESULT']}
 
 
