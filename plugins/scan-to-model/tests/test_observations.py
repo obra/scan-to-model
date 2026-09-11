@@ -395,6 +395,26 @@ class ObservationSheetTests(unittest.TestCase):
                 coordinate_inspections="yes",
             )
 
+    def test_coordinate_inspections_balance_many_coordinates_across_columns(self):
+        root = make_workspace()
+        data = valid_spec(root)
+        data["observations"] = [data["observations"][2]]
+        data["observations"][0]["marks"]["coordinates"] = [
+            [index % 3, (index // 3) % 2]
+            for index in range(10)
+        ]
+        data["features"] = []
+
+        record = self.generate(
+            write_spec(root, data), root / "evidence", coordinate_inspections=True
+        )
+
+        coordinates = record["annotations"][0]["review"]["coordinate_inspection"]["coordinates"]
+        panel_rows = {row["unmarked_bounds"][1] for row in coordinates}
+        panel_columns = {row["unmarked_bounds"][0] for row in coordinates}
+        self.assertEqual(len(panel_rows), 5)
+        self.assertEqual(len(panel_columns), 2)
+
     def test_review_artifact_paths_cannot_collide_with_observation_ids(self):
         root = make_workspace()
         data = {

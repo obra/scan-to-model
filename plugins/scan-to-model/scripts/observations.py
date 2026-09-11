@@ -464,8 +464,8 @@ def _draw_open_locator(image):
 
 def _coordinate_inspection_bytes(source, displayed, annotation):
     count = len(annotation["native_coordinates"])
-    rows = min(count, COORDINATE_ROWS_PER_COLUMN)
     columns = math.ceil(count / COORDINATE_ROWS_PER_COLUMN)
+    rows = math.ceil(count / columns)
     panel_size = (COORDINATE_CONTEXT_RADIUS_PX * 2 + 1) * COORDINATE_MAGNIFICATION
     cell_width = panel_size * 2 + COORDINATE_PANEL_GAP
     cell_height = COORDINATE_LABEL_HEIGHT + panel_size + COORDINATE_CELL_GAP
@@ -487,8 +487,8 @@ def _coordinate_inspection_bytes(source, displayed, annotation):
         context = _coordinate_context(displayed, nearest_display)
         located = context.copy()
         _draw_open_locator(located)
-        column = index // COORDINATE_ROWS_PER_COLUMN
-        row = index % COORDINATE_ROWS_PER_COLUMN
+        column = index // rows
+        row = index % rows
         left = COORDINATE_PADDING + column * (cell_width + COORDINATE_COLUMN_GAP)
         top = COORDINATE_PADDING + row * cell_height
         panel_top = top + COORDINATE_LABEL_HEIGHT
