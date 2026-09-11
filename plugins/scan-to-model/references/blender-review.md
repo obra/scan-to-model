@@ -46,6 +46,21 @@ blender -b --factory-startup --python-exit-code 1 --python tests/blender_candida
 blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode preserve-final-paths --output /path/to/review/candidate-promotion-preserved
 ```
 
+## Evidence-reference closure
+
+A source ID stored on an object does not bring its photograph or registry record into the blend. Likewise, image counts and “all present images are packed” checks say nothing about originals that were never appended. Before promotion, declare the project's evidence schema explicitly: which objects are substantive, where their source ID lists live, which registry resolves them, and which fields preserve complete source identity and uncertainty. Do not infer this contract by tokenizing arbitrary custom-property strings.
+
+Audit every substantive object and every source ID it declares. An original or qualified-upright record must resolve to the named image datablock with matching identity metadata and source hash; the image must be packed and its pixels readable after reopening the final file. A qualified-upright record must also resolve to its original record. Append and pack that original even when no object cites it directly. A packed derivative alone does not preserve the native source.
+
+Classify documentary evidence with no established image or location as documentary and unlocated. Preserve its full document identity and uncertainty without inventing a photograph binding or using it to claim image-grounded placement. In an interactive review, select representative substantive objects and follow their declared references. The promotion gate must then traverse all substantive objects and declared source chains under the same explicit schema; representative inspection alone is not closure. The inventory records custom properties and images, but it does not establish this semantic relationship.
+
+The synthetic Blender fixture uses an explicit invented schema. Its first mode must fail even though every image present is packed, because a cited qualified-upright source has no appended original. Its complete mode appends and packs that original, reopens the final blend, and audits all declared visual and documentary references:
+
+```text
+blender -b --factory-startup --python-exit-code 1 --python tests/blender_evidence_reference_closure.py -- --mode missing-original --output /path/to/review/evidence-closure-missing-original
+blender -b --factory-startup --python-exit-code 1 --python tests/blender_evidence_reference_closure.py -- --mode complete --output /path/to/review/evidence-closure-complete
+```
+
 The inventory covers these source properties:
 
 - Objects: type, transforms, parent and datablock references, writable scalar/array settings including visibility and instancing, collection membership, material slots, custom source tags, modifier order/settings, and constraint order/settings. Modifier and constraint settings include writable scalar/array properties and datablock references; modifier custom properties include Geometry Nodes input values.
