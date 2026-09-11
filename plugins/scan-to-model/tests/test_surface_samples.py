@@ -18,6 +18,100 @@ SCRATCH_ROOT = Path(os.environ.get('SCAN_TO_MODEL_TEST_SCRATCH', Path.cwd() / '.
 
 
 class SurfaceSampleTests(unittest.TestCase):
+    def test_tracking_segment_scope_rejects_mismatch_and_preserves_unknown(self):
+        missing = object()
+
+        def run_case(label, camera_segment=missing, declared_segment=missing, corrected=False):
+            root = SCRATCH_ROOT / str(uuid.uuid4()) / label
+            capture = root / 'capture'
+            for directory in ('images', 'depth', 'confidence', 'cameras'):
+                (capture / 'keyframes' / directory).mkdir(parents=True)
+            if corrected:
+                (capture / 'keyframes/corrected_cameras').mkdir()
+            Image.fromarray(np.full((4, 4), 2000, dtype=np.uint16)).save(
+                capture / 'keyframes/depth/001.png')
+            Image.fromarray(np.full((4, 4), 255, dtype=np.uint8)).save(
+                capture / 'keyframes/confidence/001.png')
+            Image.new('RGB', (8, 8), (31, 63, 95)).save(
+                capture / 'keyframes/images/001.jpg')
+            camera = {
+                'width': 8, 'height': 8, 'fx': 8, 'fy': 8, 'cx': 4, 'cy': 4,
+                't_00': 1, 't_01': 0, 't_02': 0, 't_03': 0,
+                't_10': 0, 't_11': 1, 't_12': 0, 't_13': 0,
+                't_20': 0, 't_21': 0, 't_22': 1, 't_23': 0,
+            }
+            if camera_segment is not missing:
+                camera['tracking_segment'] = camera_segment
+            (capture / 'keyframes/cameras/001.json').write_text(json.dumps(camera))
+            if corrected:
+                corrected_camera = {key: value for key, value in camera.items()
+                                    if key != 'tracking_segment'}
+                (capture / 'keyframes/corrected_cameras/001.json').write_text(
+                    json.dumps(corrected_camera))
+            spec = {
+                'capture': 'capture', 'orientation': 'raw',
+                'analysis_frame': 'synthetic raw capture',
+                'patches': [{
+                    'id': 'sample', 'frame_id': '001', 'physical_surface': 'synthetic plane',
+                    'fit': False, 'polygon_px': [[0, 0], [7, 0], [7, 7], [0, 7]],
+                }],
+                'comparisons': [],
+            }
+            if declared_segment is not missing:
+                spec['tracking_segment'] = declared_segment
+            if corrected:
+                spec['pose_variant'] = 'corrected'
+            spec_path = root / 'spec.json'
+            spec_path.write_text(json.dumps(spec))
+            source_hashes = {path: hashlib.sha256(path.read_bytes()).hexdigest()
+                             for path in capture.rglob('*') if path.is_file()}
+            environment = os.environ.copy()
+            for name, directory in [('MPLCONFIGDIR', 'matplotlib'), ('TMPDIR', 'tmp')]:
+                path = root / directory
+                path.mkdir()
+                environment[name] = str(path)
+            environment['PYTHONDONTWRITEBYTECODE'] = '1'
+            output = root / 'output'
+            process = subprocess.run(
+                [sys.executable, str(SCRIPT), '--spec', str(spec_path), '--output', str(output)],
+                env=environment, capture_output=True, text=True,
+            )
+            (root / 'process.log').write_text(process.stdout + process.stderr)
+            self.assertEqual(source_hashes, {
+                path: hashlib.sha256(path.read_bytes()).hexdigest() for path in source_hashes
+            })
+            return process, output
+
+        mismatch, mismatch_output = run_case('mismatch', camera_segment=7, declared_segment=8)
+        self.assertNotEqual(mismatch.returncode, 0)
+        self.assertIn('tracking segment', mismatch.stderr.lower())
+        self.assertFalse((mismatch_output / 'measurements.json').exists())
+
+        unavailable, unavailable_output = run_case('unavailable', declared_segment=7)
+        self.assertNotEqual(unavailable.returncode, 0)
+        self.assertIn('tracking segment', unavailable.stderr.lower())
+        self.assertFalse((unavailable_output / 'measurements.json').exists())
+
+        matching, matching_output = run_case('matching', camera_segment=7, declared_segment=7)
+        self.assertEqual(matching.returncode, 0, matching.stderr)
+        matching_row = json.loads((matching_output / 'measurements.json').read_text())['patches'][0]
+        self.assertEqual(matching_row['declared_tracking_segment'], 7)
+        self.assertEqual(matching_row['camera_tracking_segment'], 7)
+
+        corrected, corrected_output = run_case(
+            'corrected', camera_segment=7, declared_segment=7, corrected=True)
+        self.assertEqual(corrected.returncode, 0, corrected.stderr)
+        corrected_row = json.loads(
+            (corrected_output / 'measurements.json').read_text())['patches'][0]
+        self.assertEqual(corrected_row['declared_tracking_segment'], 7)
+        self.assertEqual(corrected_row['camera_tracking_segment'], 7)
+
+        unknown, unknown_output = run_case('unknown')
+        self.assertEqual(unknown.returncode, 0, unknown.stderr)
+        unknown_row = json.loads((unknown_output / 'measurements.json').read_text())['patches'][0]
+        self.assertIsNone(unknown_row['declared_tracking_segment'])
+        self.assertIsNone(unknown_row['camera_tracking_segment'])
+
     def test_fit_switch_preserves_eligible_samples_and_source_review_figures(self):
         root = SCRATCH_ROOT / str(uuid.uuid4())
         capture = root / 'capture'
