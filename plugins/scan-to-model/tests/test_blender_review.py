@@ -2,8 +2,10 @@
 
 import importlib.util
 import math
+import os
 from pathlib import Path
 import unittest
+import uuid
 
 try:
     import bpy
@@ -161,6 +163,58 @@ class BlenderReviewTests(unittest.TestCase):
         child.location.x = 4.0
         bpy.context.view_layer.update()
         self.assertLess(matrix_max_delta(matrices[child.name], expected), 1e-8)
+
+    def test_inventory_compares_nested_object_mesh_and_image_properties(self):
+        review = load_review()
+        mesh = bpy.data.meshes.new("Tagged mesh")
+        mesh.from_pydata([(0, 0, 0), (1, 0, 0), (0, 1, 0)], [], [(0, 1, 2)])
+        obj = bpy.data.objects.new("Tagged object", mesh)
+        self.scene.collection.objects.link(obj)
+        scratch = Path(os.environ.get(
+            "SCAN_TO_MODEL_TEST_SCRATCH",
+            Path.cwd() / ".test-scratch" / "blender-review",
+        )) / str(uuid.uuid4())
+        scratch.mkdir(parents=True)
+        image_path = scratch / "tagged-image.png"
+        generated = bpy.data.images.new("Synthetic pixels", width=2, height=2, alpha=True)
+        generated.pixels = (0.25, 0.5, 0.75, 1.0) * 4
+        generated.filepath_raw = str(image_path)
+        generated.file_format = "PNG"
+        generated.save()
+        bpy.data.images.remove(generated)
+        image = bpy.data.images.load(str(image_path), check_existing=False)
+        image.name = "Tagged image"
+        image.pack()
+        self.assertIsNotNone(image.packed_file)
+        self.assertEqual(tuple(image.size), (2, 2))
+        self.assertEqual(len(image.pixels[:]), 16)
+        for owner in (obj, mesh, image):
+            owner["review"] = {"threshold": 0.25, "note": "synthetic baseline"}
+
+        baseline = review.inventory()
+        legacy = dict(baseline, schema_version=1)
+        with self.assertRaisesRegex(ValueError, "helper schema"):
+            review.compare_inventory(legacy, baseline)
+        for group, name in (("objects", obj.name), ("meshes", mesh.name), ("images", image.name)):
+            with self.subTest(group=group):
+                row = next(item for item in baseline[group] if item["name"] == name)
+                self.assertEqual(row["tags"]["review"], {
+                    "threshold": 0.25,
+                    "note": "synthetic baseline",
+                })
+
+        tracked = {"objects": obj, "meshes": mesh, "images": image}
+        unchanged = review.compare_inventory(baseline, review.inventory())
+        self.assertTrue(all(not unchanged[group]["changed"] for group in tracked))
+
+        for changed_group, owner in tracked.items():
+            with self.subTest(changed_group=changed_group):
+                owner["review"]["threshold"] = 1.25
+                comparison = review.compare_inventory(baseline, review.inventory())
+                self.assertEqual(comparison[changed_group]["changed"], [owner.name])
+                self.assertTrue(all(not comparison[group]["changed"]
+                                    for group in tracked if group != changed_group))
+                owner["review"]["threshold"] = 0.25
 
 
 if __name__ == "__main__":
