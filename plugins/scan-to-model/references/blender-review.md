@@ -4,6 +4,31 @@ Before reviewing a manufactured component, distinguish immutable photo/depth con
 
 Show the constrained component clearly by default and label any raw trace overlay as evidence. Verify right angles and opposite-edge relationships on the saved mesh, including recessed/inset profiles and dependent holes or adjoining faces. A rectangular diagram alone does not establish rectangular Blender geometry; a corrected panel can still leave a mismatched opening around it.
 
+## Contract scripted presentations before rendering
+
+Choose the presentation mode before authoring a route. A `first-person-walkthrough` follows a saved sequence of floor-relative viewpoints within an explicit human eye-height range. It includes interior routes, upward views of ceilings and fixtures, content-bearing rooms, and exterior views when those are required. A `cutaway-orbit` may use elevated cameras or deliberately hidden architecture to explain a model, but it is a different deliverable and cannot stand in for a walkthrough. Join discontinuous architectural shots with cuts; crossfades can make opaque walls look translucent by superimposing separate viewpoints.
+
+Save a presentation contract with stable IDs rather than resolving categories from object names. Its object register must enumerate the complete current model scope and assign every object one of `current-eligible`, `retired`, or `excluded-source`. The rendered scene audit must include exactly the current-eligible set and keep the other two sets excluded. A required feature names its exact current-eligible object IDs, required view intents, finding ID, minimum raster-visible pixels, and minimum projected area. If an expected feature has no current-eligible object, the contract fails; do not accept an empty group, a retired substitute, or a name-only guess.
+
+The contract's renderer section declares `allowed_engines` (`BLENDER_EEVEE` and/or `CYCLES`), `material_mode: "materials-and-textures"`, required material and image IDs, and a `material_overrides` list, which may be empty. Each material override records the current-eligible object ID, original material ID, render material ID, and the physical appearance intent. The run receipt repeats the exact override list. This permits a narrowly audited render-only material correction without confusing it with native material preservation. Every render material ID introduced by an override must also appear among the required material IDs.
+
+Before rendering the full animation, render a saved sample frame for every route shot and required view intent. Record the model and script hashes, exact command, Blender version, scene/view-layer/camera/floor-reference IDs, floor and camera elevations, eye height, sample file hash and size, stable visible object IDs, material and image IDs, projected bounds, and per-object visibility counts. `visible_pixels` means an actual raster count such as an object-ID pass; label a ray-sample estimate differently and do not submit it as measured pixels. Inspect the bound sample images at their intended display size. Confirm opaque architecture, transparent glazing, textured image surfaces, ceilings and lighting, required contents, and exterior context as applicable. Do not start the full animation until both the validator and that visual review pass.
+
+Schema 1 has three hash-bound JSON documents. The contract contains `schema_version` and `presentation`, whose fields are `mode`, `eye_height_m`, `objects`, `renderer`, and `required_features`. The run receipt contains `schema_version`, `contract_sha256`, `run`, `presentation_mode`, `renderer`, `scene_audit`, ordered `shots`, adjacent `transitions`, and `coverage_file`. The coverage document contains `schema_version`, `method`, and `sample_frames`. See `tests/test_presentation.py` for a complete synthetic document set and the exact nested field names.
+
+`scripts/presentation.py` validates schema version 1 of the contract, run receipt, separate coverage file, and bound sample images:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 python3 -B scripts/presentation.py \
+  --contract PRESENTATION-CONTRACT.json \
+  --receipt RUN-RECEIPT.json \
+  --output PRESENTATION-VALIDATION.json
+```
+
+Use a new output path for every validation attempt; the command refuses to replace an existing result.
+
+For each required feature, every declared object must meet both visibility thresholds in at least one sample for every declared view intent, with its finding marked `pass`. The validator also requires exact scene membership, floor-relative eye height for walkthrough shots, cut transitions, decodable hash-bound samples, and coverage of all required material and image IDs. These are consistency checks over reported scene, projection, occlusion, material, image, and inspection evidence. They do not independently prove what the rendered pixels depict; retain the samples and the human visual findings with the validation result.
+
 ## Keep diagnostic geometry out of physical placement
 
 A ray intersection, projected point, fitted plane or sensitivity trial can be numerically exact while remaining diagnostic. Its coordinates do not establish the physical surface used to derive them, a contact at that surface or an attachment between modeled parts. Keep the observation, assumed construction, derived result and disposition linked when evidence passes between tools. The project's explicit handoff schema should preserve the source identity and uncertainty, the assumed plane or other construction, the result, its allowed uses, and whether independent evidence has accepted it for physical placement. Do not infer acceptance from coordinates being present or from words embedded in an arbitrary property string.
