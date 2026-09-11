@@ -29,8 +29,8 @@ Before promotion, inspect every stored external path, including packed paths fro
 The synthetic check demonstrates both policies with invented packed and unpacked images. Each invocation requires a new output directory and retains its source images, source blend, reopened candidate, byte-copied promoted blend, and `result.json`. The first command must fail after byte-copy promotion because the default binds paths to scratch; the second must pass because the final-path references, readable source pixels, source hashes, and packed bytes survive:
 
 ```text
-blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode default --output /tmp/candidate-promotion-default
-blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode preserve-final-paths --output /tmp/candidate-promotion-preserved
+blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode default --output /path/to/review/candidate-promotion-default
+blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode preserve-final-paths --output /path/to/review/candidate-promotion-preserved
 ```
 
 The inventory covers these source properties:
