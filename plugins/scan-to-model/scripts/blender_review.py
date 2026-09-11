@@ -124,6 +124,22 @@ def view_layer_snapshots(scene):
             for layer in scene.view_layers]
 
 
+def evaluated_world_matrices(objects, depsgraph):
+    """Copy world matrices for objects evaluated in the supplied dependency graph."""
+    requested = tuple(objects)
+    matrices = {}
+    for original in requested:
+        evaluated = depsgraph.objects.get(original.name)
+        if evaluated is None:
+            raise ValueError(f"object is absent from dependency graph: {original.name}")
+        if not evaluated.is_evaluated:
+            raise ValueError(f"dependency graph returned a non-evaluated object: {original.name}")
+        if evaluated.original is not original:
+            raise ValueError(f"dependency graph returned the wrong original object: {original.name}")
+        matrices[original.name] = evaluated.matrix_world.copy()
+    return matrices
+
+
 def inventory():
     objects = []
     for obj in sorted(bpy.data.objects, key=lambda x: x.name):
