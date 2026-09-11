@@ -174,6 +174,9 @@ class ObservationSheetTests(unittest.TestCase):
         self.assertEqual(image.attrib["transform"], "matrix(0 1 -1 0 2 0)")
         polyline = turned_svg.find(f".//{SVG}polyline[@data-observation-id='obs-turned-corners']")
         self.assertEqual(polyline.attrib["points"], "1.5,0.5 1.5,2.5 0.5,0.5 0.5,2.5")
+        turned_label = turned_svg.find(f".//{SVG}text[@data-observation-id='obs-turned-corners']")
+        self.assertEqual(turned_label.attrib["text-anchor"], "end")
+        self.assertEqual(turned_label.attrib["dx"], "-6")
         labels = [node.text for node in raw_svg.findall(f".//{SVG}text")]
         self.assertIn("A < B & C", labels)
 

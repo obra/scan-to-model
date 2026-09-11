@@ -341,9 +341,13 @@ def _sheet_bytes(source, annotations):
             tag = "polyline" if annotation["type"] == "polyline" else "polygon"
             ET.SubElement(group, _svg(tag), {**common, "points": points})
         x, y = displayed_edges[0]
+        label_on_right = x <= width / 2
         text = ET.SubElement(group, _svg("text"), {
-            "x": _number(x + 6),
-            "y": _number(y + 6),
+            "x": _number(x),
+            "y": _number(y),
+            "dx": "6" if label_on_right else "-6",
+            "dy": "14" if y <= height / 2 else "-6",
+            "text-anchor": "start" if label_on_right else "end",
             "fill": "#ffffff",
             "stroke": "#000000",
             "stroke-width": "3",
