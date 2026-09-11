@@ -123,9 +123,9 @@ def embedded_bytes(root):
 
 
 class ObservationSheetTests(unittest.TestCase):
-    def generate(self, spec_path, output):
+    def generate(self, spec_path, output, **options):
         from observations import generate_evidence
-        return generate_evidence(spec_path, output)
+        return generate_evidence(spec_path, output, **options)
 
     def test_preserves_inputs_and_embeds_exact_source_bytes(self):
         root = make_workspace()
@@ -233,7 +233,7 @@ class ObservationSheetTests(unittest.TestCase):
 
         record = self.generate(write_spec(root, data), root / "evidence")
 
-        self.assertEqual(record["schema_version"], 2)
+        self.assertEqual(record["schema_version"], 3)
         annotations = {row["id"]: row for row in record["annotations"]}
         expected = {
             "obs-locator": ([48, 28, 113, 93], []),
@@ -269,6 +269,223 @@ class ObservationSheetTests(unittest.TestCase):
         end_crop = svg_root(root / "evidence/review/obs-span/endpoint-0.svg")
         endpoint_mark = end_crop.find(f".//{SVG}circle[@data-observation-id='obs-span']")
         self.assertEqual((endpoint_mark.attrib["cx"], endpoint_mark.attrib["cy"]), ("10.5", "10.5"))
+
+    def test_coordinate_inspections_show_exact_raw_and_rotated_pixels_without_covering_them(self):
+        root = make_workspace()
+        pixels = Image.new("RGB", (5, 4))
+        pixels.putdata([
+            (u * 40 + 5, v * 50 + 7, u * 10 + v)
+            for v in range(4)
+            for u in range(5)
+        ])
+        pixels.save(root / "images/grid-raw.png")
+        pixels.save(root / "images/grid-turned.png")
+        coordinates = [[0, 0], [2.49, 1.51], [4, 3]]
+        data = {
+            "sources": [
+                {"id": "grid-raw", "path": "images/grid-raw.png", "orientation": "raw"},
+                {"id": "grid-turned", "path": "images/grid-turned.png",
+                 "orientation": "upright90cw"},
+            ],
+            "observations": [
+                {
+                    "id": "raw-points",
+                    "source_id": "grid-raw",
+                    "marks": {"type": "polygon", "meaning": "fixture", "coordinates": coordinates},
+                    "endpoints": [],
+                    "qualification": {"status": "synthetic"},
+                },
+                {
+                    "id": "turned-points",
+                    "source_id": "grid-turned",
+                    "marks": {"type": "polygon", "meaning": "fixture", "coordinates": coordinates},
+                    "endpoints": [],
+                    "qualification": {"status": "synthetic"},
+                },
+            ],
+            "features": [],
+        }
+        source_bytes = {
+            source["id"]: (root / source["path"]).read_bytes()
+            for source in data["sources"]
+        }
+
+        record = self.generate(
+            write_spec(root, data), root / "evidence", coordinate_inspections=True
+        )
+
+        self.assertEqual(record["schema_version"], 3)
+        self.assertTrue(record["generator"]["coordinate_inspections"])
+        annotations = {row["id"]: row for row in record["annotations"]}
+        expected_display = {
+            "raw-points": [[0, 0], [2.49, 1.51], [4, 3]],
+            "turned-points": [[3, 0], [1.49, 2.49], [0, 4]],
+        }
+        expected_nearest_display = {
+            "raw-points": [[0, 0], [2, 2], [4, 3]],
+            "turned-points": [[3, 0], [1, 2], [0, 4]],
+        }
+        source_pixels = pixels.load()
+        for observation_id in ("raw-points", "turned-points"):
+            inspection = annotations[observation_id]["review"]["coordinate_inspection"]
+            artifact = root / "evidence" / inspection["path"]
+            self.assertEqual(inspection["sha256"], hashlib.sha256(artifact.read_bytes()).hexdigest())
+            self.assertEqual(inspection["media_type"], "image/png")
+            self.assertEqual(inspection["resampling"], "nearest")
+            self.assertEqual(inspection["context_radius_display_pixels"], 128)
+            self.assertEqual(inspection["context_magnification"], 1)
+            self.assertEqual(inspection["detail_radius_display_pixels"], 4)
+            self.assertEqual(inspection["detail_magnification"], 12)
+            self.assertEqual(
+                [row["display"] for row in inspection["coordinates"]],
+                expected_display[observation_id],
+            )
+            self.assertEqual(
+                [row["nearest_display_pixel"] for row in inspection["coordinates"]],
+                expected_nearest_display[observation_id],
+            )
+            with Image.open(artifact) as sheet:
+                sheet.load()
+                for index, row in enumerate(inspection["coordinates"]):
+                    native_u, native_v = row["nearest_native_pixel"]
+                    expected_color = (*source_pixels[native_u, native_v], 255)
+                    for panel_name in ("unmarked_context_bounds", "located_context_bounds"):
+                        left, top, _, _ = row[panel_name]
+                        self.assertEqual(sheet.getpixel((left + 128, top + 128)), expected_color)
+
+                    left, top, _, _ = row["detail_bounds"]
+                    selected = sheet.crop((
+                        left + 4 * 12,
+                        top + 4 * 12,
+                        left + 5 * 12,
+                        top + 5 * 12,
+                    ))
+                    self.assertEqual(set(selected.getdata()), {expected_color})
+
+                    left, top, _, _ = row["unmarked_context_bounds"]
+                    if index == 1 and observation_id == "raw-points":
+                        right_color = sheet.getpixel((left + 129, top + 128))
+                        down_color = sheet.getpixel((left + 128, top + 129))
+                        self.assertEqual(right_color, (*source_pixels[3, 2], 255))
+                        self.assertEqual(down_color, (*source_pixels[2, 3], 255))
+                    if index == 1 and observation_id == "turned-points":
+                        right_color = sheet.getpixel((left + 129, top + 128))
+                        down_color = sheet.getpixel((left + 128, top + 129))
+                        self.assertEqual(right_color, (*source_pixels[2, 1], 255))
+                        self.assertEqual(down_color, (*source_pixels[3, 2], 255))
+
+        self.assertEqual(source_bytes, {
+            source["id"]: (root / source["path"]).read_bytes()
+            for source in data["sources"]
+        })
+        repeated = self.generate(
+            root / "observations.json", root / "evidence-repeated",
+            coordinate_inspections=True,
+        )
+        for annotation in repeated["annotations"]:
+            repeated_inspection = annotation["review"]["coordinate_inspection"]
+            first_inspection = annotations[annotation["id"]]["review"]["coordinate_inspection"]
+            self.assertEqual(repeated_inspection, first_inspection)
+            self.assertEqual(
+                (root / "evidence-repeated" / repeated_inspection["path"]).read_bytes(),
+                (root / "evidence" / first_inspection["path"]).read_bytes(),
+            )
+
+    def test_coordinate_inspections_require_a_boolean_option(self):
+        root = make_workspace()
+        with self.assertRaisesRegex(ValueError, "coordinate_inspections must be a boolean"):
+            self.generate(
+                write_spec(root, valid_spec(root)),
+                root / "evidence",
+                coordinate_inspections="yes",
+            )
+
+    def test_coordinate_inspections_balance_many_coordinates_across_columns(self):
+        root = make_workspace()
+        data = valid_spec(root)
+        data["observations"] = [data["observations"][2]]
+        data["observations"][0]["marks"]["coordinates"] = [
+            [index % 3, (index // 3) % 2]
+            for index in range(10)
+        ]
+        data["features"] = []
+
+        record = self.generate(
+            write_spec(root, data), root / "evidence", coordinate_inspections=True
+        )
+
+        coordinates = record["annotations"][0]["review"]["coordinate_inspection"]["coordinates"]
+        panel_rows = {row["unmarked_context_bounds"][1] for row in coordinates}
+        panel_columns = {row["unmarked_context_bounds"][0] for row in coordinates}
+        self.assertEqual(len(panel_rows), 5)
+        self.assertEqual(len(panel_columns), 2)
+
+    def test_coordinate_inspection_columns_differ_by_at_most_one_item(self):
+        root = make_workspace()
+        data = valid_spec(root)
+        data["observations"] = [data["observations"][2]]
+        data["observations"][0]["marks"]["coordinates"] = [
+            [index % 3, (index // 3) % 2]
+            for index in range(57)
+        ]
+        data["features"] = []
+
+        record = self.generate(
+            write_spec(root, data), root / "evidence", coordinate_inspections=True
+        )
+
+        coordinates = record["annotations"][0]["review"]["coordinate_inspection"]["coordinates"]
+        column_sizes = {}
+        for row in coordinates:
+            column = row["unmarked_context_bounds"][0]
+            column_sizes[column] = column_sizes.get(column, 0) + 1
+        self.assertEqual(len(column_sizes), 8)
+        self.assertLessEqual(max(column_sizes.values()) - min(column_sizes.values()), 1)
+
+    def test_coordinate_inspections_preserve_transparent_source_pixels(self):
+        root = make_workspace()
+        source = Image.new("RGBA", (3, 2), (20, 40, 60, 255))
+        source.putpixel((1, 0), (255, 0, 0, 0))
+        source.putpixel((2, 0), (0, 0, 255, 96))
+        source.save(root / "images/transparent.png")
+        data = {
+            "sources": [
+                {"id": "transparent", "path": "images/transparent.png", "orientation": "raw"},
+            ],
+            "observations": [
+                {
+                    "id": "transparent-point",
+                    "source_id": "transparent",
+                    "marks": {"type": "point", "meaning": "fixture", "coordinates": [[1, 0]]},
+                    "endpoints": [],
+                    "qualification": {"status": "synthetic"},
+                },
+            ],
+            "features": [],
+        }
+
+        record = self.generate(
+            write_spec(root, data), root / "evidence", coordinate_inspections=True
+        )
+
+        inspection = record["annotations"][0]["review"]["coordinate_inspection"]
+        row = inspection["coordinates"][0]
+        with Image.open(root / "evidence" / inspection["path"]) as sheet:
+            self.assertEqual(sheet.mode, "RGBA")
+            for panel_name in ("unmarked_context_bounds", "located_context_bounds"):
+                left, top, _, _ = row[panel_name]
+                self.assertEqual(sheet.getpixel((left + 128, top + 128)), (255, 0, 0, 0))
+            left, top, _, _ = row["detail_bounds"]
+            selected = sheet.crop((
+                left + 4 * 12,
+                top + 4 * 12,
+                left + 5 * 12,
+                top + 5 * 12,
+            ))
+            self.assertEqual(set(selected.getdata()), {(255, 0, 0, 0)})
+            left, top, _, _ = row["unmarked_context_bounds"]
+            adjacent = sheet.getpixel((left + 129, top + 128))
+            self.assertEqual(adjacent, (0, 0, 255, 96))
 
     def test_review_artifact_paths_cannot_collide_with_observation_ids(self):
         root = make_workspace()
@@ -499,6 +716,12 @@ class ObservationSheetTests(unittest.TestCase):
         first_record = self.generate(spec_path, first)
         second_record = self.generate(spec_path, second)
 
+        self.assertFalse(first_record["generator"]["coordinate_inspections"])
+        self.assertTrue(all(
+            annotation["review"]["coordinate_inspection"] is None
+            for annotation in first_record["annotations"]
+        ))
+        self.assertFalse(any(first.rglob("coordinates.png")))
         self.assertEqual(first_record, second_record)
         self.assertEqual((first / "evidence.json").read_bytes(), (second / "evidence.json").read_bytes())
         for source in first_record["sources"]:
@@ -516,13 +739,20 @@ class ObservationSheetTests(unittest.TestCase):
         output = root / "cli-output"
 
         completed = subprocess.run(
-            [sys.executable, str(script), "--spec", str(spec_path), "--output", str(output)],
+            [sys.executable, str(script), "--spec", str(spec_path), "--output", str(output),
+             "--coordinate-inspections"],
             check=False,
             capture_output=True,
             text=True,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertTrue((output / "evidence.json").is_file())
+        cli_record = json.loads((output / "evidence.json").read_text())
+        self.assertTrue(cli_record["generator"]["coordinate_inspections"])
+        self.assertTrue(all(
+            (output / annotation["review"]["coordinate_inspection"]["path"]).is_file()
+            for annotation in cli_record["annotations"]
+        ))
         refused = subprocess.run(
             [sys.executable, str(script), "--spec", str(spec_path), "--output", str(output)],
             check=False,
