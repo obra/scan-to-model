@@ -14,6 +14,24 @@ For example, an intersection of a source ray with an assumed support plane remai
 
 Before promotion, reopen the final blend and trace each modeled physical placement back through the project's schema. Confirm that every consumed point or plane has an explicit accepted disposition and supporting independent validation, and that diagnostic-only results did not become transforms or contacts. Check that unresolved physical planes and contacts remain recorded as unknown.
 
+## Define room sheets by physical subject
+
+Create a manifest before rendering a room sheet. Give each view a stable ID and record its kind, named coordinate frame, projection, view direction, image-up direction, camera and view-layer identity, complete renderable object inclusion list, and intentional exclusions. Collection membership is organizational evidence only: do not derive the sheet from a room or collection name. Resolve the physical subjects first, then declare their actual objects. Keep the manifest with the rendered output.
+
+For every wall elevation, list the exact room-facing wall-face identifiers and the exact attached-fixture identifiers separately. A face identifier must resolve through the project's explicit geometry schema to an object face or other stable wall-surface record; an object or collection name alone does not identify one side of a wall. Include returns, neighboring faces, loose objects and fixtures from other collections only when the manifest names them for that elevation. Record the view from the room toward the wall, building-up direction, projection and framing bounds.
+
+Define the remaining views without relying on drawing-name conventions:
+
+- A plan records its horizontal cut-plane origin or elevation, downward view direction, image-up axis, retained side and visible depth beyond the cut.
+- A reflected ceiling plan records its cut plane, upward view direction, image-up axis, retained depth and whether its horizontal orientation matches or mirrors the plan.
+- A section records the plane origin and normal, viewing side and direction, image-up axis, retained side or depth, and the exact cut and projected subjects.
+
+Show only geometry present in the reviewed candidate. Do not create cap faces, concealed wall-core layers or hidden continuation to make a section look conventional. If graphical cut treatment is needed, distinguish it from modeled construction and do not use it as evidence of hidden material.
+
+Record the original per-object, collection and view-layer visibility state before applying a view manifest. Verify the requested renderable set before rendering, then restore and verify the original state afterward as described below. A successful render process is not a visual pass: inspect every requested image, confirm its declared faces and fixtures, note unintended content or occlusion, and check all four frame edges plus near and far camera clipping for unintended loss. Identify intentional cropping in the manifest. Record each render path/hash and its inspection finding.
+
+Retain rejected images, partial output, process status and logs with the manifest and frozen input identities. Do not overwrite a failed attempt or present stale output as a successful sheet. After correcting the manifest, camera, cut or visibility setup, render into a fresh directory and repeat every affected inspection. Never save visibility changes into the reviewed model merely to produce a sheet.
+
 ## Bind review inputs before launch
 
 Choose the exact model artifact and review-helper bytes before starting Blender. Prefer an existing saved immutable source or candidate for the model. Make an ordinary byte-for-byte copy of the helper selected from its reviewed commit or package into review-controlled storage. When the model path can be replaced during the review, copy it there as well. Invoke Blender only with the frozen model and helper paths, retain them, and leave them untouched until their post-run hashes are recorded. Do not use a hard link as a snapshot if the source may be modified in place, because both names share the same underlying bytes. Do not resave a blend merely to freeze it; saving can rewrite relative external paths.
