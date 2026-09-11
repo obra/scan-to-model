@@ -20,7 +20,7 @@ For photograph-first construction inventories, read [source-observations.md](sou
 
 ## Registration ledger
 
-For each transform name source and target frames, metre scale, axes, camera convention, rigid matrix direction, source frame/pixel selections, fitting method, fit and withheld checks, and accepted regional scope. Keep rejected alternatives with the reason if they prevent repeating a known error. Never apply an accepted transform to another capture by filename resemblance. Never scale or warp a capture to conceal misalignment.
+For each transform name source and target frames, metre scale, axes, camera convention, rigid matrix direction, source frame/pixel selections, fitting method, fit and withheld checks, and accepted regional scope. When source cameras declare tracking segments, express source scope as exact `(capture_id, tracking_segment)` pairs. Every placement or reprojection caller must match the source frame's declared capture and camera tracking segment to an accepted pair before applying the matrix; missing or mismatched scope rejects that metric use without a fallback. A frame outside the scope can remain source-local appearance or census evidence only when it makes no placement claim. Register and accept another scope separately before metric use. Keep rejected overlays and transform alternatives with the reason if they prevent repeating a known error. Never apply an accepted transform to another capture by filename resemblance. Never scale or warp a capture to conceal misalignment.
 
 ## Model change record
 
