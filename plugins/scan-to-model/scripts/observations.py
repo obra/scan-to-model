@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
@@ -33,6 +33,17 @@ IMAGE_FORMATS = {
 }
 REVIEW_PADDING_PX = 32
 REVIEW_SCALE = "1 SVG unit per displayed source pixel"
+COORDINATE_CONTEXT_RADIUS_PX = 4
+COORDINATE_MAGNIFICATION = 12
+COORDINATE_ROWS_PER_COLUMN = 8
+COORDINATE_PADDING = 12
+COORDINATE_LABEL_HEIGHT = 62
+COORDINATE_PANEL_GAP = 12
+COORDINATE_CELL_GAP = 12
+COORDINATE_COLUMN_GAP = 24
+COORDINATE_OUTSIDE_COLOR = (36, 36, 36)
+COORDINATE_BACKGROUND_COLOR = (246, 246, 246)
+COORDINATE_LOCATOR_COLOR = (255, 45, 32)
 
 
 def _svg(tag):
@@ -400,8 +411,130 @@ def _sheet_bytes(source, annotations, bounds=None, title=None, draw_labels=True)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
 
 
-def generate_evidence(spec_path, output_dir):
+def _nearest_pixel_coordinate(value):
+    return math.floor(value + 0.5)
+
+
+def _display_image(source):
+    with Image.open(BytesIO(source["bytes"])) as image:
+        displayed = image.convert("RGB")
+    if source["orientation"] == "upright90cw":
+        displayed = displayed.transpose(Image.Transpose.ROTATE_270)
+    return displayed
+
+
+def _coordinate_context(image, coordinate):
+    radius = COORDINATE_CONTEXT_RADIUS_PX
+    size = radius * 2 + 1
+    x, y = coordinate
+    left = max(0, x - radius)
+    top = max(0, y - radius)
+    right = min(image.width, x + radius + 1)
+    bottom = min(image.height, y + radius + 1)
+    context = Image.new("RGB", (size, size), COORDINATE_OUTSIDE_COLOR)
+    context.paste(
+        image.crop((left, top, right, bottom)),
+        (radius - (x - left), radius - (y - top)),
+    )
+    return context.resize(
+        (size * COORDINATE_MAGNIFICATION, size * COORDINATE_MAGNIFICATION),
+        Image.Resampling.NEAREST,
+    )
+
+
+def _draw_open_locator(image):
+    draw = ImageDraw.Draw(image)
+    start = COORDINATE_CONTEXT_RADIUS_PX * COORDINATE_MAGNIFICATION
+    end = start + COORDINATE_MAGNIFICATION - 1
+    margin = 3
+    length = 7
+    corners = [
+        [(start - margin, start + length), (start - margin, start - margin),
+         (start + length, start - margin)],
+        [(end - length, start - margin), (end + margin, start - margin),
+         (end + margin, start + length)],
+        [(start - margin, end - length), (start - margin, end + margin),
+         (start + length, end + margin)],
+        [(end - length, end + margin), (end + margin, end + margin),
+         (end + margin, end - length)],
+    ]
+    for points in corners:
+        draw.line(points, fill=COORDINATE_LOCATOR_COLOR, width=2)
+
+
+def _coordinate_inspection_bytes(source, displayed, annotation):
+    count = len(annotation["native_coordinates"])
+    rows = min(count, COORDINATE_ROWS_PER_COLUMN)
+    columns = math.ceil(count / COORDINATE_ROWS_PER_COLUMN)
+    panel_size = (COORDINATE_CONTEXT_RADIUS_PX * 2 + 1) * COORDINATE_MAGNIFICATION
+    cell_width = panel_size * 2 + COORDINATE_PANEL_GAP
+    cell_height = COORDINATE_LABEL_HEIGHT + panel_size + COORDINATE_CELL_GAP
+    width = (
+        COORDINATE_PADDING * 2
+        + columns * cell_width
+        + (columns - 1) * COORDINATE_COLUMN_GAP
+    )
+    height = COORDINATE_PADDING * 2 + rows * cell_height - COORDINATE_CELL_GAP
+    sheet = Image.new("RGB", (width, height), COORDINATE_BACKGROUND_COLOR)
+    draw = ImageDraw.Draw(sheet)
+    font = ImageFont.load_default()
+    records = []
+    for index, (native, display) in enumerate(zip(
+        annotation["native_coordinates"], annotation["display_coordinates"]
+    )):
+        nearest_native = [_nearest_pixel_coordinate(value) for value in native]
+        nearest_display = _display_point(nearest_native, source)
+        context = _coordinate_context(displayed, nearest_display)
+        located = context.copy()
+        _draw_open_locator(located)
+        column = index // COORDINATE_ROWS_PER_COLUMN
+        row = index % COORDINATE_ROWS_PER_COLUMN
+        left = COORDINATE_PADDING + column * (cell_width + COORDINATE_COLUMN_GAP)
+        top = COORDINATE_PADDING + row * cell_height
+        panel_top = top + COORDINATE_LABEL_HEIGHT
+        located_left = left + panel_size + COORDINATE_PANEL_GAP
+        draw.text(
+            (left, top),
+            f"#{index} native ({_number(native[0])}, {_number(native[1])})",
+            fill=(0, 0, 0),
+            font=font,
+        )
+        draw.text(
+            (left, top + 14),
+            f"display ({_number(display[0])}, {_number(display[1])})",
+            fill=(0, 0, 0),
+            font=font,
+        )
+        draw.text(
+            (left, top + 28),
+            f"nearest native pixel ({nearest_native[0]}, {nearest_native[1]})",
+            fill=(0, 0, 0),
+            font=font,
+        )
+        draw.text((left, top + 42), "unmarked", fill=(0, 0, 0), font=font)
+        draw.text((located_left, top + 42), "open locator", fill=(0, 0, 0), font=font)
+        sheet.paste(context, (left, panel_top))
+        sheet.paste(located, (located_left, panel_top))
+        records.append({
+            "index": index,
+            "native": copy.deepcopy(native),
+            "display": copy.deepcopy(display),
+            "nearest_native_pixel": nearest_native,
+            "nearest_display_pixel": nearest_display,
+            "unmarked_bounds": [left, panel_top, left + panel_size, panel_top + panel_size],
+            "located_bounds": [
+                located_left, panel_top, located_left + panel_size, panel_top + panel_size,
+            ],
+        })
+    output = BytesIO()
+    sheet.save(output, format="PNG", compress_level=9)
+    return output.getvalue(), records
+
+
+def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
     """Validate a JSON specification and write a new evidence directory."""
+    if not isinstance(coordinate_inspections, bool):
+        raise ValueError("coordinate_inspections must be a boolean")
     spec_path = Path(spec_path).resolve(strict=True)
     output_dir = Path(output_dir)
     if os.path.lexists(output_dir):
@@ -413,6 +546,10 @@ def generate_evidence(spec_path, output_dir):
     sheets = {}
     source_records = []
     source_by_id = {source["id"]: source for source in sources}
+    displayed_sources = (
+        {source["id"]: _display_image(source) for source in sources}
+        if coordinate_inspections else {}
+    )
     for source in sources:
         source_annotations = [row for row in annotations if row["source_id"] == source["id"]]
         sheet_path = f"{source['id']}.svg"
@@ -468,6 +605,7 @@ def generate_evidence(spec_path, output_dir):
                 "scale": REVIEW_SCALE,
             },
             "endpoints": [],
+            "coordinate_inspection": None,
         }
         for endpoint in observations_by_id[annotation["id"]]["endpoints"]:
             index = endpoint["index"]
@@ -499,6 +637,22 @@ def generate_evidence(spec_path, output_dir):
                 "display_bounds": endpoint_bounds,
                 "scale": REVIEW_SCALE,
             })
+        if coordinate_inspections:
+            inspection_path = f"{review_root}/coordinates.png"
+            inspection, coordinates = _coordinate_inspection_bytes(
+                source, displayed_sources[source["id"]], annotation
+            )
+            sheets[inspection_path] = inspection
+            review["coordinate_inspection"] = {
+                "path": inspection_path,
+                "sha256": _digest(inspection),
+                "media_type": "image/png",
+                "resampling": "nearest",
+                "context_radius_display_pixels": COORDINATE_CONTEXT_RADIUS_PX,
+                "magnification": COORDINATE_MAGNIFICATION,
+                "nearest_pixel_rule": "floor(coordinate + 0.5) in native pixel-center coordinates",
+                "coordinates": coordinates,
+            }
         annotation["review"] = review
 
     spec_after = spec_path.read_bytes()
@@ -512,8 +666,11 @@ def generate_evidence(spec_path, output_dir):
             raise ValueError(f"Source {source['id']} bytes changed during generation")
 
     record = {
-        "schema_version": 2,
-        "generator": {"script": "scripts/observations.py"},
+        "schema_version": 3,
+        "generator": {
+            "script": "scripts/observations.py",
+            "coordinate_inspections": coordinate_inspections,
+        },
         "input_proof": {
             "sha256_before": _digest(spec_before),
             "sha256_after": _digest(spec_after),
@@ -543,8 +700,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--coordinate-inspections", action="store_true")
     args = parser.parse_args()
-    generate_evidence(args.spec, args.output)
+    generate_evidence(args.spec, args.output, coordinate_inspections=args.coordinate_inspections)
 
 
 if __name__ == "__main__":
