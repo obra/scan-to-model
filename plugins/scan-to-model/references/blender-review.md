@@ -27,10 +27,43 @@ Keep the frozen model under the same intended relative-path semantics as the rev
 
 After Blender exits, recompute and record the frozen model and helper hashes alongside the prelaunch values, plus the inventory's `blender_version`, end time and exit status. Require both hash pairs to match and confirm that the inventory's `blend` path identifies the frozen model. Invalidate and rerun the review if a bound input is missing or changed, or if the loaded model and helper identities cannot be demonstrated. A path hash first read after Blender has loaded a file proves only the path's later contents; it does not prove which bytes Blender loaded. Replacing an upstream canonical model or upgrading an installed helper during a run does not alter that run when Blender was launched exclusively from unchanged frozen inputs. A later independent inventory may use new helper bytes, but a baseline and candidate compared with `--compare` must use the same helper SHA256; regenerate the baseline after a helper change.
 
+## Isolate interactive GUI review state
+
+Read-only artifact review and runtime-write isolation are separate checks. An unchanged blend hash and a no-save workflow do not prevent interactive Blender from writing recent-file state, support diagnostics, caches, temporary files or recovery files such as `quit.blend`. Before starting Blender, create a unique retained runtime root for that review. Do not redirect `HOME` or `CODEX_HOME`, reuse the user's normal configuration directories, or remove unknown files after the run.
+
+On Linux, create each directory first, make `XDG_RUNTIME_DIR` accessible only to the reviewing user, and launch the GUI with process-local paths:
+
+```sh
+set -eu
+runtime_root=/short/path/to/permanent-scratch/gui-review-unique-id
+mkdir "$runtime_root"
+mkdir "$runtime_root/blender-config" "$runtime_root/xdg-config" \
+  "$runtime_root/xdg-cache" "$runtime_root/xdg-data" \
+  "$runtime_root/xdg-runtime" "$runtime_root/tmp"
+chmod 700 "$runtime_root/xdg-runtime"
+
+env \
+  BLENDER_USER_CONFIG="$runtime_root/blender-config" \
+  XDG_CONFIG_HOME="$runtime_root/xdg-config" \
+  XDG_CACHE_HOME="$runtime_root/xdg-cache" \
+  XDG_DATA_HOME="$runtime_root/xdg-data" \
+  XDG_RUNTIME_DIR="$runtime_root/xdg-runtime" \
+  TMPDIR="$runtime_root/tmp" \
+  XAUTHORITY="$runtime_root/xauthority" \
+  DISPLAY="$task_display" \
+  blender --factory-startup --disable-autoexec FROZEN.blend
+```
+
+Keep the runtime path short because Unix-domain sockets have path-length limits. For Xvfb, create and populate the shown authorization file when starting the task-owned server, keep its logs under the same root, wait for the selected display to become ready, and record the server PID. Stop only that PID after Blender exits. When the display server's own socket and lock files must also be contained, run it in an operating-system private temporary namespace backed by a directory under the runtime root; the Blender environment variables do not redirect those server files.
+
+Before inspecting the model, confirm that `bpy.app.tempdir` and `bpy.context.preferences.filepaths.temporary_directory` are both under `runtime_root/tmp`; set the latter there for this session if necessary. For a read-only audit, also set `bpy.context.preferences.filepaths.save_version = 0` and `use_auto_save_temporary_files = False`. Do not save these settings to shared user preferences, and abort if either temporary path resolves outside the root. Quit Blender normally so its exit-recovery state stays under the task temp directory. Retain the runtime root and record its generated config, cache, data, runtime, temporary and recovery files. On Linux, retain a file-syscall trace such as `strace -f -e trace=%file` when the review requires proof that every successful file mutation stayed inside the root; a listing of the root alone cannot prove that nothing was written elsewhere. Any observed Blender write outside the root invalidates the GUI-isolation check even when the reviewed blend and source hashes are unchanged. `--factory-startup` and `--disable-autoexec` avoid user startup state and automatic blend-file scripts; they do not replace the environment isolation.
+
+This GUI command is for manual inspection and does not run the inventory helper. Bind any inspection script it does run in the same way as the helper. Run the inventory separately from the frozen model and helper paths described above.
+
 Run:
 
 ```text
-/Applications/Blender.app/Contents/MacOS/Blender -b FILE.blend --python scripts/blender_review.py -- --output DIR [--camera NAME ...] [--view-layer NAME] [--compare INVENTORY.json]
+/Applications/Blender.app/Contents/MacOS/Blender -b FROZEN.blend --python /path/to/frozen/blender_review.py -- --output DIR [--camera NAME ...] [--view-layer NAME] [--compare INVENTORY.json]
 ```
 
 Repeat `--camera NAME` for each requested camera. The camera must belong to the active scene. `--view-layer NAME` selects the view layer to render; the default is Blender's active view layer. All requested cameras share that selected layer, so use separate invocations and output directories for cameras that need different collection exclusions or other view-layer settings. Unknown layer names fail. Use separate output directories for the baseline and candidate. The helper rejects using the input file's directory itself, writing through output paths that escape the chosen folder or have multiple hard links, and overwriting the comparison inventory. It does not save the blend file. Optional rendering temporarily changes the active scene's camera and render settings in memory, then restores those settings.
