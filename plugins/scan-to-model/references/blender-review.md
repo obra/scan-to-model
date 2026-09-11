@@ -27,7 +27,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B scripts/presentation.py \
 
 Use a new output path for every validation attempt; the command refuses to replace an existing result.
 
-For each required feature, every declared object must meet both visibility thresholds in at least one sample for every declared view intent, with its finding marked `pass`. The validator also requires exact scene membership, floor-relative eye height for walkthrough shots, cut transitions, decodable hash-bound samples, and coverage of all required material and image IDs. These are consistency checks over reported scene, projection, occlusion, material, image, and inspection evidence. They do not independently prove what the rendered pixels depict; retain the samples and the human visual findings with the validation result.
+For each required feature, every declared object must meet both visibility thresholds in at least one sample for every declared view intent, with its finding marked `pass`. The validator also requires exact scene membership, floor-relative eye height for walkthrough shots, cut transitions, decodable hash-bound samples, and coverage of all required material and image IDs. These are consistency checks over reported scene, projection, occlusion, material, image, and inspection evidence. They do not independently prove what the rendered pixels depict; retain the samples and the visual review findings with the validation result.
 
 ## Keep diagnostic geometry out of physical placement
 
