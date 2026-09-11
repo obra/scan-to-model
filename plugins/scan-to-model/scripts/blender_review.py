@@ -104,10 +104,24 @@ def node_tree_snapshot(tree, visited=()):
     return {"name": tree.name, "nodes": nodes, "links": links}
 
 
-def layer_snapshot(layer):
+def layer_layout(layer):
+    children = list(layer.children)
+    order = sorted(range(len(children)), key=lambda index: children[index].name)
+    return [(index, layer_layout(children[index])) for index in order]
+
+
+def layer_snapshot(layer, layout):
+    children = layer.children
     return {"name": layer.name, "exclude": layer.exclude, "hide_viewport": layer.hide_viewport,
             "holdout": layer.holdout, "indirect_only": layer.indirect_only,
-            "children": [layer_snapshot(child) for child in sorted(layer.children, key=lambda x: x.name)]}
+            "children": [layer_snapshot(children[index], child_layout) for index, child_layout in layout]}
+
+
+def view_layer_snapshots(scene):
+    layout = layer_layout(scene.view_layers[0].layer_collection)
+    return [{"name": layer.name, "collections": layer_snapshot(layer.layer_collection, layout),
+             "hidden_objects": sorted(obj.name for obj in layer.objects if obj.hide_get(view_layer=layer))}
+            for layer in scene.view_layers]
 
 
 def inventory():
@@ -150,9 +164,7 @@ def inventory():
                        "world": value_snapshot(scene.world), "frame": scene.frame_current,
                        "units": properties(scene.unit_settings), "render": properties(scene.render),
                        "view_settings": properties(scene.view_settings), "display_settings": properties(scene.display_settings),
-                       "view_layers": [{"name": layer.name, "collections": layer_snapshot(layer.layer_collection),
-                                        "hidden_objects": sorted(obj.name for obj in layer.objects if obj.hide_get(view_layer=layer))}
-                                       for layer in scene.view_layers]})
+                       "view_layers": view_layer_snapshots(scene)})
     return {"schema_version": SCHEMA_VERSION, "blender_version": bpy.app.version_string,
             "blend": bpy.data.filepath, "objects": objects, "meshes": meshes, "materials": materials,
             "collections": collections, "scenes": scenes,
