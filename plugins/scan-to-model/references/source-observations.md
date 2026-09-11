@@ -95,7 +95,7 @@ A placement record identifies the observation/feature IDs, candidate/model hash,
 
 Deliver the source manifest, observation/feature-relation records, annotated source sheets and a concise scope/unknowns report. A vector overlay referencing or embedding unchanged source bytes can reproduce marks without repainting the photograph. Keep annotation labels readable and distinguish locator lines from measured outlines. Record output hashes and the script/command used to reproduce them when a generator is used.
 
-The bundled renderer accepts source-relative JPEG and PNG paths and writes only to a new output directory:
+The bundled renderer accepts local JPEG and PNG paths and writes only to a new output directory:
 
 ```sh
 python "$PLUGIN/scripts/observations.py" \
@@ -143,7 +143,9 @@ python "$PLUGIN/scripts/observations.py" \
 }
 ```
 
-IDs may contain letters, numbers, dots, underscores and hyphens. All three top-level arrays are required; `observations` and `features` may be empty. Point, polyline and polygon coordinates are always native pixel centers. A point has one coordinate, a polyline at least two and a polygon at least three. Polylines require qualified endpoint records at indices `0` and `-1`; points and polygons use an empty `endpoints` list. Qualification and arbitrary metadata remain authored input and are preserved unchanged.
+Source paths may be absolute or relative. Relative paths, including `../` sibling references and symlinks, resolve from the specification directory. The evidence record preserves the declared path and the exact resolved target path with its hash; the helper does not copy, move or rewrite source files.
+
+IDs may contain letters, numbers, dots, underscores and hyphens. All three top-level arrays are required; `observations` and `features` may be empty. Point, polyline and polygon coordinates are always native pixel centers. A point has one coordinate, a polyline at least two and a polygon at least three. Polylines require qualified endpoint records at indices `0` and `-1`; points and polygons use an empty `endpoints` list. Qualification and arbitrary metadata remain authored input and are preserved unchanged. Labels must contain only characters valid in XML 1.0; unsupported control characters cause generation to fail rather than being removed or replaced.
 
 `raw` keeps native display orientation. `upright90cw` maps native centers `(u,v)` to `(H-1-v,u)` and rotates the embedded image bytes in SVG without recompressing them. JPEGs with a nontrivial EXIF orientation are rejected so the browser cannot silently add another transform. The output `evidence.json` contains the complete input record, exact before/after source and spec hashes, decoded dimensions, native/display coordinates, round-trip checks and generated SVG hashes. Each SVG embeds the original source bytes. Visually inspect every sheet after generation.
 

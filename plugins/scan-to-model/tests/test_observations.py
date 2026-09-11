@@ -3,6 +3,7 @@
 import base64
 import copy
 import hashlib
+from io import BytesIO
 import json
 import os
 from pathlib import Path
@@ -55,7 +56,7 @@ def valid_spec(root):
         "observations": [
             {
                 "id": "obs-point",
-                "label": "A < B & C",
+                "label": "A < B > C & \"quoted\" café 🧱",
                 "source_id": "photo.raw",
                 "marks": {
                     "type": "point",
@@ -178,7 +179,7 @@ class ObservationSheetTests(unittest.TestCase):
         self.assertEqual(turned_label.attrib["text-anchor"], "end")
         self.assertEqual(turned_label.attrib["dx"], "-6")
         labels = [node.text for node in raw_svg.findall(f".//{SVG}text")]
-        self.assertIn("A < B & C", labels)
+        self.assertIn("A < B > C & \"quoted\" café 🧱", labels)
 
     def test_rejects_invalid_mark_coordinates_and_cardinality(self):
         cases = [
@@ -205,7 +206,7 @@ class ObservationSheetTests(unittest.TestCase):
             with self.subTest(index=index), self.assertRaises(ValueError):
                 self.generate(write_spec(root, data), root / "evidence")
 
-    def test_rejects_invalid_ids_references_endpoints_and_paths(self):
+    def test_rejects_invalid_ids_references_and_endpoints(self):
         def duplicate_source(data):
             data["sources"].append(copy.deepcopy(data["sources"][0]))
 
@@ -232,16 +233,10 @@ class ObservationSheetTests(unittest.TestCase):
         def bad_endpoint(data):
             data["observations"][1]["endpoints"][1]["kind"] = "continues somehow"
 
-        def absolute_path(data):
-            data["sources"][0]["path"] = "/path/to/review.png"
-
-        def escaped_path(data):
-            data["sources"][0]["path"] = "../outside.png"
-
         changes = [
             duplicate_source, duplicate_source_path, missing_source,
             duplicate_observation, duplicate_feature, missing_observation,
-            invalid_id, bad_endpoint, absolute_path, escaped_path,
+            invalid_id, bad_endpoint,
         ]
         for change in changes:
             root = make_workspace()
@@ -274,6 +269,88 @@ class ObservationSheetTests(unittest.TestCase):
         for index, (root, data) in enumerate(cases):
             with self.subTest(index=index), self.assertRaises(ValueError):
                 self.generate(write_spec(root, data), root / "evidence")
+
+    def test_rejects_truncated_jpeg_before_creating_output(self):
+        root = make_workspace()
+        complete = (root / "images/turned.jpg").read_bytes()
+        truncated = complete[:-8]
+        with Image.open(BytesIO(truncated)) as image:
+            image.verify()
+        with self.assertRaises(OSError), Image.open(BytesIO(truncated)) as image:
+            image.load()
+        (root / "images/truncated.jpg").write_bytes(truncated)
+        data = valid_spec(root)
+        data["sources"] = [{
+            "id": "truncated",
+            "path": "images/truncated.jpg",
+            "orientation": "raw",
+        }]
+        data["observations"] = []
+        data["features"] = []
+        output = root / "evidence"
+
+        with self.assertRaises(ValueError):
+            self.generate(write_spec(root, data), output)
+        self.assertFalse(output.exists())
+
+    def test_rejects_xml_invalid_label_before_creating_output(self):
+        root = make_workspace()
+        data = valid_spec(root)
+        data["observations"][0]["label"] = "invalid\0label"
+        output = root / "evidence"
+
+        with self.assertRaises(ValueError):
+            self.generate(write_spec(root, data), output)
+        self.assertFalse(output.exists())
+
+    def test_reads_sibling_absolute_and_symlink_sources_without_mutation(self):
+        root = make_workspace()
+        docs = root / "docs"
+        sources = root / "shared-sources"
+        docs.mkdir()
+        sources.mkdir()
+        paths = {
+            "sibling": sources / "sibling.png",
+            "absolute": sources / "absolute.png",
+            "linked": sources / "linked-target.png",
+        }
+        for index, path in enumerate(paths.values()):
+            Image.new("RGB", (4, 3), (20 + index, 40, 60)).save(path)
+        link = docs / "source-link.png"
+        link.symlink_to(paths["linked"])
+        declared = [
+            "../shared-sources/sibling.png",
+            str(paths["absolute"]),
+            "source-link.png",
+        ]
+        data = {
+            "sources": [
+                {"id": source_id, "path": source_path, "orientation": "raw"}
+                for source_id, source_path in zip(paths, declared)
+            ],
+            "observations": [],
+            "features": [],
+            "metadata": {"fixture": "local path resolution"},
+        }
+        before = {name: path.read_bytes() for name, path in paths.items()}
+        link_target = os.readlink(link)
+        spec_path = write_spec(docs, data)
+        output = root / "evidence"
+
+        record = self.generate(spec_path, output)
+
+        rows = {row["id"]: row for row in record["sources"]}
+        for source_id, declared_path in zip(paths, declared):
+            self.assertEqual(rows[source_id]["declared_path"], declared_path)
+            self.assertEqual(rows[source_id]["resolved_path"], str(paths[source_id].resolve()))
+            self.assertEqual(rows[source_id]["sha256_before"], hashlib.sha256(before[source_id]).hexdigest())
+            self.assertEqual(rows[source_id]["sha256_after"], rows[source_id]["sha256_before"])
+            self.assertEqual(paths[source_id].read_bytes(), before[source_id])
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(os.readlink(link), link_target)
+        with self.assertRaises(FileExistsError):
+            self.generate(spec_path, output)
+        self.assertEqual({name: path.read_bytes() for name, path in paths.items()}, before)
 
     def test_requires_fresh_output_and_is_deterministic(self):
         root = make_workspace()

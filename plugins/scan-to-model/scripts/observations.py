@@ -53,6 +53,19 @@ def _identifier(value, label):
     return value
 
 
+def _validate_xml_text(value, label):
+    for character in value:
+        codepoint = ord(character)
+        if (
+            codepoint in (0x09, 0x0A, 0x0D)
+            or 0x20 <= codepoint <= 0xD7FF
+            or 0xE000 <= codepoint <= 0xFFFD
+            or 0x10000 <= codepoint <= 0x10FFFF
+        ):
+            continue
+        raise ValueError(f"{label} contains a character XML 1.0 cannot represent")
+
+
 def _record_list(spec, name, nonempty=False):
     rows = spec.get(name)
     if not isinstance(rows, list) or (nonempty and not rows):
@@ -105,18 +118,18 @@ def _read_image(source, index, spec_root):
     declared_path = source.get("path")
     if not isinstance(declared_path, str) or not declared_path:
         raise ValueError(f"Source {source_id} needs a nonempty path")
-    relative_path = Path(declared_path)
-    if relative_path.is_absolute():
-        raise ValueError(f"Source {source_id} path must be relative to the specification")
-    suffix = relative_path.suffix.lower()
+    source_path = Path(declared_path)
+    suffix = source_path.suffix.lower()
     if suffix not in IMAGE_FORMATS:
         raise ValueError(f"Source {source_id} must be a JPEG or PNG path")
     try:
-        resolved_path = (spec_root / relative_path).resolve(strict=True)
+        if not source_path.is_absolute():
+            source_path = spec_root / source_path
+        resolved_path = source_path.resolve(strict=True)
     except (FileNotFoundError, OSError) as error:
         raise ValueError(f"Source {source_id} does not resolve to a readable file") from error
-    if not resolved_path.is_relative_to(spec_root) or not resolved_path.is_file():
-        raise ValueError(f"Source {source_id} path must stay inside the specification directory")
+    if not resolved_path.is_file():
+        raise ValueError(f"Source {source_id} must resolve to a file")
 
     source_bytes = resolved_path.read_bytes()
     source_hash = _digest(source_bytes)
@@ -132,6 +145,7 @@ def _read_image(source, index, spec_root):
         with Image.open(BytesIO(source_bytes)) as image:
             image.verify()
         with Image.open(BytesIO(source_bytes)) as image:
+            image.load()
             width, height = image.size
             decoded_format = image.format
             exif_orientation = image.getexif().get(274, 1)
@@ -257,6 +271,7 @@ def _validate_spec(spec, spec_root):
         label = observation.get("label", observation_id)
         if not isinstance(label, str) or not label.strip():
             raise ValueError(f"Observation {observation_id} label must be a nonempty string")
+        _validate_xml_text(label, f"Observation {observation_id} label")
         marks = observation.get("marks")
         if not isinstance(marks, dict):
             raise ValueError(f"Observation {observation_id} marks must be an object")
@@ -383,6 +398,7 @@ def generate_evidence(spec_path, output_dir):
             "input_index": source["input_index"],
             "id": source["id"],
             "declared_path": source["declared_path"],
+            "resolved_path": str(source["path"]),
             "media_type": source["media_type"],
             "sha256_before": source["sha256"],
             "sha256_after": None,
