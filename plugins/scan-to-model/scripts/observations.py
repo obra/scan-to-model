@@ -449,7 +449,8 @@ def generate_evidence(spec_path, output_dir):
     for annotation in annotations:
         source = source_by_id[annotation["source_id"]]
         assertion_bounds = _review_bounds(annotation["display_coordinates"], source)
-        assertion_path = f"review/{annotation['id']}.svg"
+        review_root = f"review/{annotation['id']}"
+        assertion_path = f"{review_root}/assertion.svg"
         assertion_sheet = _sheet_bytes(
             source,
             [annotation],
@@ -473,10 +474,9 @@ def generate_evidence(spec_path, output_dir):
             display_coordinate = annotation["display_coordinates"][index]
             endpoint_bounds = _review_bounds([display_coordinate], source)
             suffix = "0" if index == 0 else "last"
-            endpoint_id = f"{annotation['id']}-endpoint-{suffix}"
-            endpoint_path = f"review/{endpoint_id}.svg"
+            endpoint_path = f"{review_root}/endpoint-{suffix}.svg"
             endpoint_annotation = {
-                "id": endpoint_id,
+                "id": annotation["id"],
                 "label": f"{annotation['label']}: {endpoint['kind']}",
                 "source_id": annotation["source_id"],
                 "type": "point",

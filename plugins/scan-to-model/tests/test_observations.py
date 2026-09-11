@@ -266,8 +266,8 @@ class ObservationSheetTests(unittest.TestCase):
                 self.assertIsNotNone(artifact_root.find(f"{SVG}title"))
                 self.assertIsNone(artifact_root.find(f".//{SVG}text"))
                 self.assertEqual(artifact["sha256"], hashlib.sha256(artifact_path.read_bytes()).hexdigest())
-        end_crop = svg_root(root / "evidence/review/obs-span-endpoint-0.svg")
-        endpoint_mark = end_crop.find(f".//{SVG}circle[@data-observation-id='obs-span-endpoint-0']")
+        end_crop = svg_root(root / "evidence/review/obs-span/endpoint-0.svg")
+        endpoint_mark = end_crop.find(f".//{SVG}circle[@data-observation-id='obs-span']")
         self.assertEqual((endpoint_mark.attrib["cx"], endpoint_mark.attrib["cy"]), ("10.5", "10.5"))
 
     def test_review_artifact_paths_cannot_collide_with_observation_ids(self):
