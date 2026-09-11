@@ -4,6 +4,19 @@ Before reviewing a manufactured component, distinguish immutable photo/depth con
 
 Show the constrained component clearly by default and label any raw trace overlay as evidence. Verify right angles and opposite-edge relationships on the saved mesh, including recessed/inset profiles and dependent holes or adjoining faces. A rectangular diagram alone does not establish rectangular Blender geometry; a corrected panel can still leave a mismatched opening around it.
 
+## Bind review inputs before launch
+
+Choose the exact model artifact and review-helper bytes before starting Blender. Prefer an existing saved immutable source or candidate for the model. Make an ordinary byte-for-byte copy of the helper selected from its reviewed commit or package into review-controlled storage. When the model path can be replaced during the review, copy it there as well. Invoke Blender only with the frozen model and helper paths, retain them, and leave them untouched until their post-run hashes are recorded. Do not use a hard link as a snapshot if the source may be modified in place, because both names share the same underlying bytes. Do not resave a blend merely to freeze it; saving can rewrite relative external paths.
+
+Keep the frozen model under the same intended relative-path semantics as the reviewed artifact. A copy beside the source retains its `//` reference base. A copy elsewhere must retain the required directory layout and referenced assets, or be reviewed under the final-path policy described below. Record these values before launch:
+
+- Resolved frozen model path and SHA256.
+- Resolved frozen helper path and SHA256, plus its commit or package version when known.
+- Resolved Blender executable path and its complete `--version` output, including the version and build hash when reported.
+- Exact argument vector, output directory and start time.
+
+After Blender exits, recompute and record the frozen model and helper hashes alongside the prelaunch values, plus the inventory's `blender_version`, end time and exit status. Require both hash pairs to match and confirm that the inventory's `blend` path identifies the frozen model. Invalidate and rerun the review if a bound input is missing or changed, or if the loaded model and helper identities cannot be demonstrated. A path hash first read after Blender has loaded a file proves only the path's later contents; it does not prove which bytes Blender loaded. Replacing an upstream canonical model or upgrading an installed helper during a run does not alter that run when Blender was launched exclusively from unchanged frozen inputs. A later independent inventory may use new helper bytes, but a baseline and candidate compared with `--compare` must use the same helper SHA256; regenerate the baseline after a helper change.
+
 Run:
 
 ```text
@@ -49,7 +62,5 @@ This is a scoped source-state comparison, **not a complete preservation proof or
 Optional renders are PNG workbench geometry previews using the saved resolution. Workbench previews do not validate shader or texture appearance. The helper renders only the selected view layer, temporarily disabling every other layer and restoring the original enable flags afterward. It disables compositor and sequencer processing for these previews and derives a contained filename from each camera name plus a stable hash, so slashes, duplicate-looking labels, and filename punctuation cannot create paths outside the output directory. `inventory.json` maps camera and view-layer names to their render files. Existing files with those generated names in the chosen output folder can be replaced; retain separate review folders for checkpoints.
 
 A missing camera, non-finite numeric values encountered in captured properties or mesh buffers, invalid comparison, render failure, or unsafe output path produces a nonzero process exit, even when Blender was launched without `--python-exit-code`. A successful inventory is written only after all requested renders succeed. A failed rerun can leave outputs from an earlier invocation; rely on the process result and use a fresh folder when collecting evidence.
-
-For model-preservation evidence, hash the input blend before and after the command and record both hashes alongside the inventory. This verifies that the on-disk model stayed unchanged during this run; the helper's comparison and visual inspection address the separate question of whether a candidate preserves the relevant scene content.
 
 Large scenes can produce large inventories. A scene with roughly 10,000 objects and hundreds of view layers took about two minutes per inventory and produced about 197 MB of indented JSON, including its expanded view-layer collection graph. Allow storage and runtime for both baseline and candidate reports.
