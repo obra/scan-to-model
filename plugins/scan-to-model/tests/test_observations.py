@@ -346,7 +346,7 @@ class ObservationSheetTests(unittest.TestCase):
                 sheet.load()
                 for index, row in enumerate(inspection["coordinates"]):
                     native_u, native_v = row["nearest_native_pixel"]
-                    expected_color = source_pixels[native_u, native_v]
+                    expected_color = (*source_pixels[native_u, native_v], 255)
                     for panel_name in ("unmarked_bounds", "located_bounds"):
                         left, top, _, _ = row[panel_name]
                         selected = sheet.crop((
@@ -361,13 +361,13 @@ class ObservationSheetTests(unittest.TestCase):
                     if index == 1 and observation_id == "raw-points":
                         right_color = sheet.getpixel((left + 5 * 12 + 6, top + 4 * 12 + 6))
                         down_color = sheet.getpixel((left + 4 * 12 + 6, top + 5 * 12 + 6))
-                        self.assertEqual(right_color, source_pixels[3, 2])
-                        self.assertEqual(down_color, source_pixels[2, 3])
+                        self.assertEqual(right_color, (*source_pixels[3, 2], 255))
+                        self.assertEqual(down_color, (*source_pixels[2, 3], 255))
                     if index == 1 and observation_id == "turned-points":
                         right_color = sheet.getpixel((left + 5 * 12 + 6, top + 4 * 12 + 6))
                         down_color = sheet.getpixel((left + 4 * 12 + 6, top + 5 * 12 + 6))
-                        self.assertEqual(right_color, source_pixels[2, 1])
-                        self.assertEqual(down_color, source_pixels[3, 2])
+                        self.assertEqual(right_color, (*source_pixels[2, 1], 255))
+                        self.assertEqual(down_color, (*source_pixels[3, 2], 255))
 
         self.assertEqual(source_bytes, {
             source["id"]: (root / source["path"]).read_bytes()
@@ -414,6 +414,71 @@ class ObservationSheetTests(unittest.TestCase):
         panel_columns = {row["unmarked_bounds"][0] for row in coordinates}
         self.assertEqual(len(panel_rows), 5)
         self.assertEqual(len(panel_columns), 2)
+
+    def test_coordinate_inspection_columns_differ_by_at_most_one_item(self):
+        root = make_workspace()
+        data = valid_spec(root)
+        data["observations"] = [data["observations"][2]]
+        data["observations"][0]["marks"]["coordinates"] = [
+            [index % 3, (index // 3) % 2]
+            for index in range(57)
+        ]
+        data["features"] = []
+
+        record = self.generate(
+            write_spec(root, data), root / "evidence", coordinate_inspections=True
+        )
+
+        coordinates = record["annotations"][0]["review"]["coordinate_inspection"]["coordinates"]
+        column_sizes = {}
+        for row in coordinates:
+            column = row["unmarked_bounds"][0]
+            column_sizes[column] = column_sizes.get(column, 0) + 1
+        self.assertEqual(len(column_sizes), 8)
+        self.assertLessEqual(max(column_sizes.values()) - min(column_sizes.values()), 1)
+
+    def test_coordinate_inspections_preserve_transparent_source_pixels(self):
+        root = make_workspace()
+        source = Image.new("RGBA", (3, 2), (20, 40, 60, 255))
+        source.putpixel((1, 0), (255, 0, 0, 0))
+        source.putpixel((2, 0), (0, 0, 255, 96))
+        source.save(root / "images/transparent.png")
+        data = {
+            "sources": [
+                {"id": "transparent", "path": "images/transparent.png", "orientation": "raw"},
+            ],
+            "observations": [
+                {
+                    "id": "transparent-point",
+                    "source_id": "transparent",
+                    "marks": {"type": "point", "meaning": "fixture", "coordinates": [[1, 0]]},
+                    "endpoints": [],
+                    "qualification": {"status": "synthetic"},
+                },
+            ],
+            "features": [],
+        }
+
+        record = self.generate(
+            write_spec(root, data), root / "evidence", coordinate_inspections=True
+        )
+
+        inspection = record["annotations"][0]["review"]["coordinate_inspection"]
+        row = inspection["coordinates"][0]
+        with Image.open(root / "evidence" / inspection["path"]) as sheet:
+            self.assertEqual(sheet.mode, "RGBA")
+            for panel_name in ("unmarked_bounds", "located_bounds"):
+                left, top, _, _ = row[panel_name]
+                selected = sheet.crop((
+                    left + 4 * 12,
+                    top + 4 * 12,
+                    left + 5 * 12,
+                    top + 5 * 12,
+                ))
+                self.assertEqual(set(selected.getdata()), {(255, 0, 0, 0)})
+            left, top, _, _ = row["unmarked_bounds"]
+            adjacent = sheet.getpixel((left + 5 * 12 + 6, top + 4 * 12 + 6))
+            self.assertEqual(adjacent, (0, 0, 255, 96))
 
     def test_review_artifact_paths_cannot_collide_with_observation_ids(self):
         root = make_workspace()

@@ -41,9 +41,9 @@ COORDINATE_LABEL_HEIGHT = 62
 COORDINATE_PANEL_GAP = 12
 COORDINATE_CELL_GAP = 12
 COORDINATE_COLUMN_GAP = 24
-COORDINATE_OUTSIDE_COLOR = (36, 36, 36)
-COORDINATE_BACKGROUND_COLOR = (246, 246, 246)
-COORDINATE_LOCATOR_COLOR = (255, 45, 32)
+COORDINATE_OUTSIDE_COLOR = (36, 36, 36, 255)
+COORDINATE_BACKGROUND_COLOR = (246, 246, 246, 255)
+COORDINATE_LOCATOR_COLOR = (255, 45, 32, 255)
 
 
 def _svg(tag):
@@ -417,7 +417,7 @@ def _nearest_pixel_coordinate(value):
 
 def _display_image(source):
     with Image.open(BytesIO(source["bytes"])) as image:
-        displayed = image.convert("RGB")
+        displayed = image.convert("RGBA")
     if source["orientation"] == "upright90cw":
         displayed = displayed.transpose(Image.Transpose.ROTATE_270)
     return displayed
@@ -431,7 +431,7 @@ def _coordinate_context(image, coordinate):
     top = max(0, y - radius)
     right = min(image.width, x + radius + 1)
     bottom = min(image.height, y + radius + 1)
-    context = Image.new("RGB", (size, size), COORDINATE_OUTSIDE_COLOR)
+    context = Image.new("RGBA", (size, size), COORDINATE_OUTSIDE_COLOR)
     context.paste(
         image.crop((left, top, right, bottom)),
         (radius - (x - left), radius - (y - top)),
@@ -462,6 +462,17 @@ def _draw_open_locator(image):
         draw.line(points, fill=COORDINATE_LOCATOR_COLOR, width=2)
 
 
+def _coordinate_grid_position(index, count, columns):
+    short_column_size = count // columns
+    long_columns = count % columns
+    long_column_size = short_column_size + 1
+    long_column_items = long_columns * long_column_size
+    if index < long_column_items:
+        return index // long_column_size, index % long_column_size
+    offset = index - long_column_items
+    return long_columns + offset // short_column_size, offset % short_column_size
+
+
 def _coordinate_inspection_bytes(source, displayed, annotation):
     count = len(annotation["native_coordinates"])
     columns = math.ceil(count / COORDINATE_ROWS_PER_COLUMN)
@@ -475,7 +486,7 @@ def _coordinate_inspection_bytes(source, displayed, annotation):
         + (columns - 1) * COORDINATE_COLUMN_GAP
     )
     height = COORDINATE_PADDING * 2 + rows * cell_height - COORDINATE_CELL_GAP
-    sheet = Image.new("RGB", (width, height), COORDINATE_BACKGROUND_COLOR)
+    sheet = Image.new("RGBA", (width, height), COORDINATE_BACKGROUND_COLOR)
     draw = ImageDraw.Draw(sheet)
     font = ImageFont.load_default()
     records = []
@@ -487,8 +498,7 @@ def _coordinate_inspection_bytes(source, displayed, annotation):
         context = _coordinate_context(displayed, nearest_display)
         located = context.copy()
         _draw_open_locator(located)
-        column = index // rows
-        row = index % rows
+        column, row = _coordinate_grid_position(index, count, columns)
         left = COORDINATE_PADDING + column * (cell_width + COORDINATE_COLUMN_GAP)
         top = COORDINATE_PADDING + row * cell_height
         panel_top = top + COORDINATE_LABEL_HEIGHT
@@ -496,23 +506,23 @@ def _coordinate_inspection_bytes(source, displayed, annotation):
         draw.text(
             (left, top),
             f"#{index} native ({_number(native[0])}, {_number(native[1])})",
-            fill=(0, 0, 0),
+            fill=(0, 0, 0, 255),
             font=font,
         )
         draw.text(
             (left, top + 14),
             f"display ({_number(display[0])}, {_number(display[1])})",
-            fill=(0, 0, 0),
+            fill=(0, 0, 0, 255),
             font=font,
         )
         draw.text(
             (left, top + 28),
             f"nearest native pixel ({nearest_native[0]}, {nearest_native[1]})",
-            fill=(0, 0, 0),
+            fill=(0, 0, 0, 255),
             font=font,
         )
-        draw.text((left, top + 42), "unmarked", fill=(0, 0, 0), font=font)
-        draw.text((located_left, top + 42), "open locator", fill=(0, 0, 0), font=font)
+        draw.text((left, top + 42), "unmarked", fill=(0, 0, 0, 255), font=font)
+        draw.text((located_left, top + 42), "open locator", fill=(0, 0, 0, 255), font=font)
         sheet.paste(context, (left, panel_top))
         sheet.paste(located, (located_left, panel_top))
         records.append({
