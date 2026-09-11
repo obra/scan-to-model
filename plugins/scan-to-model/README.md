@@ -25,6 +25,7 @@ Read [commands and JSON examples](references/formats.md) before running a tool. 
 - `scripts/ingest.py`: preserve and audit a ZIP; repeat ingestion verifies existing data.
 - `scripts/reference.py`: create finite metre point references with frame/pixel provenance.
 - `scripts/surfaces.py`: measure source-photo polygons; save native samples, fits and evidence figures.
+- `scripts/manufactured.py`: [fit manufactured rectangles](references/manufactured-shapes.md) in common component axes and report original controls and residuals.
 - `scripts/register.py`: fit unit-scale rigid landmark alignment and report withheld checks.
 - `scripts/blender_review.py`: run inside Blender to inventory and render without saving the input.
 - `scripts/polycam.py`: shared native reader and calibrated unprojection.

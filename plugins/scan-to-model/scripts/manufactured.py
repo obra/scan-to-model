@@ -43,6 +43,10 @@ def _fit_rectangles(spec):
     if not np.isclose(np.linalg.norm(u), 1, rtol=0, atol=1e-12):
         raise ValueError("u_axis must be a unit vector")
     u = u / np.linalg.norm(u)
+    if "v_axis" in frame:
+        declared_v = finite_array(frame["v_axis"], (2,), "v_axis")
+        if not np.allclose(declared_v, [-u[1], u[0]], rtol=0, atol=1e-12):
+            raise ValueError("v_axis must be the positive 90-degree rotation of u_axis")
     fit_orientation = spec.get("fit_orientation", False)
     if not isinstance(fit_orientation, bool):
         raise ValueError("fit_orientation must be boolean")

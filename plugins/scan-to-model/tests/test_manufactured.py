@@ -1,7 +1,6 @@
 """Synthetic geometry and input contracts for manufactured rectangles."""
 
 import copy
-import importlib.util
 from pathlib import Path
 import sys
 import unittest
@@ -25,8 +24,6 @@ def spec(controls, **overrides):
 
 class ManufacturedTests(unittest.TestCase):
     def fit(self, data):
-        self.assertIsNotNone(importlib.util.find_spec("manufactured"),
-                             "Reusable rectangle fit is not implemented")
         from manufactured import fit_rectangles
         return fit_rectangles(data)
 
@@ -65,6 +62,31 @@ class ManufacturedTests(unittest.TestCase):
         self.assertEqual(row["local_bounds"], [[1, 1], [9, 5]])
         self.assertEqual((row["width"], row["height"]), (8, 4))
         np.testing.assert_allclose(row["errors"], 0)
+
+    def test_noisy_orientation_minimizes_joint_corner_error(self):
+        data = spec([[0, 0], [4, .4], [3.8, 2.3], [-.2, 2]], fit_orientation=True)
+        data["rectangles"].append({"id": "plate", "controls": [[5, 1], [6, 1.3], [5.8, 2.1], [4.9, 2]]})
+        fitted = self.fit(data)
+        best = sum(np.sum(np.square(row["errors"])) for row in fitted["rectangles"])
+        # Compare against an independent angle sweep using fixed-frame fits.
+        for angle in np.linspace(-.5, .5, 101):
+            fixed = copy.deepcopy(data)
+            fixed["fit_orientation"] = False
+            fixed["frame"]["u_axis"] = [float(np.cos(angle)), float(np.sin(angle))]
+            trial = self.fit(fixed)
+            error = sum(np.sum(np.square(row["errors"])) for row in trial["rectangles"])
+            self.assertLessEqual(best, error + 1e-12)
+        for row in fitted["rectangles"]:
+            corners = np.asarray(row["corners"])
+            edges = np.roll(corners, -1, axis=0) - corners
+            self.assertAlmostEqual(float(edges[0] @ edges[1]), 0)
+            np.testing.assert_allclose(edges[:2], -edges[2:], atol=1e-12)
+
+    def test_rejects_inconsistent_optional_v_axis(self):
+        data = spec([[0, 0], [4, 0], [4, 2], [0, 2]],
+                    frame={"origin": [0, 0], "u_axis": [1, 0], "v_axis": [0, -1]})
+        with self.assertRaises(ValueError):
+            self.fit(data)
 
     def test_rejects_invalid_specs(self):
         valid = spec([[0, 0], [4, 0], [4, 2], [0, 2]])
