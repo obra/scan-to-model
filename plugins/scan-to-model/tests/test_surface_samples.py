@@ -21,7 +21,8 @@ class SurfaceSampleTests(unittest.TestCase):
     def test_tracking_segment_scope_rejects_mismatch_and_preserves_unknown(self):
         missing = object()
 
-        def run_case(label, camera_segment=missing, declared_segment=missing, corrected=False):
+        def run_case(label, camera_segment=missing, declared_segment=missing,
+                     patch_segment=missing, corrected=False, translated=False):
             root = SCRATCH_ROOT / str(uuid.uuid4()) / label
             capture = root / 'capture'
             for directory in ('images', 'depth', 'confidence', 'cameras'):
@@ -59,8 +60,14 @@ class SurfaceSampleTests(unittest.TestCase):
             }
             if declared_segment is not missing:
                 spec['tracking_segment'] = declared_segment
+            if patch_segment is not missing:
+                spec['patches'][0]['tracking_segment'] = patch_segment
             if corrected:
                 spec['pose_variant'] = 'corrected'
+            if translated:
+                spec['transform'] = [
+                    [1, 0, 0, 10], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1],
+                ]
             spec_path = root / 'spec.json'
             spec_path.write_text(json.dumps(spec))
             source_hashes = {path: hashlib.sha256(path.read_bytes()).hexdigest()
@@ -91,6 +98,13 @@ class SurfaceSampleTests(unittest.TestCase):
         self.assertNotEqual(unavailable.returncode, 0)
         self.assertIn('tracking segment', unavailable.stderr.lower())
         self.assertFalse((unavailable_output / 'measurements.json').exists())
+
+        cleared, cleared_output = run_case(
+            'cleared', camera_segment=8, declared_segment=7,
+            patch_segment=None, translated=True)
+        self.assertNotEqual(cleared.returncode, 0)
+        self.assertIn('tracking segment', cleared.stderr.lower())
+        self.assertFalse(any(cleared_output.iterdir()))
 
         matching, matching_output = run_case('matching', camera_segment=7, declared_segment=7)
         self.assertEqual(matching.returncode, 0, matching.stderr)

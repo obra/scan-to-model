@@ -53,11 +53,21 @@ def resolve(path, parent):
     return path.resolve() if path.is_absolute() else (parent/path).resolve()
 
 
-def tracking_scope(camera, declared):
+def tracking_scope(camera, patch, defaults):
+    if "tracking_segment" in patch:
+        declared = patch["tracking_segment"]
+        declaration_present = True
+    elif "tracking_segment" in defaults:
+        declared = defaults["tracking_segment"]
+        declaration_present = True
+    else:
+        declared = None
+        declaration_present = False
     actual = camera.get("tracking_segment")
-    for label, value in (("Declared", declared), ("Camera", actual)):
-        if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
-            raise ValueError(f"{label} tracking segment must be an integer or null")
+    if declaration_present and (isinstance(declared, bool) or not isinstance(declared, int)):
+        raise ValueError("Declared tracking segment must be an integer")
+    if actual is not None and (isinstance(actual, bool) or not isinstance(actual, int)):
+        raise ValueError("Camera tracking segment must be an integer or null")
     if declared is not None and actual is None:
         raise ValueError("Camera tracking segment is unavailable for the declared segment")
     if declared is not None and actual != declared:
@@ -76,8 +86,7 @@ def measured_patch(patch, defaults, parent, output):
     camera, depth, confidence, rgb = read_frame(source,frame,depth_variant,pose_variant)
     raw_camera = (camera if pose_variant == "raw" else json.loads(
         (source/"keyframes/cameras"/f"{frame}.json").read_text()))
-    declared_segment, camera_segment = tracking_scope(
-        raw_camera, patch.get("tracking_segment", defaults.get("tracking_segment")))
+    declared_segment, camera_segment = tracking_scope(raw_camera, patch, defaults)
     maximum = float(defaults.get("max_depth_m", 5))
     selected_confidence = defaults.get("confidence_value", 255)
     if not isinstance(selected_confidence, int) or not 0 <= selected_confidence <= 255:
