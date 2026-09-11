@@ -181,6 +181,145 @@ class ObservationSheetTests(unittest.TestCase):
         labels = [node.text for node in raw_svg.findall(f".//{SVG}text")]
         self.assertIn("A < B > C & \"quoted\" café 🧱", labels)
 
+    def test_writes_native_scale_assertion_and_endpoint_review_crops(self):
+        root = make_workspace()
+        Image.new("RGB", (160, 120), (36, 72, 108)).save(root / "images/review.png")
+        Image.new("RGB", (160, 120), (108, 72, 36)).save(root / "images/review-turned.png")
+        data = {
+            "sources": [
+                {"id": "review-raw", "path": "images/review.png", "orientation": "raw"},
+                {"id": "review-turned", "path": "images/review-turned.png",
+                 "orientation": "upright90cw"},
+            ],
+            "observations": [
+                {
+                    "id": "obs-locator",
+                    "label": "invented locator",
+                    "source_id": "review-raw",
+                    "marks": {"type": "point", "meaning": "locator",
+                              "coordinates": [[80, 60]]},
+                    "endpoints": [],
+                    "qualification": {"identity": "invented"},
+                },
+                {
+                    "id": "obs-span",
+                    "label": "invented span",
+                    "source_id": "review-raw",
+                    "marks": {"type": "polyline", "meaning": "visible centerline",
+                              "coordinates": [[10, 10], [150, 110]]},
+                    "endpoints": [
+                        {"index": 0, "kind": "occlusion", "basis": "Invented start."},
+                        {"index": -1, "kind": "annotation boundary", "basis": "Invented end."},
+                    ],
+                    "qualification": {"identity": "invented"},
+                },
+                {
+                    "id": "obs-turned",
+                    "label": "invented turned locator",
+                    "source_id": "review-turned",
+                    "marks": {"type": "point", "meaning": "locator",
+                              "coordinates": [[20, 30]]},
+                    "endpoints": [],
+                    "qualification": {"identity": "invented"},
+                },
+            ],
+            "features": [],
+            "metadata": {"fixture": "native-scale review crops"},
+        }
+        source_bytes = {
+            source["id"]: (root / source["path"]).read_bytes()
+            for source in data["sources"]
+        }
+
+        record = self.generate(write_spec(root, data), root / "evidence")
+
+        self.assertEqual(record["schema_version"], 2)
+        annotations = {row["id"]: row for row in record["annotations"]}
+        expected = {
+            "obs-locator": ([48, 28, 113, 93], []),
+            "obs-span": ([0, 0, 160, 120], [
+                (0, "occlusion", [0, 0, 43, 43]),
+                (-1, "annotation boundary", [118, 78, 160, 120]),
+            ]),
+            "obs-turned": ([57, 0, 120, 53], []),
+        }
+        for observation_id, (bounds, endpoints) in expected.items():
+            review = annotations[observation_id]["review"]
+            self.assertEqual(review["status"], "pending visual review")
+            self.assertEqual(review["assertion"]["display_bounds"], bounds)
+            self.assertEqual(review["assertion"]["scale"], "1 SVG unit per displayed source pixel")
+            self.assertEqual(
+                [(row["index"], row["kind"], row["display_bounds"])
+                 for row in review["endpoints"]],
+                endpoints,
+            )
+            for artifact in [review["assertion"], *review["endpoints"]]:
+                artifact_path = root / "evidence" / artifact["path"]
+                artifact_root = svg_root(artifact_path)
+                left, top, right, bottom = artifact["display_bounds"]
+                self.assertEqual(artifact_root.attrib["viewBox"],
+                                 f"{left} {top} {right-left} {bottom-top}")
+                self.assertEqual(artifact_root.attrib["width"], str(right-left))
+                self.assertEqual(artifact_root.attrib["height"], str(bottom-top))
+                self.assertEqual(embedded_bytes(artifact_root),
+                                 source_bytes[annotations[observation_id]["source_id"]])
+                self.assertIsNotNone(artifact_root.find(f"{SVG}title"))
+                self.assertIsNone(artifact_root.find(f".//{SVG}text"))
+                self.assertEqual(artifact["sha256"], hashlib.sha256(artifact_path.read_bytes()).hexdigest())
+        end_crop = svg_root(root / "evidence/review/obs-span/endpoint-0.svg")
+        endpoint_mark = end_crop.find(f".//{SVG}circle[@data-observation-id='obs-span']")
+        self.assertEqual((endpoint_mark.attrib["cx"], endpoint_mark.attrib["cy"]), ("10.5", "10.5"))
+
+    def test_review_artifact_paths_cannot_collide_with_observation_ids(self):
+        root = make_workspace()
+        data = {
+            "sources": [
+                {"id": "source", "path": "images/raw.png", "orientation": "raw"},
+            ],
+            "observations": [
+                {
+                    "id": "span",
+                    "source_id": "source",
+                    "marks": {"type": "polyline", "meaning": "visible centerline",
+                              "coordinates": [[0, 0], [2, 1]]},
+                    "endpoints": [
+                        {"index": 0, "kind": "unknown", "basis": "Invented start."},
+                        {"index": -1, "kind": "annotation boundary", "basis": "Invented end."},
+                    ],
+                    "qualification": {"identity": "invented"},
+                },
+                {
+                    "id": "span-endpoint-0",
+                    "source_id": "source",
+                    "marks": {"type": "point", "meaning": "locator",
+                              "coordinates": [[1, 1]]},
+                    "endpoints": [],
+                    "qualification": {"identity": "invented"},
+                },
+            ],
+            "features": [],
+        }
+
+        record = self.generate(write_spec(root, data), root / "evidence")
+
+        artifacts = []
+        for annotation in record["annotations"]:
+            artifacts.append((annotation["id"], annotation["review"]["assertion"]))
+            artifacts.extend(
+                (annotation["id"], endpoint)
+                for endpoint in annotation["review"]["endpoints"]
+            )
+        paths = [artifact["path"] for _, artifact in artifacts]
+        self.assertEqual(len(paths), len(set(paths)))
+        for observation_id, artifact in artifacts:
+            artifact_path = root / "evidence" / artifact["path"]
+            self.assertEqual(artifact["sha256"], hashlib.sha256(artifact_path.read_bytes()).hexdigest())
+            self.assertIsNotNone(
+                svg_root(artifact_path).find(
+                    f".//*[@data-observation-id='{observation_id}']"
+                )
+            )
+
     def test_rejects_invalid_mark_coordinates_and_cardinality(self):
         cases = [
             {"type": "point", "coordinates": [[0, 0], [1, 1]]},
