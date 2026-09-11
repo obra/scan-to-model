@@ -317,8 +317,11 @@ def _validate_frame(frame_id, frame, coverage_root, shots, eligible, contract_va
             if image.width < 1 or image.height < 1:
                 raise ValueError(f"sample frame {frame_id} has empty image dimensions")
             pixel_budget = image.width * image.height
+            fully_transparent = image.convert("RGBA").getchannel("A").getbbox() is None
     except (OSError, ValueError) as error:
         raise ValueError(f"sample frame {frame_id} is not a complete decodable image") from error
+    if fully_transparent:
+        raise ValueError(f"sample frame {frame_id} is fully transparent")
 
     camera_elevation = _number(
         frame.get("camera_elevation_m"), f"sample frame {frame_id} camera elevation",
@@ -342,6 +345,8 @@ def _validate_frame(frame_id, frame, coverage_root, shots, eligible, contract_va
         frame.get("visible_object_ids"), f"sample frame {frame_id} visible object IDs",
         allow_empty=True,
     ))
+    if not visible_ids:
+        raise ValueError(f"sample frame {frame_id} must report a visible object")
     invalid_visible = visible_ids - eligible
     if invalid_visible:
         raise ValueError(

@@ -315,6 +315,33 @@ class PresentationContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "sample frame"):
             self.validate()
 
+    def test_rejects_sample_without_visible_eligible_objects(self):
+        sample = self.coverage["sample_frames"][0]
+        sample["visible_object_ids"] = []
+        sample["object_visibility"] = []
+
+        with self.assertRaisesRegex(ValueError, "sample-0.*visible object"):
+            self.validate()
+
+    def test_rejects_fully_transparent_sample(self):
+        sample_path = self.root / "samples" / "interior.png"
+        Image.new("RGBA", (4, 3), (0, 0, 0, 0)).save(sample_path)
+        sample = self.coverage["sample_frames"][0]
+        sample["bytes"] = sample_path.stat().st_size
+        sample["sha256"] = sha256(sample_path)
+
+        with self.assertRaisesRegex(ValueError, "sample-0.*fully transparent"):
+            self.validate()
+
+    def test_accepts_opaque_black_sample(self):
+        sample_path = self.root / "samples" / "interior.png"
+        Image.new("RGBA", (4, 3), (0, 0, 0, 255)).save(sample_path)
+        sample = self.coverage["sample_frames"][0]
+        sample["bytes"] = sample_path.stat().st_size
+        sample["sha256"] = sha256(sample_path)
+
+        self.assertEqual(self.validate()["status"], "pass")
+
     def test_rejects_crossfade_between_walkthrough_shots(self):
         self.receipt["transitions"][0]["type"] = "crossfade"
 

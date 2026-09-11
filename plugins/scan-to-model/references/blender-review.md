@@ -27,7 +27,9 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B scripts/presentation.py \
 
 Use a new output path for every validation attempt; the command refuses to replace an existing result.
 
-For each required feature, every declared object must meet both visibility thresholds in at least one sample for every declared view intent, with its finding marked `pass`. The validator also requires exact scene membership, floor-relative eye height for walkthrough shots, cut transitions, decodable hash-bound samples, and coverage of all required material and image IDs. These are consistency checks over reported scene, projection, occlusion, material, image, and inspection evidence. They do not independently prove what the rendered pixels depict; retain the samples and the visual review findings with the validation result.
+For each required feature, every declared object must meet both visibility thresholds in at least one sample for every declared view intent, with its finding marked `pass`. Every sample must report at least one visible current-eligible object, and its decoded image must have at least one nontransparent pixel when interpreted as RGBA. This catches empty coverage and empty alpha output; it does not prove that the reported objects produced those pixels. An opaque black image passes this structural check and still requires visual review.
+
+The validator also requires exact scene membership, floor-relative eye height for walkthrough shots, cut transitions, decodable hash-bound samples, and coverage of all required material and image IDs. These are consistency checks over reported scene, projection, occlusion, material, image, and inspection evidence. They do not independently prove what the rendered pixels depict; retain the samples and the visual review findings with the validation result.
 
 ## Keep diagnostic geometry out of physical placement
 
@@ -179,6 +181,8 @@ When a candidate will be promoted by copying its bytes to the original canonical
 ```python
 bpy.ops.wm.save_as_mainfile(filepath=str(candidate_path), relative_remap=False)
 ```
+
+If exact filepath strings for existing packed images are preservation fields, record them before editing and require them unchanged after reopening. A scratch Save As for later byte-copy promotion must use `relative_remap=False` in that case even though the image payloads are packed.
 
 This option is specific to a workflow where the intended final location has the same reference base as the source file. It can make relative references look broken while the candidate is open in scratch; candidate-local validity does not prove, or disprove, validity after promotion. For a different final directory or asset layout, choose remapping or stage the candidate beside that final layout instead.
 
