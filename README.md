@@ -2,7 +2,7 @@
 
 A Codex plugin for turning scan evidence into reviewable Blender architectural models.
 
-Start with photographs, calibrated depth, camera poses, plans, and observations. Preserve the evidence, measure real surfaces, align captures, and build a model whose geometry can be traced back to its sources. The plugin provides seven skills and six local Python tools. It does not automatically reconstruct an entire building from a ZIP.
+Start with photographs, calibrated depth, camera poses, plans, and observations. Preserve the evidence, measure real surfaces, align captures, and build a model whose geometry can be traced back to its sources. The plugin provides seven skills and seven local Python tools. It does not automatically reconstruct an entire building from a ZIP.
 
 ## Install in Codex
 
@@ -44,7 +44,7 @@ python3 -m venv .venv
 
 Blender is required for model inspection and reconstruction. The Blender review script runs inside Blender; the scan tools run in the Python environment. The native reader currently supports Polycam keyframe exports with millimetre depth PNGs. Other formats require an explicit adapter and verified units, axes, poses, and calibration.
 
-See the [tool commands and input formats](plugins/scan-to-model/references/formats.md), [package overview](plugins/scan-to-model/README.md), and [Blender review guide](plugins/scan-to-model/references/blender-review.md).
+See the [tool commands and input formats](plugins/scan-to-model/references/formats.md), [source-observation contract](plugins/scan-to-model/references/source-observations.md), [package overview](plugins/scan-to-model/README.md), and [Blender review guide](plugins/scan-to-model/references/blender-review.md).
 
 ## Evidence and limits
 

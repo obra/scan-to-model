@@ -1,6 +1,6 @@
 # Photograph observations that survive model changes
 
-Use this record contract for visible construction inventories from scan RGB or standalone photographs, including photographs embedded in documents. It extends the [project records](project-records.md); reuse existing project IDs and records where they already carry the information. No new database or particular filename is required. The example below illustrates the fields; there is no photo-only CLI or automatic object recognition in the package.
+Use this record contract for visible construction inventories from scan RGB or standalone photographs, including photographs embedded in documents. It extends the [project records](project-records.md); reuse existing project IDs and records where they already carry the information. No new database or particular filename is required. The example below illustrates the fields. `scripts/observations.py` validates and renders photo annotations; it does not perform automatic object recognition.
 
 ## Keep three things separate
 
@@ -94,5 +94,61 @@ A placement record identifies the observation/feature IDs, candidate/model hash,
 ## Reviewable output
 
 Deliver the source manifest, observation/feature-relation records, annotated source sheets and a concise scope/unknowns report. A vector overlay referencing or embedding unchanged source bytes can reproduce marks without repainting the photograph. Keep annotation labels readable and distinguish locator lines from measured outlines. Record output hashes and the script/command used to reproduce them when a generator is used.
+
+The bundled renderer accepts local JPEG and PNG paths and writes only to a new output directory:
+
+```sh
+python "$PLUGIN/scripts/observations.py" \
+  --spec /path/to/review/observations.json \
+  --output /path/to/review/annotated-source-evidence
+```
+
+```json
+{
+  "sources": [
+    {
+      "id": "photo-a",
+      "path": "sources/photo-a.jpg",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "orientation": "upright90cw",
+      "metadata": {"capture_date": "unknown"}
+    }
+  ],
+  "observations": [
+    {
+      "id": "obs-017",
+      "label": "visible span",
+      "source_id": "photo-a",
+      "marks": {
+        "type": "polyline",
+        "meaning": "visible centerline",
+        "coordinates": [[124, 318], [168, 300], [203, 297]]
+      },
+      "endpoints": [
+        {"index": 0, "kind": "occlusion", "basis": "Disappears behind wood."},
+        {"index": -1, "kind": "annotation boundary", "basis": "Review ends here."}
+      ],
+      "qualification": {"identity": "unresolved"},
+      "metadata": {"observed": "Brown cylindrical span."}
+    }
+  ],
+  "features": [
+    {
+      "id": "feature-candidate-1",
+      "observation_ids": ["obs-017"],
+      "qualification": {"status": "candidate", "basis": "Single-view observation."}
+    }
+  ],
+  "metadata": {"review_scope": "One invented example span."}
+}
+```
+
+Source paths may be absolute or relative. Relative paths, including `../` sibling references and symlinks, resolve from the specification directory. The evidence record preserves the declared path and the exact resolved target path with its hash; the helper does not copy, move or rewrite source files.
+
+IDs may contain letters, numbers, dots, underscores and hyphens. All three top-level arrays are required; `observations` and `features` may be empty. Point, polyline and polygon coordinates are always native pixel centers. A point has one coordinate, a polyline at least two and a polygon at least three. Polylines require qualified endpoint records at indices `0` and `-1`; points and polygons use an empty `endpoints` list. Qualification and arbitrary metadata remain authored input and are preserved unchanged. Labels must contain only characters valid in XML 1.0; unsupported control characters cause generation to fail rather than being removed or replaced.
+
+`raw` keeps native display orientation. `upright90cw` maps native centers `(u,v)` to `(H-1-v,u)` and rotates the embedded image bytes in SVG without recompressing them. JPEGs with a nontrivial EXIF orientation are rejected so the browser cannot silently add another transform. The output `evidence.json` contains the complete input record, exact before/after source and spec hashes, decoded dimensions, native/display coordinates, round-trip checks and generated SVG hashes. Each SVG embeds the original source bytes. Visually inspect every sheet after generation.
+
+The renderer accepts no PDF input and does not recognize features, decide cross-photo identity, estimate depth, register a coordinate frame or establish that the review found every feature.
 
 Check source hashes, image dimensions, finite/in-bounds marks, coordinate round trips, unique IDs and source/relation references. Then visually inspect the annotated originals: structural checks cannot prove feature identity or endpoint meaning. Inspect every authored mark in the packet; separately sample proposed cross-view matches in both full images. Report excluded/ambiguous features and what remains unexamined. A saved overlay proves reproducibility, not depth, room assignment, hidden continuity or present-day survival.
