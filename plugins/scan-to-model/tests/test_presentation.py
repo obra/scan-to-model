@@ -254,6 +254,15 @@ class PresentationContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "eye height"):
             self.validate()
 
+    def test_rejects_negative_eye_height_range(self):
+        self.contract["presentation"]["eye_height_m"] = {
+            "minimum": -2.0,
+            "maximum": -1.0,
+        }
+
+        with self.assertRaisesRegex(ValueError, "minimum eye height.*positive"):
+            self.validate()
+
     def test_rejects_missing_required_texture_coverage(self):
         self.coverage["sample_frames"][1]["image_ids"] = []
 
@@ -423,6 +432,35 @@ class PresentationContractTests(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(output_path.read_text(), "retained failed attempt\n")
+
+    def test_command_does_not_write_through_dangling_output_symlink(self):
+        contract_path, receipt_path = write_documents(
+            self.root, self.contract, self.receipt, self.coverage,
+        )
+        target_path = self.root / "escaped-validation.json"
+        output_path = self.root / "validation-link.json"
+        output_path.symlink_to(target_path)
+        script_path = Path(__file__).resolve().parents[1] / "scripts" / "presentation.py"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(script_path),
+                "--contract",
+                str(contract_path),
+                "--receipt",
+                str(receipt_path),
+                "--output",
+                str(output_path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(target_path.exists())
 
 
 if __name__ == "__main__":

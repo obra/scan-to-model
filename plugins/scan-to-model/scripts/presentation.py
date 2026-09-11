@@ -168,6 +168,8 @@ def _validate_contract(contract):
     eye_height = _mapping(presentation.get("eye_height_m"), "presentation eye_height_m")
     minimum_eye_height = _number(eye_height.get("minimum"), "minimum eye height")
     maximum_eye_height = _number(eye_height.get("maximum"), "maximum eye height")
+    if minimum_eye_height <= 0:
+        raise ValueError("minimum eye height must be positive")
     if minimum_eye_height > maximum_eye_height:
         raise ValueError("minimum eye height exceeds maximum eye height")
 
@@ -574,11 +576,10 @@ def main(argv=None):
     parser.add_argument("--output", required=True, type=Path)
     arguments = parser.parse_args(argv)
     try:
-        if arguments.output.exists():
-            raise ValueError(f"output already exists: {arguments.output}")
         result = validate_presentation(arguments.contract, arguments.receipt)
         rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"
-        arguments.output.write_text(rendered, encoding="utf-8")
+        with arguments.output.open("x", encoding="utf-8") as destination:
+            destination.write(rendered)
     except (OSError, ValueError) as error:
         parser.exit(1, f"presentation validation failed: {error}\n")
     sys.stdout.write(rendered)
