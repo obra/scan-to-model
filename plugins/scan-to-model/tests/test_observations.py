@@ -270,6 +270,56 @@ class ObservationSheetTests(unittest.TestCase):
         endpoint_mark = end_crop.find(f".//{SVG}circle[@data-observation-id='obs-span-endpoint-0']")
         self.assertEqual((endpoint_mark.attrib["cx"], endpoint_mark.attrib["cy"]), ("10.5", "10.5"))
 
+    def test_review_artifact_paths_cannot_collide_with_observation_ids(self):
+        root = make_workspace()
+        data = {
+            "sources": [
+                {"id": "source", "path": "images/raw.png", "orientation": "raw"},
+            ],
+            "observations": [
+                {
+                    "id": "span",
+                    "source_id": "source",
+                    "marks": {"type": "polyline", "meaning": "visible centerline",
+                              "coordinates": [[0, 0], [2, 1]]},
+                    "endpoints": [
+                        {"index": 0, "kind": "unknown", "basis": "Invented start."},
+                        {"index": -1, "kind": "annotation boundary", "basis": "Invented end."},
+                    ],
+                    "qualification": {"identity": "invented"},
+                },
+                {
+                    "id": "span-endpoint-0",
+                    "source_id": "source",
+                    "marks": {"type": "point", "meaning": "locator",
+                              "coordinates": [[1, 1]]},
+                    "endpoints": [],
+                    "qualification": {"identity": "invented"},
+                },
+            ],
+            "features": [],
+        }
+
+        record = self.generate(write_spec(root, data), root / "evidence")
+
+        artifacts = []
+        for annotation in record["annotations"]:
+            artifacts.append((annotation["id"], annotation["review"]["assertion"]))
+            artifacts.extend(
+                (annotation["id"], endpoint)
+                for endpoint in annotation["review"]["endpoints"]
+            )
+        paths = [artifact["path"] for _, artifact in artifacts]
+        self.assertEqual(len(paths), len(set(paths)))
+        for observation_id, artifact in artifacts:
+            artifact_path = root / "evidence" / artifact["path"]
+            self.assertEqual(artifact["sha256"], hashlib.sha256(artifact_path.read_bytes()).hexdigest())
+            self.assertIsNotNone(
+                svg_root(artifact_path).find(
+                    f".//*[@data-observation-id='{observation_id}']"
+                )
+            )
+
     def test_rejects_invalid_mark_coordinates_and_cardinality(self):
         cases = [
             {"type": "point", "coordinates": [[0, 0], [1, 1]]},
