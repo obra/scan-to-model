@@ -330,7 +330,7 @@ def _review_bounds(display_coordinates, source):
     ]
 
 
-def _sheet_bytes(source, annotations, bounds=None, title=None):
+def _sheet_bytes(source, annotations, bounds=None, title=None, draw_labels=True):
     display_width, display_height = _display_dimensions(source)
     if bounds is None:
         bounds = [0, 0, display_width, display_height]
@@ -379,23 +379,24 @@ def _sheet_bytes(source, annotations, bounds=None, title=None):
             points = " ".join(f"{_number(x)},{_number(y)}" for x, y in displayed_edges)
             tag = "polyline" if annotation["type"] == "polyline" else "polygon"
             ET.SubElement(group, _svg(tag), {**common, "points": points})
-        x, y = displayed_edges[0]
-        label_on_right = x <= left + width / 2
-        text = ET.SubElement(group, _svg("text"), {
-            "x": _number(x),
-            "y": _number(y),
-            "dx": "6" if label_on_right else "-6",
-            "dy": "14" if y <= top + height / 2 else "-6",
-            "text-anchor": "start" if label_on_right else "end",
-            "fill": "#ffffff",
-            "stroke": "#000000",
-            "stroke-width": "3",
-            "paint-order": "stroke",
-            "font-family": "sans-serif",
-            "font-size": "14",
-            "data-observation-id": annotation["id"],
-        })
-        text.text = annotation["label"]
+        if draw_labels:
+            x, y = displayed_edges[0]
+            label_on_right = x <= left + width / 2
+            text = ET.SubElement(group, _svg("text"), {
+                "x": _number(x),
+                "y": _number(y),
+                "dx": "6" if label_on_right else "-6",
+                "dy": "14" if y <= top + height / 2 else "-6",
+                "text-anchor": "start" if label_on_right else "end",
+                "fill": "#ffffff",
+                "stroke": "#000000",
+                "stroke-width": "3",
+                "paint-order": "stroke",
+                "font-family": "sans-serif",
+                "font-size": "14",
+                "data-observation-id": annotation["id"],
+            })
+            text.text = annotation["label"]
     return ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
 
 
@@ -454,6 +455,7 @@ def generate_evidence(spec_path, output_dir):
             [annotation],
             assertion_bounds,
             f"Assertion review for {annotation['label']}",
+            draw_labels=False,
         )
         sheets[assertion_path] = assertion_sheet
         review = {
@@ -485,6 +487,7 @@ def generate_evidence(spec_path, output_dir):
                 [endpoint_annotation],
                 endpoint_bounds,
                 f"Endpoint review for {annotation['label']}: {endpoint['kind']}",
+                draw_labels=False,
             )
             sheets[endpoint_path] = endpoint_sheet
             review["endpoints"].append({
