@@ -12,6 +12,27 @@ Run:
 
 Repeat `--camera NAME` for each requested camera. The camera must belong to the active scene. `--view-layer NAME` selects the view layer to render; the default is Blender's active view layer. All requested cameras share that selected layer, so use separate invocations and output directories for cameras that need different collection exclusions or other view-layer settings. Unknown layer names fail. Use separate output directories for the baseline and candidate. The helper rejects using the input file's directory itself, writing through output paths that escape the chosen folder or have multiple hard links, and overwriting the comparison inventory. It does not save the blend file. Optional rendering temporarily changes the active scene's camera and render settings in memory, then restores those settings.
 
+## Candidate save and promotion paths
+
+Choose the path-binding policy before saving a candidate. Blender stores `//` paths relative to the blend file and `bpy.ops.wm.save_as_mainfile` defaults to `relative_remap=True`. Saving into a scratch directory therefore rewrites relative external references so they keep resolving from the scratch candidate. That behavior is appropriate when the candidate stays there, or when the blend and referenced assets move together with the same layout.
+
+When a candidate will be promoted by copying its bytes to the original canonical directory, the scratch candidate instead needs to retain the canonical file's relative strings. Save that candidate explicitly with `relative_remap=False`:
+
+```python
+bpy.ops.wm.save_as_mainfile(filepath=str(candidate_path), relative_remap=False)
+```
+
+This option is specific to a workflow where the intended final location has the same reference base as the source file. It can make relative references look broken while the candidate is open in scratch; candidate-local validity does not prove, or disprove, validity after promotion. For a different final directory or asset layout, choose remapping or stage the candidate beside that final layout instead.
+
+Before promotion, inspect every stored external path, including packed paths from `bpy.utils.blend_paths(packed=True)`, as if the candidate were located at the intended final path. Require each relative path to resolve to its recorded target from the final directory. Then copy the candidate, reopen the promoted file, repeat the resolution audit, and load each unpacked source to verify its bytes can be decoded. Packed data can hide a bad source path, so separately compare both source-file and packed-payload hashes before saving and after reopening; retain the recorded filename even when the packed bytes match because it remains part of provenance and may be used when unpacking.
+
+The synthetic check demonstrates both policies with invented packed and unpacked images. Each invocation requires a new output directory and retains its source images, source blend, reopened candidate, byte-copied promoted blend, and `result.json`. The first command must fail after byte-copy promotion because the default binds paths to scratch; the second must pass because the final-path references, readable source pixels, source hashes, and packed bytes survive:
+
+```text
+blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode default --output /path/to/review/candidate-promotion-default
+blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode preserve-final-paths --output /path/to/review/candidate-promotion-preserved
+```
+
 The inventory covers these source properties:
 
 - Objects: type, transforms, parent and datablock references, writable scalar/array settings including visibility and instancing, collection membership, material slots, custom source tags, modifier order/settings, and constraint order/settings. Modifier and constraint settings include writable scalar/array properties and datablock references; modifier custom properties include Geometry Nodes input values.
