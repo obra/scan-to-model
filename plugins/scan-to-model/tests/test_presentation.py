@@ -275,6 +275,40 @@ class PresentationContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "required material IDs"):
             self.validate()
 
+    def test_accepts_applied_occluded_material_override_without_sample_coverage(self):
+        pane_ids = ("front-pane", "rear-pane")
+        self.contract["presentation"]["objects"].extend(
+            {"id": pane_id, "disposition": "current-eligible"}
+            for pane_id in pane_ids
+        )
+        for field in ("current_eligible_object_ids", "included_object_ids"):
+            self.receipt["scene_audit"][field].extend(pane_ids)
+        overrides = [
+            {
+                "object_id": "front-pane",
+                "original_material_id": "original-front-pane",
+                "render_material_id": "render-front-pane",
+                "intent": "front-transparent-glazing",
+            },
+            {
+                "object_id": "rear-pane",
+                "original_material_id": "original-rear-pane",
+                "render_material_id": "render-rear-pane",
+                "intent": "rear-transparent-glazing",
+            },
+        ]
+        renderer = self.contract["presentation"]["renderer"]
+        renderer["material_overrides"] = overrides
+        renderer["required_material_ids"] = [
+            "wall-finish", "picture-surface", "render-front-pane",
+        ]
+        self.receipt["renderer"]["material_overrides"] = copy.deepcopy(overrides)
+        self.coverage["sample_frames"][0]["material_ids"] = [
+            "wall-finish", "render-front-pane",
+        ]
+
+        self.assertEqual(self.validate()["status"], "pass")
+
     def test_rejects_material_mode_that_does_not_render_textures(self):
         self.receipt["renderer"]["material_mode"] = "flat-color"
 
