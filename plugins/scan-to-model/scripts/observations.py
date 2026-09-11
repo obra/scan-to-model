@@ -31,6 +31,8 @@ IMAGE_FORMATS = {
     ".jpg": ("JPEG", "image/jpeg"),
     ".png": ("PNG", "image/png"),
 }
+REVIEW_PADDING_PX = 32
+REVIEW_SCALE = "1 SVG unit per displayed source pixel"
 
 
 def _svg(tag):
@@ -310,17 +312,39 @@ def _validate_spec(spec, spec_root):
     return loaded_sources, annotations
 
 
-def _sheet_bytes(source, annotations):
-    width = source["height"] if source["orientation"] == "upright90cw" else source["width"]
-    height = source["width"] if source["orientation"] == "upright90cw" else source["height"]
+def _display_dimensions(source):
+    if source["orientation"] == "upright90cw":
+        return source["height"], source["width"]
+    return source["width"], source["height"]
+
+
+def _review_bounds(display_coordinates, source):
+    width, height = _display_dimensions(source)
+    xs = [point[0] + 0.5 for point in display_coordinates]
+    ys = [point[1] + 0.5 for point in display_coordinates]
+    return [
+        max(0, math.floor(min(xs) - REVIEW_PADDING_PX)),
+        max(0, math.floor(min(ys) - REVIEW_PADDING_PX)),
+        min(width, math.ceil(max(xs) + REVIEW_PADDING_PX)),
+        min(height, math.ceil(max(ys) + REVIEW_PADDING_PX)),
+    ]
+
+
+def _sheet_bytes(source, annotations, bounds=None, title=None):
+    display_width, display_height = _display_dimensions(source)
+    if bounds is None:
+        bounds = [0, 0, display_width, display_height]
+    left, top, right, bottom = bounds
+    width, height = right - left, bottom - top
+    title = title or f"Annotations for {source['id']}"
     root = ET.Element(_svg("svg"), {
-        "viewBox": f"0 0 {width} {height}",
+        "viewBox": f"{left} {top} {width} {height}",
         "width": str(width),
         "height": str(height),
         "role": "img",
-        "aria-label": f"Annotations for {source['id']}",
+        "aria-label": title,
     })
-    ET.SubElement(root, _svg("title")).text = f"Annotations for {source['id']}"
+    ET.SubElement(root, _svg("title")).text = title
     image_attributes = {
         "x": "0",
         "y": "0",
@@ -356,12 +380,12 @@ def _sheet_bytes(source, annotations):
             tag = "polyline" if annotation["type"] == "polyline" else "polygon"
             ET.SubElement(group, _svg(tag), {**common, "points": points})
         x, y = displayed_edges[0]
-        label_on_right = x <= width / 2
+        label_on_right = x <= left + width / 2
         text = ET.SubElement(group, _svg("text"), {
             "x": _number(x),
             "y": _number(y),
             "dx": "6" if label_on_right else "-6",
-            "dy": "14" if y <= height / 2 else "-6",
+            "dy": "14" if y <= top + height / 2 else "-6",
             "text-anchor": "start" if label_on_right else "end",
             "fill": "#ffffff",
             "stroke": "#000000",
@@ -387,13 +411,13 @@ def generate_evidence(spec_path, output_dir):
     sources, annotations = _validate_spec(spec, spec_root)
     sheets = {}
     source_records = []
+    source_by_id = {source["id"]: source for source in sources}
     for source in sources:
         source_annotations = [row for row in annotations if row["source_id"] == source["id"]]
         sheet_path = f"{source['id']}.svg"
         sheet = _sheet_bytes(source, source_annotations)
         sheets[sheet_path] = sheet
-        display_width = source["height"] if source["orientation"] == "upright90cw" else source["width"]
-        display_height = source["width"] if source["orientation"] == "upright90cw" else source["height"]
+        display_width, display_height = _display_dimensions(source)
         source_records.append({
             "input_index": source["input_index"],
             "id": source["id"],
@@ -420,6 +444,60 @@ def generate_evidence(spec_path, output_dir):
             "sheet": {"path": sheet_path, "sha256": _digest(sheet)},
         })
 
+    observations_by_id = {row["id"]: row for row in spec["observations"]}
+    for annotation in annotations:
+        source = source_by_id[annotation["source_id"]]
+        assertion_bounds = _review_bounds(annotation["display_coordinates"], source)
+        assertion_path = f"review/{annotation['id']}.svg"
+        assertion_sheet = _sheet_bytes(
+            source,
+            [annotation],
+            assertion_bounds,
+            f"Assertion review for {annotation['label']}",
+        )
+        sheets[assertion_path] = assertion_sheet
+        review = {
+            "status": "pending visual review",
+            "assertion": {
+                "path": assertion_path,
+                "sha256": _digest(assertion_sheet),
+                "display_bounds": assertion_bounds,
+                "scale": REVIEW_SCALE,
+            },
+            "endpoints": [],
+        }
+        for endpoint in observations_by_id[annotation["id"]]["endpoints"]:
+            index = endpoint["index"]
+            display_coordinate = annotation["display_coordinates"][index]
+            endpoint_bounds = _review_bounds([display_coordinate], source)
+            suffix = "0" if index == 0 else "last"
+            endpoint_id = f"{annotation['id']}-endpoint-{suffix}"
+            endpoint_path = f"review/{endpoint_id}.svg"
+            endpoint_annotation = {
+                "id": endpoint_id,
+                "label": f"{annotation['label']}: {endpoint['kind']}",
+                "source_id": annotation["source_id"],
+                "type": "point",
+                "display_coordinates": [display_coordinate],
+            }
+            endpoint_sheet = _sheet_bytes(
+                source,
+                [endpoint_annotation],
+                endpoint_bounds,
+                f"Endpoint review for {annotation['label']}: {endpoint['kind']}",
+            )
+            sheets[endpoint_path] = endpoint_sheet
+            review["endpoints"].append({
+                "index": index,
+                "kind": endpoint["kind"],
+                "basis": endpoint["basis"],
+                "path": endpoint_path,
+                "sha256": _digest(endpoint_sheet),
+                "display_bounds": endpoint_bounds,
+                "scale": REVIEW_SCALE,
+            })
+        annotation["review"] = review
+
     spec_after = spec_path.read_bytes()
     if spec_after != spec_before:
         raise ValueError("Specification bytes changed during generation")
@@ -431,7 +509,7 @@ def generate_evidence(spec_path, output_dir):
             raise ValueError(f"Source {source['id']} bytes changed during generation")
 
     record = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generator": {"script": "scripts/observations.py"},
         "input_proof": {
             "sha256_before": _digest(spec_before),
@@ -443,14 +521,17 @@ def generate_evidence(spec_path, output_dir):
         "annotations": annotations,
         "limits": (
             "Annotation rendering does not recognize features, choose correspondence, estimate depth, "
-            "register coordinates or establish feature completeness."
+            "register coordinates or establish feature completeness. Review artifacts remain pending "
+            "until a person checks the depicted construction and endpoint meanings."
         ),
     }
     record_bytes = json.dumps(record, indent=2, allow_nan=False).encode("utf-8") + b"\n"
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir()
     for name, data in sheets.items():
-        (output_dir / name).write_bytes(data)
+        destination = output_dir / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
     (output_dir / "evidence.json").write_bytes(record_bytes)
     return record
 
