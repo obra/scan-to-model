@@ -1,6 +1,6 @@
 {
   "name": "scan-to-model",
-  "version": "0.1.0+codex.20260911070101",
+  "version": "0.1.0+codex.20260911070551",
   "description": "Preserve Polycam exports, measure native depth, validate rigid scan alignment, and build evidence-backed Blender models.",
   "author": {
     "name": "Jesse"
