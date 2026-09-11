@@ -23,7 +23,7 @@ Follow the [repository installation instructions](https://github.com/obra/scan-t
 Read [commands and scan-geometry JSON examples](references/formats.md) or the [source-observation contract](references/source-observations.md) before running the corresponding tool. Call `--help` on each entrypoint for its arguments.
 
 - `scripts/ingest.py`: preserve and audit a ZIP; repeat ingestion verifies existing data.
-- `scripts/observations.py`: validate native marks from local JPEG/PNG paths and render exact-byte SVG evidence sheets into a fresh directory.
+- `scripts/observations.py`: validate native marks and render exact-byte source sheets plus native-scale assertion and endpoint review crops.
 - `scripts/reference.py`: create finite metre point references with frame/pixel provenance.
 - `scripts/surfaces.py`: measure source-photo polygons; save native samples, fits and evidence figures.
 - `scripts/manufactured.py`: [fit manufactured rectangles](references/manufactured-shapes.md) in common component axes and report original controls and residuals.
