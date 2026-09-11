@@ -2,15 +2,19 @@
 
 Run with --output /path/to/review/polycam-fixtures; the directory must be new.
 All input fixtures and the test result are retained there.
+Unittest discovery retains fixtures under SCAN_TO_MODEL_TEST_SCRATCH or
+.test-scratch/polycam in the working directory.
 """
 
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import struct
 import sys
 import unittest
+import uuid
 import zlib
 
 import numpy as np
@@ -53,8 +57,13 @@ class PolycamTests(unittest.TestCase):
     output = None
 
     def setUp(self):
-        self.root = self.output / self._testMethodName
-        self.root.mkdir()
+        if self.output is None:
+            scratch = Path(os.environ.get('SCAN_TO_MODEL_TEST_SCRATCH',
+                                          Path.cwd() / '.test-scratch' / 'polycam'))
+            self.root = scratch / f'{self._testMethodName}-{uuid.uuid4()}'
+        else:
+            self.root = self.output / self._testMethodName
+        self.root.mkdir(parents=True)
 
     def test_depth_samples_and_source_hashes_survive_decoding(self):
         path, _ = frame_fixture(self.root)
