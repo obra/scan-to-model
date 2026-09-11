@@ -207,14 +207,6 @@ def _validate_contract(contract):
     material_overrides = _material_overrides(
         renderer.get("material_overrides"), eligible, "presentation material overrides",
     )
-    unverified_render_materials = {
-        item["render_material_id"] for item in material_overrides
-    } - required_materials
-    if unverified_render_materials:
-        raise ValueError(
-            "render material overrides must be listed in required material IDs: "
-            f"{sorted(unverified_render_materials)}"
-        )
 
     feature_records = _records(
         presentation.get("required_features"), "required presentation features",
