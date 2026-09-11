@@ -120,7 +120,7 @@ def check_case(source, radius, method):
                      'projected_bounds': bounds(projected), 'clipped': clipped})
     assert (len(bpy.data.meshes), len(bpy.data.curves)) == data_counts
     return {'point_radius': radius, 'scene': scene.name, 'view_layer': bpy.context.view_layer.name,
-            'objects': rows, 'temporary_meshes_released': True,
+            'objects': rows, 'persistent_geometry_counts_unchanged': True,
             'passed': all(row['maximum_bound_error'] < 1e-6 and not row['clipped'] for row in rows)}
 
 
