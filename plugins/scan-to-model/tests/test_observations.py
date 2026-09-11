@@ -263,6 +263,8 @@ class ObservationSheetTests(unittest.TestCase):
                 self.assertEqual(artifact_root.attrib["height"], str(bottom-top))
                 self.assertEqual(embedded_bytes(artifact_root),
                                  source_bytes[annotations[observation_id]["source_id"]])
+                self.assertIsNotNone(artifact_root.find(f"{SVG}title"))
+                self.assertIsNone(artifact_root.find(f".//{SVG}text"))
                 self.assertEqual(artifact["sha256"], hashlib.sha256(artifact_path.read_bytes()).hexdigest())
         end_crop = svg_root(root / "evidence/review/obs-span-endpoint-0.svg")
         endpoint_mark = end_crop.find(f".//{SVG}circle[@data-observation-id='obs-span-endpoint-0']")
