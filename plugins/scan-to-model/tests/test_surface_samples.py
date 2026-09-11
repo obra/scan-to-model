@@ -28,6 +28,7 @@ class SurfaceSampleTests(unittest.TestCase):
         depth[2, 2] = 6000
         confidence = np.full((8, 8), 255, dtype=np.uint8)
         confidence[3, 3] = 0
+        confidence[0, 0] = 128
         Image.fromarray(depth).save(capture / 'keyframes/depth/001.png')
         Image.fromarray(confidence).save(capture / 'keyframes/confidence/001.png')
         Image.new('RGB', (16, 16), (140, 160, 180)).save(capture / 'keyframes/images/001.jpg')
@@ -47,6 +48,8 @@ class SurfaceSampleTests(unittest.TestCase):
                  'polygon_px': [[2, 2], [12, 2], [12, 12], [2, 12]]},
                 {'id': 'small', 'frame_id': '001', 'physical_surface': 'synthetic plane',
                  'polygon_px': [[2, 2], [4, 2], [4, 4], [2, 4]]},
+                {'id': 'confidence-excluded', 'frame_id': '001', 'physical_surface': 'synthetic plane',
+                 'polygon_px': [[0, 0], [1, 0], [1, 1], [0, 1]]},
             ],
             'comparisons': [],
         }
@@ -79,19 +82,20 @@ class SurfaceSampleTests(unittest.TestCase):
             ('wide', [(u, v) for v in range(1, 7) for u in range(1, 7)
                       if (u, v) not in {(1, 1), (2, 2), (3, 3)}]),
             ('small', [(2, 1), (1, 2)]),
+            ('confidence-excluded', []),
         ]:
             with self.subTest(patch=name):
                 row = outputs['samples'][name]
                 self.assertEqual(row['eligible_pixels'], len(selected))
-                self.assertEqual(row['native_patch_pixels'], 36 if name == 'wide' else 4)
+                self.assertEqual(row['native_patch_pixels'], {'wide': 36, 'small': 4, 'confidence-excluded': 1}[name])
                 self.assertIsNone(row['plane'])
                 self.assertEqual(row['fit_status'], 'not fitted')
                 with np.load(root / 'samples' / row['samples']) as samples, np.load(root / 'fit' / outputs['fit'][name]['samples']) as fitted:
-                    np.testing.assert_array_equal(samples['pixels'], selected)
+                    np.testing.assert_array_equal(samples['pixels'], np.asarray(selected).reshape(-1, 2))
                     expected_raw = [[1 + (u - 4) / 4, 2 - (v - 4) / 4, 1] for u, v in selected]
                     expected_points = [[1 + (v - 4) / 4, (u - 4) / 4, 3] for u, v in selected]
-                    np.testing.assert_allclose(samples['raw_points'], expected_raw, atol=1e-12, rtol=0)
-                    np.testing.assert_allclose(samples['points'], expected_points, atol=1e-12, rtol=0)
+                    np.testing.assert_allclose(samples['raw_points'], np.asarray(expected_raw).reshape(-1, 3), atol=1e-12, rtol=0)
+                    np.testing.assert_allclose(samples['points'], np.asarray(expected_points).reshape(-1, 3), atol=1e-12, rtol=0)
                     self.assertEqual(samples['inlier_mask'].shape, (len(selected),))
                     self.assertEqual(samples['inlier_mask'].dtype, np.dtype(bool))
                     self.assertFalse(samples['inlier_mask'].any())
