@@ -12,7 +12,14 @@ from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
 
-from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError
+
+from pixel_inspection import (
+    COORDINATE_CONTEXT_MAGNIFICATION, COORDINATE_CONTEXT_RADIUS_PX,
+    COORDINATE_DETAIL_MAGNIFICATION, COORDINATE_DETAIL_RADIUS_PX,
+    coordinate_inspection_bytes, display_crop_pixel_edges, display_dimensions,
+    display_pixel_center, format_number, native_pixel_center,
+)
 
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
@@ -31,21 +38,7 @@ IMAGE_FORMATS = {
     ".jpg": ("JPEG", "image/jpeg"),
     ".png": ("PNG", "image/png"),
 }
-REVIEW_PADDING_PX = 32
 REVIEW_SCALE = "1 SVG unit per displayed source pixel"
-COORDINATE_CONTEXT_RADIUS_PX = 128
-COORDINATE_CONTEXT_MAGNIFICATION = 1
-COORDINATE_DETAIL_RADIUS_PX = 4
-COORDINATE_DETAIL_MAGNIFICATION = 12
-COORDINATE_ROWS_PER_COLUMN = 8
-COORDINATE_PADDING = 12
-COORDINATE_LABEL_HEIGHT = 62
-COORDINATE_PANEL_GAP = 12
-COORDINATE_CELL_GAP = 12
-COORDINATE_COLUMN_GAP = 24
-COORDINATE_OUTSIDE_COLOR = (36, 36, 36, 255)
-COORDINATE_BACKGROUND_COLOR = (246, 246, 246, 255)
-COORDINATE_LOCATOR_COLOR = (255, 45, 32, 255)
 
 
 def _svg(tag):
@@ -54,12 +47,6 @@ def _svg(tag):
 
 def _digest(data):
     return sha256(data).hexdigest()
-
-
-def _number(value):
-    if isinstance(value, int):
-        return str(value)
-    return format(value, ".15g")
 
 
 def _identifier(value, label):
@@ -191,20 +178,6 @@ def _read_image(source, index, spec_root):
     }
 
 
-def _display_point(point, source):
-    u, v = point
-    if source["orientation"] == "raw":
-        return [u, v]
-    return [source["height"] - 1 - v, u]
-
-
-def _native_point(point, source):
-    display_u, display_v = point
-    if source["orientation"] == "raw":
-        return [display_u, display_v]
-    return [display_v, source["height"] - 1 - display_u]
-
-
 def _validate_coordinates(marks, source, observation_id):
     mark_type = marks.get("type")
     if mark_type not in {"point", "polyline", "polygon"}:
@@ -293,8 +266,8 @@ def _validate_spec(spec, spec_root):
         source = source_by_id[source_id]
         mark_type, native = _validate_coordinates(marks, source, observation_id)
         _validate_endpoints(observation, mark_type, len(native))
-        display = [_display_point(point, source) for point in native]
-        round_trip = [_native_point(point, source) for point in display]
+        display = [display_pixel_center(point, source) for point in native]
+        round_trip = [native_pixel_center(point, source) for point in display]
         if any(
             not math.isclose(actual, expected, rel_tol=0, abs_tol=1e-12)
             for actual_point, expected_point in zip(round_trip, native)
@@ -325,26 +298,8 @@ def _validate_spec(spec, spec_root):
     return loaded_sources, annotations
 
 
-def _display_dimensions(source):
-    if source["orientation"] == "upright90cw":
-        return source["height"], source["width"]
-    return source["width"], source["height"]
-
-
-def _review_bounds(display_coordinates, source):
-    width, height = _display_dimensions(source)
-    xs = [point[0] + 0.5 for point in display_coordinates]
-    ys = [point[1] + 0.5 for point in display_coordinates]
-    return [
-        max(0, math.floor(min(xs) - REVIEW_PADDING_PX)),
-        max(0, math.floor(min(ys) - REVIEW_PADDING_PX)),
-        min(width, math.ceil(max(xs) + REVIEW_PADDING_PX)),
-        min(height, math.ceil(max(ys) + REVIEW_PADDING_PX)),
-    ]
-
-
 def _sheet_bytes(source, annotations, bounds=None, title=None, draw_labels=True):
-    display_width, display_height = _display_dimensions(source)
+    display_width, display_height = display_dimensions(source)
     if bounds is None:
         bounds = [0, 0, display_width, display_height]
     left, top, right, bottom = bounds
@@ -386,18 +341,18 @@ def _sheet_bytes(source, annotations, bounds=None, title=None, draw_labels=True)
         if annotation["type"] == "point":
             x, y = displayed_edges[0]
             ET.SubElement(group, _svg("circle"), {
-                **common, "cx": _number(x), "cy": _number(y), "r": "4",
+                **common, "cx": format_number(x), "cy": format_number(y), "r": "4",
             })
         else:
-            points = " ".join(f"{_number(x)},{_number(y)}" for x, y in displayed_edges)
+            points = " ".join(f"{format_number(x)},{format_number(y)}" for x, y in displayed_edges)
             tag = "polyline" if annotation["type"] == "polyline" else "polygon"
             ET.SubElement(group, _svg(tag), {**common, "points": points})
         if draw_labels:
             x, y = displayed_edges[0]
             label_on_right = x <= left + width / 2
             label_attributes = {
-                "x": _number(x),
-                "y": _number(y),
+                "x": format_number(x),
+                "y": format_number(y),
                 "dx": "6" if label_on_right else "-6",
                 "dy": "14" if y <= top + height / 2 else "-6",
                 "text-anchor": "start" if label_on_right else "end",
@@ -423,176 +378,12 @@ def _sheet_bytes(source, annotations, bounds=None, title=None, draw_labels=True)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
 
 
-def _nearest_pixel_coordinate(value):
-    return math.floor(value + 0.5)
-
-
 def _display_image(source):
     with Image.open(BytesIO(source["bytes"])) as image:
         displayed = image.convert("RGBA")
     if source["orientation"] == "upright90cw":
         displayed = displayed.transpose(Image.Transpose.ROTATE_270)
     return displayed
-
-
-def _coordinate_context(image, coordinate, radius, magnification):
-    size = radius * 2 + 1
-    x, y = coordinate
-    left = max(0, x - radius)
-    top = max(0, y - radius)
-    right = min(image.width, x + radius + 1)
-    bottom = min(image.height, y + radius + 1)
-    context = Image.new("RGBA", (size, size), COORDINATE_OUTSIDE_COLOR)
-    context.paste(
-        image.crop((left, top, right, bottom)),
-        (radius - (x - left), radius - (y - top)),
-    )
-    return context.resize(
-        (size * magnification, size * magnification),
-        Image.Resampling.NEAREST,
-    )
-
-
-def _draw_open_pixel_locator(image):
-    draw = ImageDraw.Draw(image)
-    start = COORDINATE_DETAIL_RADIUS_PX * COORDINATE_DETAIL_MAGNIFICATION
-    end = start + COORDINATE_DETAIL_MAGNIFICATION - 1
-    margin = 3
-    length = 7
-    corners = [
-        [(start - margin, start + length), (start - margin, start - margin),
-         (start + length, start - margin)],
-        [(end - length, start - margin), (end + margin, start - margin),
-         (end + margin, start + length)],
-        [(start - margin, end - length), (start - margin, end + margin),
-         (start + length, end + margin)],
-        [(end - length, end + margin), (end + margin, end + margin),
-         (end + margin, end - length)],
-    ]
-    for points in corners:
-        draw.line(points, fill=COORDINATE_LOCATOR_COLOR, width=2)
-
-
-def _draw_open_context_locator(image):
-    draw = ImageDraw.Draw(image)
-    center = COORDINATE_CONTEXT_RADIUS_PX * COORDINATE_CONTEXT_MAGNIFICATION
-    gap = 6
-    length = 18
-    lines = [
-        (center - length, center, center - gap, center),
-        (center + gap, center, center + length, center),
-        (center, center - length, center, center - gap),
-        (center, center + gap, center, center + length),
-    ]
-    for line in lines:
-        draw.line(line, fill=COORDINATE_LOCATOR_COLOR, width=3)
-
-
-def _coordinate_grid_position(index, count, columns):
-    short_column_size = count // columns
-    long_columns = count % columns
-    long_column_size = short_column_size + 1
-    long_column_items = long_columns * long_column_size
-    if index < long_column_items:
-        return index // long_column_size, index % long_column_size
-    offset = index - long_column_items
-    return long_columns + offset // short_column_size, offset % short_column_size
-
-
-def _coordinate_inspection_bytes(source, displayed, annotation):
-    count = len(annotation["native_coordinates"])
-    columns = math.ceil(count / COORDINATE_ROWS_PER_COLUMN)
-    rows = math.ceil(count / columns)
-    context_size = (
-        (COORDINATE_CONTEXT_RADIUS_PX * 2 + 1) * COORDINATE_CONTEXT_MAGNIFICATION
-    )
-    detail_size = (
-        (COORDINATE_DETAIL_RADIUS_PX * 2 + 1) * COORDINATE_DETAIL_MAGNIFICATION
-    )
-    cell_width = context_size * 2 + detail_size + COORDINATE_PANEL_GAP * 2
-    cell_height = COORDINATE_LABEL_HEIGHT + context_size + COORDINATE_CELL_GAP
-    width = (
-        COORDINATE_PADDING * 2
-        + columns * cell_width
-        + (columns - 1) * COORDINATE_COLUMN_GAP
-    )
-    height = COORDINATE_PADDING * 2 + rows * cell_height - COORDINATE_CELL_GAP
-    sheet = Image.new("RGBA", (width, height), COORDINATE_BACKGROUND_COLOR)
-    draw = ImageDraw.Draw(sheet)
-    font = ImageFont.load_default()
-    records = []
-    for index, (native, display) in enumerate(zip(
-        annotation["native_coordinates"], annotation["display_coordinates"]
-    )):
-        nearest_native = [_nearest_pixel_coordinate(value) for value in native]
-        nearest_display = _display_point(nearest_native, source)
-        context = _coordinate_context(
-            displayed,
-            nearest_display,
-            COORDINATE_CONTEXT_RADIUS_PX,
-            COORDINATE_CONTEXT_MAGNIFICATION,
-        )
-        located_context = context.copy()
-        _draw_open_context_locator(located_context)
-        detail = _coordinate_context(
-            displayed,
-            nearest_display,
-            COORDINATE_DETAIL_RADIUS_PX,
-            COORDINATE_DETAIL_MAGNIFICATION,
-        )
-        _draw_open_pixel_locator(detail)
-        column, row = _coordinate_grid_position(index, count, columns)
-        left = COORDINATE_PADDING + column * (cell_width + COORDINATE_COLUMN_GAP)
-        top = COORDINATE_PADDING + row * cell_height
-        panel_top = top + COORDINATE_LABEL_HEIGHT
-        located_left = left + context_size + COORDINATE_PANEL_GAP
-        detail_left = located_left + context_size + COORDINATE_PANEL_GAP
-        draw.text(
-            (left, top),
-            f"#{index} native ({_number(native[0])}, {_number(native[1])})",
-            fill=(0, 0, 0, 255),
-            font=font,
-        )
-        draw.text(
-            (left, top + 14),
-            f"display ({_number(display[0])}, {_number(display[1])})",
-            fill=(0, 0, 0, 255),
-            font=font,
-        )
-        draw.text(
-            (left, top + 28),
-            f"nearest native pixel ({nearest_native[0]}, {nearest_native[1]})",
-            fill=(0, 0, 0, 255),
-            font=font,
-        )
-        draw.text((left, top + 42), "unmarked context", fill=(0, 0, 0, 255), font=font)
-        draw.text(
-            (located_left, top + 42), "located context", fill=(0, 0, 0, 255), font=font
-        )
-        draw.text((detail_left, top + 42), "exact pixel", fill=(0, 0, 0, 255), font=font)
-        sheet.paste(context, (left, panel_top))
-        sheet.paste(located_context, (located_left, panel_top))
-        sheet.paste(detail, (detail_left, panel_top))
-        records.append({
-            "index": index,
-            "native": copy.deepcopy(native),
-            "display": copy.deepcopy(display),
-            "nearest_native_pixel": nearest_native,
-            "nearest_display_pixel": nearest_display,
-            "unmarked_context_bounds": [
-                left, panel_top, left + context_size, panel_top + context_size,
-            ],
-            "located_context_bounds": [
-                located_left, panel_top,
-                located_left + context_size, panel_top + context_size,
-            ],
-            "detail_bounds": [
-                detail_left, panel_top, detail_left + detail_size, panel_top + detail_size,
-            ],
-        })
-    output = BytesIO()
-    sheet.save(output, format="PNG", compress_level=9)
-    return output.getvalue(), records
 
 
 def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
@@ -619,7 +410,7 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
         sheet_path = f"{source['id']}.svg"
         sheet = _sheet_bytes(source, source_annotations)
         sheets[sheet_path] = sheet
-        display_width, display_height = _display_dimensions(source)
+        display_width, display_height = display_dimensions(source)
         source_records.append({
             "input_index": source["input_index"],
             "id": source["id"],
@@ -649,7 +440,7 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
     observations_by_id = {row["id"]: row for row in spec["observations"]}
     for annotation in annotations:
         source = source_by_id[annotation["source_id"]]
-        assertion_bounds = _review_bounds(annotation["display_coordinates"], source)
+        assertion_bounds = display_crop_pixel_edges(annotation["display_coordinates"], source)
         review_root = f"review/{annotation['id']}"
         assertion_path = f"{review_root}/assertion.svg"
         assertion_sheet = _sheet_bytes(
@@ -674,7 +465,7 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
         for endpoint in observations_by_id[annotation["id"]]["endpoints"]:
             index = endpoint["index"]
             display_coordinate = annotation["display_coordinates"][index]
-            endpoint_bounds = _review_bounds([display_coordinate], source)
+            endpoint_bounds = display_crop_pixel_edges([display_coordinate], source)
             suffix = "0" if index == 0 else "last"
             endpoint_path = f"{review_root}/endpoint-{suffix}.svg"
             endpoint_annotation = {
@@ -703,7 +494,7 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
             })
         if coordinate_inspections:
             inspection_path = f"{review_root}/coordinates.png"
-            inspection, coordinates = _coordinate_inspection_bytes(
+            inspection, coordinates = coordinate_inspection_bytes(
                 source, displayed_sources[source["id"]], annotation
             )
             sheets[inspection_path] = inspection

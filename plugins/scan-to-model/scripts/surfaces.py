@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw
 from scipy.spatial import ConvexHull
 
 from polycam import camera_matrix, digest, read_frame, unproject
+from pixel_inspection import coordinate_inspection_bytes, native_pixel_center, patch_inspection_bytes
 
 
 def fit_plane(points, rejection_m):
@@ -75,7 +76,7 @@ def tracking_scope(camera, patch, defaults):
     return declared, actual
 
 
-def measured_patch(patch, defaults, parent, output):
+def measured_patch(patch, defaults, parent, output, pixel_inspections=False):
     name = patch["id"]
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
         raise ValueError("Patch IDs must be safe file names")
@@ -173,6 +174,25 @@ def measured_patch(patch, defaults, parent, output):
     fig.suptitle(f"{name} | {frame}\n{len(points)} eligible / {native_count} native patch pixels; gray = rejected or missing",fontsize=10)
     fig.savefig(output/f"{name}.jpg",dpi=150);plt.close(fig)
     row["figure"] = f"{name}.jpg"
+    if pixel_inspections:
+        source_image = {"width":width,"height":height,"orientation":orientation}
+        display_coordinates = polygon.tolist()
+        native_coordinates = [native_pixel_center(point, source_image) for point in display_coordinates]
+        annotation = {"native_coordinates":native_coordinates,"display_coordinates":display_coordinates}
+        displayed = Image.fromarray(shown).convert("RGBA")
+        patch_image, patch_record = patch_inspection_bytes(source_image,displayed,display_coordinates)
+        vertex_image, coordinates = coordinate_inspection_bytes(source_image,displayed,annotation)
+        patch_path, vertex_path = output/f"{name}-patch.png",output/f"{name}-vertices.png"
+        patch_path.write_bytes(patch_image);vertex_path.write_bytes(vertex_image)
+        row["pixel_inspection"] = {
+            "status":"pending visual review","source_rgb":row["sources"]["rgb"],
+            "polygon_native_pixel_centers":native_coordinates,"polygon_display_pixel_centers":display_coordinates,
+            "patch":{"path":patch_path.name,"sha256":digest(patch_path),**patch_record},
+            "vertices":{"path":vertex_path.name,"sha256":digest(vertex_path),
+                        "resampling":"nearest","nearest_pixel_rule":"floor(coordinate + 0.5) in native pixel-center coordinates",
+                        "coordinates":coordinates},
+            "limits":["Enlargement adds no source detail and does not accept the polygon's physical interpretation.",
+                      "Vertex inspection does not establish pure surface support for every selected depth cell."]}
     return row,sample
 
 
@@ -200,6 +220,7 @@ def compare(first, second, samples, records):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec",type=Path,required=True);parser.add_argument("--output",type=Path,required=True)
+    parser.add_argument("--pixel-inspections",action="store_true")
     args=parser.parse_args();spec_path=args.spec.resolve();spec=json.loads(spec_path.read_text())
     output=args.output.resolve()
     if spec_path == output/"measurements.json":
@@ -210,7 +231,7 @@ def main():
     records={};samples={}
     for patch in spec["patches"]:
         if patch["id"] in records:raise ValueError("Duplicate patch ID")
-        row,sample=measured_patch(patch,spec,spec_path.parent,output)
+        row,sample=measured_patch(patch,spec,spec_path.parent,output,pixel_inspections=args.pixel_inspections)
         records[row["id"]]=row;samples[row["id"]]=sample
     result={"spec":{"path":str(spec_path),"sha256":digest(spec_path)},"patches":list(records.values()),
             "comparisons":[compare(pair[0],pair[1],samples,records) for pair in spec.get("comparisons",[])],
