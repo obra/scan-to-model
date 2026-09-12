@@ -91,7 +91,7 @@ class DrawRoomTests(unittest.TestCase):
                  cut={'axis': 2, 'value_m': 0.5, 'keep_below': True}),
             dict(base_view, id='R1', kind='reflected_ceiling', title='RCP', note='RCP fixture',
                  right_frame=[1, 0, 0], up_frame=[0, 1, 0],
-                 view_direction_frame=[0, 0, 1], horizontal_reflection=True,
+                 view_direction_frame=[0, 0, 1], horizontal_reflection_of_upward_camera=True,
                  cut={'axis': 2, 'value_m': 0.5, 'keep_below': False}),
             dict(base_view, id='E1', kind='elevation', title='Elevation', note='Elevation fixture',
                  right_frame=[1, 0, 0], up_frame=[0, 0, 1],
@@ -173,7 +173,7 @@ class DrawRoomTests(unittest.TestCase):
             'subjects': [{'object_id': 'fixture-mesh', 'style': 'architecture', 'face_indices': [0]}],
             'bounds_frame': [10, 11, 10, 11], 'axis_labels': ['horizontal', 'vertical'], 'annotations': [],
             'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0], 'view_direction_frame': [0, 0, 1],
-            'horizontal_reflection': True,
+            'horizontal_reflection_of_upward_camera': True,
             'cut': {'axis': 2, 'value_m': 0.5, 'keep_below': False},
         })
         self.assertNotEqual(result.returncode, 0)

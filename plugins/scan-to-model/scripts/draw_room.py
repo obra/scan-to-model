@@ -33,13 +33,14 @@ def validate_view_frame(view):
         raise ValueError(f"{view['id']} frame vectors must be unit length")
     if not np.allclose([np.dot(right, up), np.dot(right, direction), np.dot(up, direction)], 0.0, atol=1e-7):
         raise ValueError(f"{view['id']} frame vectors must be mutually orthogonal")
-    reflected = view.get('horizontal_reflection', False)
+    reflection_field = 'horizontal_reflection_of_upward_camera'
+    reflected = view.get(reflection_field, False)
     if not isinstance(reflected, bool):
-        raise ValueError(f"{view['id']} horizontal_reflection must be boolean")
+        raise ValueError(f"{view['id']} {reflection_field} must be boolean")
     if reflected and view['kind'] != 'reflected_ceiling':
-        raise ValueError(f"{view['id']} horizontal_reflection is only valid for reflected_ceiling")
+        raise ValueError(f"{view['id']} {reflection_field} is only valid for reflected_ceiling")
     if reflected and not np.allclose(direction, [0.0, 0.0, 1.0], atol=1e-7):
-        raise ValueError(f"{view['id']} horizontal_reflection requires an upward +Z view_direction_frame")
+        raise ValueError(f"{view['id']} {reflection_field} requires an upward +Z view_direction_frame")
     expected_right = np.cross(direction, up)
     if reflected:
         expected_right = -expected_right
@@ -47,7 +48,7 @@ def validate_view_frame(view):
         relation = '-cross(view_direction_frame, up_frame)' if reflected else 'cross(view_direction_frame, up_frame)'
         raise ValueError(f"{view['id']} right_frame must equal {relation}")
     if view['kind'] == 'reflected_ceiling' and not reflected:
-        raise ValueError(f"{view['id']} reflected_ceiling must explicitly declare horizontal_reflection")
+        raise ValueError(f"{view['id']} reflected_ceiling must explicitly declare {reflection_field}")
 
 
 def segment_length_inside_bounds(segment, bounds):
