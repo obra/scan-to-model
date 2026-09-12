@@ -50,22 +50,26 @@ class SurfaceSampleTests(unittest.TestCase):
              [[0, 0], [18.5, 3.5], [19, 47], [3, 47]], [0, 0, 52, 64], [19, 4]),
             ('upright90cw', [[0, 0], [20.5, 3.5], [21, 70], [3, 70]],
              [[0, 63], [3.5, 42.5], [70, 42], [70, 60]], [0, 0, 54, 96], [20, 4]),
+            ('raw', [[0, 0], [95.75, 63.75], [0, 63]],
+             [[0, 0], [95.75, 63.75], [0, 63]], [0, 0, 96, 64], None),
+            ('upright90cw', [[0, 0], [63.75, 95.75], [0, 95]],
+             [[0, 63], [95.75, -.75], [95, 63]], [0, 0, 64, 96], None),
         ]
         with Image.open(capture / 'keyframes/images/001.jpg') as image:
             decoded = image.convert('RGBA')
-        for orientation, polygon, native, crop_edges, nearest_display in cases:
+        for case_index, (orientation, polygon, native, crop_edges, nearest_display) in enumerate(cases):
             for fitting in (False, True):
                 with self.subTest(orientation=orientation, fitting=fitting):
                     spec = {'capture': 'capture', 'orientation': orientation, 'patches': [{
                         'id': 'patch', 'frame_id': '001', 'physical_surface': 'synthetic plane',
                         'fit': fitting, 'polygon_px': polygon,
                     }], 'comparisons': []}
-                    spec_path = root / f'{orientation}-{fitting}.json'
+                    spec_path = root / f'{case_index}-{orientation}-{fitting}.json'
                     spec_path.write_text(json.dumps(spec))
                     results = []
                     outputs = []
                     for enabled in (False, True):
-                        output = root / f'{orientation}-{fitting}-{enabled}'
+                        output = root / f'{case_index}-{orientation}-{fitting}-{enabled}'
                         command = [sys.executable, str(SCRIPT), '--spec', str(spec_path),
                                    '--output', str(output)]
                         if enabled:
@@ -109,8 +113,17 @@ class SurfaceSampleTests(unittest.TestCase):
                     self.assertEqual([row['native'] for row in coordinates], native)
                     self.assertEqual([row['display'] for row in coordinates], polygon)
                     self.assertEqual(coordinates[1]['nearest_display_pixel'], nearest_display)
+                    if nearest_display is None:
+                        self.assertIsNone(coordinates[1]['nearest_native_pixel'])
+                        self.assertEqual(coordinates[1]['source_pixel_status'], 'outside image')
+                        self.assertEqual(coordinates[1]['outside_image_nearest_native_center'],
+                                         [96, 64] if orientation == 'raw' else [96, -1])
+                        self.assertEqual(coordinates[1]['outside_image_nearest_display_center'],
+                                         [96, 64] if orientation == 'raw' else [64, 96])
                     with Image.open(outputs[1] / inspection['vertices']['path']) as sheet:
                         for row in coordinates:
+                            if row['nearest_native_pixel'] is None:
+                                continue
                             left, top, _, _ = row['unmarked_context_bounds']
                             self.assertEqual(sheet.getpixel((left + 128, top + 128)),
                                              decoded.getpixel(tuple(row['nearest_native_pixel'])))

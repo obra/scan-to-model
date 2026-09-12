@@ -189,6 +189,10 @@ def coordinate_inspection_bytes(source, displayed, annotation):
     )):
         nearest_native = [nearest_pixel_center(value) for value in native]
         nearest_display = display_pixel_center(nearest_native, source)
+        source_pixel_exists = (
+            0 <= nearest_native[0] < source["width"]
+            and 0 <= nearest_native[1] < source["height"]
+        )
         context = _coordinate_context(
             displayed,
             nearest_display,
@@ -224,7 +228,11 @@ def coordinate_inspection_bytes(source, displayed, annotation):
         )
         draw.text(
             (left, top + 28),
-            f"nearest native pixel ({nearest_native[0]}, {nearest_native[1]})",
+            (
+                f"nearest native pixel ({nearest_native[0]}, {nearest_native[1]})"
+                if source_pixel_exists else
+                f"outside image ({nearest_native[0]}, {nearest_native[1]}); no source pixel"
+            ),
             fill=(0, 0, 0, 255),
             font=font,
         )
@@ -232,7 +240,11 @@ def coordinate_inspection_bytes(source, displayed, annotation):
         draw.text(
             (located_left, top + 42), "located context", fill=(0, 0, 0, 255), font=font
         )
-        draw.text((detail_left, top + 42), "exact pixel", fill=(0, 0, 0, 255), font=font)
+        draw.text(
+            (detail_left, top + 42),
+            "exact pixel" if source_pixel_exists else "no source pixel",
+            fill=(0, 0, 0, 255), font=font,
+        )
         sheet.paste(context, (left, panel_top))
         sheet.paste(located_context, (located_left, panel_top))
         sheet.paste(detail, (detail_left, panel_top))
@@ -240,8 +252,8 @@ def coordinate_inspection_bytes(source, displayed, annotation):
             "index": index,
             "native": copy.deepcopy(native),
             "display": copy.deepcopy(display),
-            "nearest_native_pixel": nearest_native,
-            "nearest_display_pixel": nearest_display,
+            "nearest_native_pixel": nearest_native if source_pixel_exists else None,
+            "nearest_display_pixel": nearest_display if source_pixel_exists else None,
             "unmarked_context_bounds": [
                 left, panel_top, left + context_size, panel_top + context_size,
             ],
@@ -253,6 +265,12 @@ def coordinate_inspection_bytes(source, displayed, annotation):
                 detail_left, panel_top, detail_left + detail_size, panel_top + detail_size,
             ],
         })
+        if not source_pixel_exists:
+            records[-1].update({
+                "source_pixel_status": "outside image",
+                "outside_image_nearest_native_center": nearest_native,
+                "outside_image_nearest_display_center": nearest_display,
+            })
     output = BytesIO()
     sheet.save(output, format="PNG", compress_level=9)
     return output.getvalue(), records
