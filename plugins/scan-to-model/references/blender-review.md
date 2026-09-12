@@ -41,6 +41,37 @@ For example, an intersection of a source ray with an assumed support plane remai
 
 Before promotion, reopen the final blend and trace each modeled physical placement back through the project's schema. Confirm that every consumed point or plane has an explicit accepted disposition and supporting independent validation, and that diagnostic-only results did not become transforms or contacts. Check that unresolved physical planes and contacts remain recorded as unknown.
 
+## Initialize Blender before helper imports
+
+Some Blender builds do not honor `PYTHONDONTWRITEBYTECODE`. For every scripted review, freeze and hash `scripts/blender_runtime.py` alongside the helper and execute it as the first `--python` argument, before loading the blend or importing any helper modules. The bootstrap sets `sys.dont_write_bytecode` first, then requires a caller-created absolute `SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT`, verifies Blender's actual temporary directory is contained by its existing `tmp` directory, and sets the session's temporary-directory, save-version and autosave preferences. It does not create the root, launch Blender, save preferences or save the model.
+
+Create the unique retained runtime root and its directories before launch. Do not redirect `HOME` or `CODEX_HOME`. A background review uses this order; add the GUI display variables described below only for interactive review:
+
+```sh
+set -eu
+runtime_root=/absolute/path/to/task-owned/permanent-scratch/blender-run-unique-id
+mkdir "$runtime_root"
+mkdir "$runtime_root/blender-config" "$runtime_root/xdg-config" \
+  "$runtime_root/xdg-cache" "$runtime_root/xdg-data" \
+  "$runtime_root/xdg-runtime" "$runtime_root/tmp"
+chmod 700 "$runtime_root/xdg-runtime"
+
+env \
+  SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT="$runtime_root" \
+  BLENDER_USER_CONFIG="$runtime_root/blender-config" \
+  XDG_CONFIG_HOME="$runtime_root/xdg-config" \
+  XDG_CACHE_HOME="$runtime_root/xdg-cache" \
+  XDG_DATA_HOME="$runtime_root/xdg-data" \
+  XDG_RUNTIME_DIR="$runtime_root/xdg-runtime" \
+  TMPDIR="$runtime_root/tmp" \
+  blender -b --factory-startup --disable-autoexec --python-exit-code 1 \
+    --python FROZEN_BLENDER_RUNTIME.py \
+    FROZEN.blend \
+    --python FROZEN_HELPER.py -- --output NEW_OUTPUT_DIRECTORY
+```
+
+`--python-exit-code` must precede the bootstrap so a setup error stops the helper. Keep the bootstrap before the blend path because blend loading or automatic imports must not precede bytecode suppression. Retain and hash the complete runtime root after exit. The shorter Blender fixture commands below assume this same environment and substitute their fixture for `FROZEN_HELPER.py`.
+
 ## Define room sheets by physical subject
 
 Create a manifest before rendering a room sheet. Give each view a stable ID and record its kind, named coordinate frame, projection, view direction, image-up direction, camera and view-layer identity, complete renderable object inclusion list, and intentional exclusions. Collection membership is organizational evidence only: do not derive the sheet from a room or collection name. Resolve the physical subjects first, then declare their actual objects. Keep the manifest with the rendered output.
@@ -72,8 +103,8 @@ The check covers converted geometry in that dependency graph. Instances, volumes
 The synthetic fixture preserves its source blend and results, varies curve point radius while holding bevel depth fixed, and compares against a small mesh control. The first command demonstrates false clipping from the object box and must fail. The second checks drawable bounds and camera containment and must pass. Both reject excluded/inactive objects as missing evaluation. Each output directory must be new:
 
 ```text
-blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python tests/blender_drawable_bounds.py -- --method bound-box --output /path/to/review/curve-box-framing
-blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python tests/blender_drawable_bounds.py -- --output /path/to/review/curve-mesh-framing
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_drawable_bounds.py -- --method bound-box --output /path/to/review/curve-box-framing
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_drawable_bounds.py -- --output /path/to/review/curve-mesh-framing
 ```
 
 ## Bind review inputs before launch
@@ -83,7 +114,7 @@ Choose the exact model artifact and review-helper bytes before starting Blender.
 Keep the frozen model under the same intended relative-path semantics as the reviewed artifact. A copy beside the source retains its `//` reference base. A copy elsewhere must retain the required directory layout and referenced assets, or be reviewed under the final-path policy described below. Record these values before launch:
 
 - Resolved frozen model path and SHA256.
-- Resolved frozen helper path and SHA256, plus its commit or package version when known.
+- Resolved frozen helper and runtime-bootstrap paths and SHA256 values, plus their commit or package version when known.
 - Resolved Blender executable path and its complete `--version` output, including the version and build hash when reported.
 - Exact argument vector, output directory and start time.
 
@@ -105,6 +136,7 @@ mkdir "$runtime_root/blender-config" "$runtime_root/xdg-config" \
 chmod 700 "$runtime_root/xdg-runtime"
 
 env \
+  SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT="$runtime_root" \
   BLENDER_USER_CONFIG="$runtime_root/blender-config" \
   XDG_CONFIG_HOME="$runtime_root/xdg-config" \
   XDG_CACHE_HOME="$runtime_root/xdg-cache" \
@@ -113,12 +145,13 @@ env \
   TMPDIR="$runtime_root/tmp" \
   XAUTHORITY="$runtime_root/xauthority" \
   DISPLAY="$task_display" \
-  blender --factory-startup --disable-autoexec FROZEN.blend
+  blender --factory-startup --disable-autoexec --python-exit-code 1 \
+    --python FROZEN_BLENDER_RUNTIME.py FROZEN.blend
 ```
 
 Keep the runtime path short because Unix-domain sockets have path-length limits. For Xvfb, create and populate the shown authorization file when starting the task-owned server, keep its logs under the same root, wait for the selected display to become ready, and record the server PID. Stop only that PID after Blender exits. When the display server's own socket and lock files must also be contained, run it in an operating-system private temporary namespace backed by a directory under the runtime root; the Blender environment variables do not redirect those server files.
 
-Before inspecting the model, confirm that `bpy.app.tempdir` and `bpy.context.preferences.filepaths.temporary_directory` are both under `runtime_root/tmp`; set the latter there for this session if necessary. For a read-only audit, also set `bpy.context.preferences.filepaths.save_version = 0` and `use_auto_save_temporary_files = False`. Do not save these settings to shared user preferences, and abort if either temporary path resolves outside the root. Quit Blender normally so its exit-recovery state stays under the task temp directory. Retain the runtime root and record its generated config, cache, data, runtime, temporary and recovery files. On Linux, retain a file-syscall trace such as `strace -f -e trace=%file` when the review requires proof that every successful file mutation stayed inside the root; a listing of the root alone cannot prove that nothing was written elsewhere. Any observed Blender write outside the root invalidates the GUI-isolation check even when the reviewed blend and source hashes are unchanged. `--factory-startup` and `--disable-autoexec` avoid user startup state and automatic blend-file scripts; they do not replace the environment isolation.
+Before inspecting the model, confirm that the bootstrap left `bpy.app.tempdir` and `bpy.context.preferences.filepaths.temporary_directory` under `runtime_root/tmp`, `save_version` at zero, and `use_auto_save_temporary_files` disabled. Do not save these settings to shared user preferences, and abort if either temporary path resolves outside the root. Quit Blender normally so its exit-recovery state stays under the task temp directory. Retain the runtime root and record its generated config, cache, data, runtime, temporary and recovery files. On Linux, retain a file-syscall trace such as `strace -f -e trace=%file` when the review requires proof that every successful file mutation stayed inside the root; a listing of the root alone cannot prove that nothing was written elsewhere. Any observed Blender write outside the root invalidates the GUI-isolation check even when the reviewed blend and source hashes are unchanged. `--factory-startup` and `--disable-autoexec` avoid user startup state and automatic blend-file scripts; they do not replace the environment isolation.
 
 This GUI command is for manual inspection and does not run the inventory helper. Bind any inspection script it does run in the same way as the helper. Run the inventory separately from the frozen model and helper paths described above.
 
@@ -161,13 +194,13 @@ Here `included_names` is the exact set of renderable descendants expected to be 
 The synthetic fixture links one nested collection into source and disposable render scenes, applies fourteen visibility configurations to 384 descendants, checks the assigned flags and selected view-layer-visible set, and restores every original flag:
 
 ```text
-blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python tests/blender_collection_visibility.py -- --output /path/to/review/collection-visibility
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_collection_visibility.py -- --output /path/to/review/collection-visibility
 ```
 
 Run:
 
 ```text
-/Applications/Blender.app/Contents/MacOS/Blender -b FROZEN.blend --python /path/to/frozen/blender_review.py -- --output DIR [--camera NAME ...] [--view-layer NAME] [--compare INVENTORY.json]
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python /path/to/frozen/blender_runtime.py FROZEN.blend --python /path/to/frozen/blender_review.py -- --output DIR [--camera NAME ...] [--view-layer NAME] [--compare INVENTORY.json]
 ```
 
 Repeat `--camera NAME` for each requested camera. The camera must belong to the active scene. `--view-layer NAME` selects the view layer to render; the default is Blender's active view layer. All requested cameras share that selected layer, so use separate invocations and output directories for cameras that need different collection exclusions or other view-layer settings. Unknown layer names fail. Use separate output directories for the baseline and candidate. The helper rejects using the input file's directory itself, writing through output paths that escape the chosen folder or have multiple hard links, and overwriting the comparison inventory. It does not save the blend file. Optional rendering temporarily changes the active scene's camera and render settings in memory, then restores those settings.
@@ -191,8 +224,8 @@ Before promotion, inspect every stored external path, including packed paths fro
 The synthetic check demonstrates both policies with invented packed and unpacked images. Each invocation requires a new output directory and retains its source images, source blend, reopened candidate, byte-copied promoted blend, and `result.json`. The first command must fail after byte-copy promotion because the default binds paths to scratch; the second must pass because the final-path references, readable source pixels, source hashes, and packed bytes survive:
 
 ```text
-blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode default --output /path/to/review/candidate-promotion-default
-blender -b --factory-startup --python-exit-code 1 --python tests/blender_candidate_promotion.py -- --save-mode preserve-final-paths --output /path/to/review/candidate-promotion-preserved
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_candidate_promotion.py -- --save-mode default --output /path/to/review/candidate-promotion-default
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_candidate_promotion.py -- --save-mode preserve-final-paths --output /path/to/review/candidate-promotion-preserved
 ```
 
 ## Evidence-reference closure
@@ -206,8 +239,8 @@ Classify documentary evidence with no established image or location as documenta
 The synthetic Blender fixture uses an explicit invented schema. Its first mode must fail even though every image present is packed, because a cited qualified-upright source has no appended original. Its complete mode appends and packs that original, reopens the final blend, and audits all declared visual and documentary references:
 
 ```text
-blender -b --factory-startup --python-exit-code 1 --python tests/blender_evidence_reference_closure.py -- --mode missing-original --output /path/to/review/evidence-closure-missing-original
-blender -b --factory-startup --python-exit-code 1 --python tests/blender_evidence_reference_closure.py -- --mode complete --output /path/to/review/evidence-closure-complete
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_evidence_reference_closure.py -- --mode missing-original --output /path/to/review/evidence-closure-missing-original
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_evidence_reference_closure.py -- --mode complete --output /path/to/review/evidence-closure-complete
 ```
 
 The inventory covers these source properties:
