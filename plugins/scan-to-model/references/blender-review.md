@@ -128,6 +128,28 @@ Keep the frozen model under the same intended relative-path semantics as the rev
 
 After Blender exits, recompute and record the frozen model and helper hashes alongside the prelaunch values, plus the inventory's `blender_version`, end time and exit status. Require both hash pairs to match and confirm that the inventory's `blend` path identifies the frozen model. Invalidate and rerun the review if a bound input is missing or changed, or if the loaded model and helper identities cannot be demonstrated. A path hash first read after Blender has loaded a file proves only the path's later contents; it does not prove which bytes Blender loaded. Replacing an upstream canonical model or upgrading an installed helper during a run does not alter that run when Blender was launched exclusively from unchanged frozen inputs. A later independent inventory may use new helper bytes, but a baseline and candidate compared with `--compare` must use the same helper SHA256; regenerate the baseline after a helper change.
 
+## Preflight worker arguments and metadata
+
+Validate a worker's complete argument vector before opening a large blend. The worker contract must name every required flag and value, including `--output` and any task-specific worker flags; reject a missing or malformed value before loading the project. Keep the exact executable and argument vector in the run receipt. Each attempt gets a fresh output directory that retains stdout, stderr, exit status and the failure log, so a failed launch cannot be mistaken for a stale successful result or overwrite the evidence from an earlier attempt.
+
+When a worker records Blender custom properties, reuse `tags()` and `value_snapshot()` from `scripts/blender_review.py`. They preserve nested `IDPropertyGroup` values as structured JSON data; converting properties with `str()` loses that structure and can leave values that `json.dumps()` cannot serialize. Normalize Blender's build identity before assembling the receipt because some builds expose `bpy.app.build_hash` as bytes:
+
+```python
+from blender_review import tags, value_snapshot
+
+build_hash = bpy.app.build_hash
+if isinstance(build_hash, bytes):
+    build_hash = build_hash.decode("ascii")
+metadata = {
+    "build_hash": build_hash,
+    "object_tags": tags(obj),
+    "camera": value_snapshot(scene.camera),
+}
+json.dumps(metadata, allow_nan=False)
+```
+
+Run this serialization check and the worker argument preflight before the large-project load. Preserve the resulting metadata with the exact command and any failed-run logs.
+
 ## Isolate interactive GUI review state
 
 Read-only artifact review and runtime-write isolation are separate checks. An unchanged blend hash and a no-save workflow do not prevent interactive Blender from writing recent-file state, support diagnostics, caches, temporary files or recovery files such as `quit.blend`. Before starting Blender, create a unique retained runtime root for that review. Do not redirect `HOME` or `CODEX_HOME`, reuse the user's normal configuration directories, or remove unknown files after the run.
