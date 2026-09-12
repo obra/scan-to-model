@@ -110,7 +110,11 @@ def read_frame(root, frame_id, depth_variant='raw', pose_variant='raw'):
 
 
 def clip_camera_segment(start, end, near_depth_m):
-    """Retain a camera-space segment at or in front of a positive depth plane."""
+    """Clip a camera-space segment before projection; cameras look along negative Z.
+
+    ``visible`` means the segment survives near-depth clipping, not that it lies
+    inside the image or is unoccluded.
+    """
     start = np.asarray(start, dtype=float)
     end = np.asarray(end, dtype=float)
     if start.shape != (3,) or end.shape != (3,) or not np.isfinite(start).all() or not np.isfinite(end).all():
