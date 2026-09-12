@@ -91,8 +91,6 @@ def _segments_intersect(first_start, first_end, second_start, second_end, tolera
     if (abs(orientations[3]) <= epsilon
             and _point_on_segment(first_end, second_start, second_end, tolerance)):
         return True
-    if np.all(np.abs(orientations) <= epsilon):
-        return True
     return ((orientations[0] > epsilon and orientations[1] < -epsilon)
             or (orientations[0] < -epsilon and orientations[1] > epsilon)) and (
                 (orientations[2] > epsilon and orientations[3] < -epsilon)

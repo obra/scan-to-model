@@ -83,6 +83,15 @@ class SurfaceGeometryTests(unittest.TestCase):
             np.array([[.5, .5, .1]]), [polygon])
         self.assertEqual(result['overlap_count'], 1)
 
+        notched = np.array([
+            [0., 0., 0.], [1., 0., 0.], [1., 1., 0.],
+            [2., 1., 0.], [2., 0., 0.], [3., 0., 0.],
+            [3., 2., 0.], [0., 2., 0.],
+        ])
+        result = compare_points_to_planar_polygons(
+            np.array([[.5, .5, .1], [1.5, .5, .1], [2.5, .5, .1]]), [notched])
+        np.testing.assert_array_equal(result['overlap_mask'], [True, False, True])
+
     def test_non_simple_ring_and_ambiguous_source_normal_are_rejected(self):
         from surfaces import _segments_intersect, compare_points_to_planar_polygons
 
@@ -99,6 +108,19 @@ class SurfaceGeometryTests(unittest.TestCase):
         ])
         with self.assertRaises(ValueError):
             compare_points_to_planar_polygons(np.zeros((1, 3)), [non_simple])
+        touching = np.array([
+            [0., 0., 0.], [4., 0., 0.], [4., 4., 0.], [0., 4., 0.],
+            [0., 2., 0.], [2., 2., 0.], [2., 0., 0.],
+            [2., -1., 0.], [0., 0., 0.],
+        ])
+        with self.assertRaises(ValueError):
+            compare_points_to_planar_polygons(np.zeros((1, 3)), [touching])
+        overlapping = np.array([
+            [0., 0., 0.], [4., 0., 0.], [4., 4., 0.], [0., 4., 0.],
+            [0., 0., 0.], [2., 0., 0.], [0., 0., 0.],
+        ])
+        with self.assertRaises(ValueError):
+            compare_points_to_planar_polygons(np.zeros((1, 3)), [overlapping])
         square = np.array([
             [0., 0., 0.], [2., 0., 0.], [2., 2., 0.], [0., 2., 0.],
         ])
