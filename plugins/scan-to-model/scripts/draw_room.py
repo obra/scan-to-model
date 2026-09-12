@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Polygon
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 
@@ -115,6 +116,12 @@ def main():
         ax.set_xlim(bounds[:2])
         ax.set_ylim(bounds[2:])
         ax.set_aspect('equal')
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+        x_span, y_span = bounds[1] - bounds[0], bounds[3] - bounds[2]
+        if y_span > 0 and x_span / y_span < 0.3:
+            for label in ax.get_xticklabels():
+                label.set_rotation(90)
+                label.set_ha('center')
         ax.grid(True, color='#cbd5e1', lw=.4, alpha=.6)
         ax.tick_params(labelsize=7 if overview else 10)
         if not overview:
