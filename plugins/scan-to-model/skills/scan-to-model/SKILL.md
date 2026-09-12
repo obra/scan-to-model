@@ -18,4 +18,6 @@ A photograph-first inventory can proceed while the base geometry or registration
 
 Use [project-records.md](../../references/project-records.md) for source, room/connection, observation, registration and model records. Use the package scripts through [formats.md](../../references/formats.md). These are local tools; keep private project evidence outside the plugin package. If delegating, give mechanical intake/index tasks a precise contract and independently verify counts, timestamps and marked pixels before using their outputs as geometry evidence.
 
+For a reusable bounded worker or reviewer brief, use [work-packets.md](../../references/work-packets.md). Keep the parent milestone separate from the investigation outcome, bind immutable inputs and fresh outputs, and state the next gate and escalation conditions. Turn recurring mechanics into tested tools, interpretation rules into skills, and repeated handoff boundaries into prompt references; publishing authorization and private project data remain project-owned.
+
 Current finishes lead current geometry; historical open wall material supplies services only where spatially reconciled. Leave unsupported connections visibly unresolved and ask only for a specific missing physical fact when it cannot be recovered from supplied evidence. Do not add approval gates or depend on Superpowers.

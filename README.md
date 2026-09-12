@@ -2,7 +2,7 @@
 
 A Codex plugin for turning scan evidence into reviewable Blender architectural models.
 
-Start with photographs, calibrated depth, camera poses, plans, and observations. Preserve the evidence, measure real surfaces, align captures, and build a model whose geometry can be traced back to its sources. The plugin provides seven skills and seven local Python tools. It does not automatically reconstruct an entire building from a ZIP.
+Start with photographs, calibrated depth, camera poses, plans, and observations. Preserve the evidence, measure real surfaces, align captures, and build a model whose geometry can be traced back to its sources. The plugin provides seven skills and local Python tools. It does not automatically reconstruct an entire building from a ZIP.
 
 ## Install in Codex
 

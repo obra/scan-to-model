@@ -20,7 +20,7 @@ Follow the [repository installation instructions](https://github.com/obra/scan-t
 
 ## Direct tools
 
-Read [commands and scan-geometry JSON examples](references/formats.md) or the [source-observation contract](references/source-observations.md) before running the corresponding tool. Call `--help` on each entrypoint for its arguments.
+Read [commands and scan-geometry JSON examples](references/formats.md), the [source-observation contract](references/source-observations.md), or the [reusable work-packet prompts](references/work-packets.md) before running or delegating the corresponding work. Call `--help` on each entrypoint for its arguments.
 
 - `scripts/ingest.py`: preserve and audit a ZIP; repeat ingestion verifies existing data.
 - `scripts/observations.py`: validate native marks and render exact-byte source sheets plus native-scale assertion and endpoint review crops.
@@ -29,6 +29,7 @@ Read [commands and scan-geometry JSON examples](references/formats.md) or the [s
 - `scripts/manufactured.py`: [fit manufactured rectangles](references/manufactured-shapes.md) in common component axes and report original controls and residuals.
 - `scripts/register.py`: fit unit-scale rigid landmark alignment and report withheld checks.
 - `scripts/blender_review.py`: run inside Blender to inventory and render without saving the input.
+- `scripts/presentation.py`: validate a reported presentation contract, run receipt and hash-bound sample evidence; it does not generate a tour or movie.
 - `scripts/polycam.py`: shared native reader and calibrated unprojection.
 
 The supplied reader is for Polycam's keyframe export layout and millimetre depth PNGs. Another scanner format needs an explicit adapter and a verified units/axis/calibration contract. Preserve raw and Clean depth, raw and corrected poses as separate choices. Smoothing, sample density and confidence labels do not establish physical accuracy.
