@@ -4,6 +4,8 @@ import importlib.util
 import math
 import os
 from pathlib import Path
+import statistics
+import time
 import unittest
 import uuid
 
@@ -24,6 +26,44 @@ def load_review():
 def matrix_max_delta(left, right):
     return max(abs(a - b) for row, expected_row in zip(left, right)
                for a, b in zip(row, expected_row))
+
+
+def indexed_layer_snapshot(layer, layout):
+    children = layer.children
+    return {
+        "name": layer.name,
+        "exclude": layer.exclude,
+        "hide_viewport": layer.hide_viewport,
+        "holdout": layer.holdout,
+        "indirect_only": layer.indirect_only,
+        "children": [
+            indexed_layer_snapshot(children[index], child_layout)
+            for index, child_layout in layout
+        ],
+    }
+
+
+def indexed_view_layer_snapshots(review, scene):
+    layout = review.layer_layout(scene.view_layers[0].layer_collection)
+    return [
+        {
+            "name": layer.name,
+            "collections": indexed_layer_snapshot(layer.layer_collection, layout),
+            "hidden_objects": sorted(
+                obj.name for obj in layer.objects if obj.hide_get(view_layer=layer)
+            ),
+        }
+        for layer in scene.view_layers
+    ]
+
+
+def median_runtime(function):
+    samples = []
+    for _ in range(3):
+        start = time.perf_counter()
+        function()
+        samples.append(time.perf_counter() - start)
+    return statistics.median(samples)
 
 
 @unittest.skipIf(bpy is None, "requires Blender's Python")
@@ -113,6 +153,39 @@ class BlenderReviewTests(unittest.TestCase):
                 "hidden_objects": ["Hidden B"],
             },
         ])
+
+    def test_view_layer_snapshots_bulk_read_children_without_changing_layer_records(self):
+        review = load_review()
+        parents = []
+        for parent_index in range(20):
+            parent = bpy.data.collections.new(f"Wide parent {parent_index:02d}")
+            self.scene.collection.children.link(parent)
+            parents.append(parent)
+            for child_index in range(10):
+                child = bpy.data.collections.new(
+                    f"Wide child {parent_index:02d}-{child_index:02d}"
+                )
+                parent.children.link(child)
+        while len(self.scene.view_layers) < 101:
+            self.scene.view_layers.new(f"Scale layer {len(self.scene.view_layers):03d}")
+        for layer_index, view_layer in enumerate(self.scene.view_layers):
+            root_children = view_layer.layer_collection.children
+            for parent_index in range(20):
+                child = root_children[parent_index + 2]
+                child.exclude = (layer_index + parent_index) % 7 == 0
+                child.hide_viewport = (layer_index + parent_index) % 11 == 0
+                child.holdout = (layer_index + parent_index) % 13 == 0
+                child.indirect_only = (layer_index + parent_index) % 17 == 0
+
+        expected = indexed_view_layer_snapshots(review, self.scene)
+        actual = review.view_layer_snapshots(self.scene)
+
+        self.assertEqual(actual, expected)
+        bulk_seconds = median_runtime(lambda: review.view_layer_snapshots(self.scene))
+        indexed_seconds = median_runtime(
+            lambda: indexed_view_layer_snapshots(review, self.scene)
+        )
+        self.assertLess(bulk_seconds, indexed_seconds * 0.5)
 
     def test_evaluated_world_matrices_reject_excluded_and_wrong_scene_objects(self):
         review = load_review()
