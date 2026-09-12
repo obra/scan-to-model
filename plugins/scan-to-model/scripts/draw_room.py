@@ -19,6 +19,59 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def validate_view_frame(view):
+    if 'view_direction_frame' not in view:
+        raise ValueError(f"{view['id']} must declare view_direction_frame")
+    right = np.asarray(view['right_frame'], float)
+    up = np.asarray(view['up_frame'], float)
+    direction = np.asarray(view['view_direction_frame'], float)
+    if any(vector.shape != (3,) for vector in (right, up, direction)):
+        raise ValueError(f"{view['id']} frame vectors must have three components")
+    if not all(np.all(np.isfinite(vector)) for vector in (right, up, direction)):
+        raise ValueError(f"{view['id']} frame vectors must be finite")
+    if not np.allclose([np.linalg.norm(right), np.linalg.norm(up), np.linalg.norm(direction)], 1.0, atol=1e-7):
+        raise ValueError(f"{view['id']} frame vectors must be unit length")
+    if not np.allclose([np.dot(right, up), np.dot(right, direction), np.dot(up, direction)], 0.0, atol=1e-7):
+        raise ValueError(f"{view['id']} frame vectors must be mutually orthogonal")
+    reflected = view.get('horizontal_reflection', False)
+    if not isinstance(reflected, bool):
+        raise ValueError(f"{view['id']} horizontal_reflection must be boolean")
+    if reflected and view['kind'] != 'reflected_ceiling':
+        raise ValueError(f"{view['id']} horizontal_reflection is only valid for reflected_ceiling")
+    if reflected and not np.allclose(direction, [0.0, 0.0, 1.0], atol=1e-7):
+        raise ValueError(f"{view['id']} horizontal_reflection requires an upward +Z view_direction_frame")
+    expected_right = np.cross(direction, up)
+    if reflected:
+        expected_right = -expected_right
+    if not np.allclose(right, expected_right, atol=1e-7):
+        relation = '-cross(view_direction_frame, up_frame)' if reflected else 'cross(view_direction_frame, up_frame)'
+        raise ValueError(f"{view['id']} right_frame must equal {relation}")
+    if view['kind'] == 'reflected_ceiling' and not reflected:
+        raise ValueError(f"{view['id']} reflected_ceiling must explicitly declare horizontal_reflection")
+
+
+def segment_length_inside_bounds(segment, bounds):
+    """Return the positive length of a 2-D segment inside rectangular bounds."""
+    start, end = np.asarray(segment[0], float), np.asarray(segment[1], float)
+    delta = end - start
+    lower = np.asarray(bounds[::2], float)
+    upper = np.asarray(bounds[1::2], float)
+    first, last = 0.0, 1.0
+    for axis in range(2):
+        if abs(delta[axis]) <= 1e-15:
+            if start[axis] < lower[axis] or start[axis] > upper[axis]:
+                return 0.0
+            continue
+        near = (lower[axis] - start[axis]) / delta[axis]
+        far = (upper[axis] - start[axis]) / delta[axis]
+        if near > far:
+            near, far = far, near
+        first, last = max(first, near), min(last, far)
+        if first >= last:
+            return 0.0
+    return float(np.linalg.norm(delta) * max(0.0, last - first))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--native', type=Path, required=True)
@@ -61,7 +114,9 @@ def main():
 
     def render(ax, view, overview=False):
         selection = {}
+        validate_view_frame(view)
         right, up = view['right_frame'], view['up_frame']
+        emitted_segments = []
         for subject in view['subjects']:
             name = subject['object_id']
             row, points = objects[name], vertices[name]
@@ -106,6 +161,7 @@ def main():
                 if drawn:
                     used.append(index)
             if segments:
+                emitted_segments.extend(segments)
                 unique = {tuple(sorted(tuple(np.round(p, 7)) for p in edge)): edge
                           for edge in segments}
                 ax.add_collection(LineCollection(list(unique.values()), colors=color,
@@ -113,6 +169,12 @@ def main():
                     linestyles='--' if subject.get('crop_boundary') and view['kind'] in ('plan', 'reflected_ceiling') else '-', alpha=.85))
                 selection[name] = used
         bounds = view['bounds_frame']
+        emitted_length_inside_bounds = sum(
+            segment_length_inside_bounds(segment, bounds)
+            for segment in emitted_segments
+        )
+        if emitted_length_inside_bounds <= 1e-9:
+            raise ValueError(f"{view['id']} emits no geometry inside its declared bounds")
         ax.set_xlim(bounds[:2])
         ax.set_ylim(bounds[2:])
         ax.set_aspect('equal')
@@ -144,7 +206,8 @@ def main():
                 fontsize=7 if overview else 9, ha=note.get('ha', 'center'), va='center',
                 color='#475569', arrowprops={'arrowstyle': '-', 'color': '#64748b', 'lw': .65},
                 bbox={'facecolor': 'white', 'edgecolor': 'none', 'alpha': .9, 'pad': 2})
-        return {'view_id': view['id'], 'drawn_faces': selection}
+        return {'view_id': view['id'], 'drawn_faces': selection,
+                'emitted_length_inside_bounds': emitted_length_inside_bounds}
 
     room_title = args.title
     output_stem = args.output_stem
