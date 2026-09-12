@@ -18,6 +18,139 @@ SCRATCH_ROOT = Path(os.environ.get('SCAN_TO_MODEL_TEST_SCRATCH', Path.cwd() / '.
 
 
 class SurfaceSampleTests(unittest.TestCase):
+    def test_reports_native_availability_and_marks_actual_eligible_centers(self):
+        root = SCRATCH_ROOT / str(uuid.uuid4())
+        capture = root / 'capture'
+        for directory in ('images', 'depth', 'confidence', 'cameras'):
+            (capture / 'keyframes' / directory).mkdir(parents=True)
+        Image.new('RGB', (6, 4), (80, 100, 120)).save(capture / 'keyframes/images/001.jpg')
+        depth = np.array([[0, 1000, 6000], [2000, 0, 3000]], dtype=np.uint16)
+        confidence = np.array([[0, 128, 255], [255, 255, 255]], dtype=np.uint8)
+        Image.fromarray(depth).save(capture / 'keyframes/depth/001.png')
+        Image.fromarray(confidence).save(capture / 'keyframes/confidence/001.png')
+        camera = {
+            'width': 6, 'height': 4, 'fx': 6, 'fy': 6, 'cx': 3, 'cy': 2,
+            't_00': 1, 't_01': 0, 't_02': 0, 't_03': 0,
+            't_10': 0, 't_11': 1, 't_12': 0, 't_13': 0,
+            't_20': 0, 't_21': 0, 't_22': 1, 't_23': 0,
+        }
+        (capture / 'keyframes/cameras/001.json').write_text(json.dumps(camera))
+        environment = os.environ.copy()
+        for key, directory in [('TMPDIR', 'tmp'), ('MPLCONFIGDIR', 'matplotlib')]:
+            path = root / directory
+            path.mkdir()
+            environment[key] = str(path)
+        environment['PYTHONDONTWRITEBYTECODE'] = '1'
+        expected_uv = [[0, 1], [2, 1]]
+        expected_raw_display = [[0, 2], [4, 2]]
+        for orientation, polygon, expected_display in [
+            ('raw', [[0, 0], [5.99, 0], [5.99, 3.99], [0, 3.99]], expected_raw_display),
+            ('upright90cw', [[0, 0], [3.99, 0], [3.99, 5.99], [0, 5.99]], [[1, 0], [1, 4]]),
+        ]:
+            with self.subTest(orientation=orientation):
+                spec = {'capture': 'capture', 'orientation': orientation, 'max_depth_m': 5,
+                        'confidence_value': 255, 'patches': [{
+                            'id': 'patch', 'frame_id': '001', 'physical_surface': 'synthetic plane',
+                            'fit': False, 'polygon_px': polygon,
+                        }], 'comparisons': []}
+                spec_path = root / f'{orientation}.json'
+                spec_path.write_text(json.dumps(spec))
+                outputs = []
+                for enabled in (False, True):
+                    output = root / f'{orientation}-{enabled}'
+                    command = [sys.executable, str(SCRIPT), '--spec', str(spec_path),
+                               '--output', str(output)]
+                    if enabled:
+                        command.append('--pixel-inspections')
+                    process = subprocess.run(command, env=environment, capture_output=True, text=True)
+                    self.assertEqual(process.returncode, 0, process.stderr)
+                    outputs.append(output)
+                base_result = json.loads((outputs[0] / 'measurements.json').read_text())
+                inspected_result = json.loads((outputs[1] / 'measurements.json').read_text())
+                base_row = base_result['patches'][0]
+                inspected_row = inspected_result['patches'][0]
+                inspection = inspected_row.pop('pixel_inspection')
+                self.assertEqual(base_result, inspected_result)
+                self.assertEqual(base_row['native_patch_pixels'], 6)
+                self.assertEqual(base_row['eligible_pixels'], 2)
+                self.assertEqual(base_row['native_depth_counts'], {
+                    'zero': 2, 'nonzero': 4, 'in_range': 3, 'out_of_range': 3,
+                })
+                self.assertEqual(
+                    base_row['native_depth_counts']['zero']
+                    + base_row['native_depth_counts']['nonzero'],
+                    base_row['native_patch_pixels'],
+                )
+                self.assertEqual(
+                    base_row['native_depth_counts']['in_range']
+                    + base_row['native_depth_counts']['out_of_range'],
+                    base_row['native_patch_pixels'],
+                )
+                self.assertEqual(base_row['native_confidence_histogram'], {'0': 1, '128': 1, '255': 4})
+                self.assertEqual(inspection['eligible_samples']['uv'], expected_uv)
+                self.assertEqual(inspection['eligible_samples']['rgb_native'], expected_raw_display)
+                self.assertEqual(inspection['eligible_samples']['display'], expected_display)
+                self.assertEqual(inspection['eligible_samples']['mapping'], {
+                    'depth_to_rgb': 'np.rint(u * rgb_width / depth_width), np.rint(v * rgb_height / depth_height), then clip to RGB bounds',
+                    'rounding': 'NumPy rint (ties-to-even)',
+                    'clipping': 'x=0..rgb_width-1, y=0..rgb_height-1',
+                    'depth_size': [3, 2],
+                    'rgb_size': [6, 4],
+                    'orientation': orientation,
+                })
+                self.assertEqual(inspection['status'], 'pending visual review')
+                with Image.open(outputs[1] / inspection['patch']['path']) as crop:
+                    marked = np.asarray(crop.crop(inspection['patch']['marked_bounds']))
+                    self.assertTrue(((marked[:, :, 0] == 0)
+                                     & (marked[:, :, 1] == 255)
+                                     & (marked[:, :, 2] == 0)).any())
+                with np.load(outputs[0] / base_row['samples']) as original, np.load(
+                        outputs[1] / base_row['samples']) as inspected:
+                    for key in original.files:
+                        np.testing.assert_array_equal(original[key], inspected[key])
+
+    def test_records_rint_and_clipping_when_depth_exceeds_rgb_resolution(self):
+        root = SCRATCH_ROOT / str(uuid.uuid4())
+        capture = root / 'capture'
+        for directory in ('images', 'depth', 'confidence', 'cameras'):
+            (capture / 'keyframes' / directory).mkdir(parents=True)
+        Image.new('RGB', (2, 2), (80, 100, 120)).save(capture / 'keyframes/images/001.jpg')
+        Image.fromarray(np.full((5, 5), 1000, dtype=np.uint16)).save(
+            capture / 'keyframes/depth/001.png')
+        Image.fromarray(np.full((5, 5), 255, dtype=np.uint8)).save(
+            capture / 'keyframes/confidence/001.png')
+        camera = {
+            'width': 2, 'height': 2, 'fx': 2, 'fy': 2, 'cx': 1, 'cy': 1,
+            't_00': 1, 't_01': 0, 't_02': 0, 't_03': 0,
+            't_10': 0, 't_11': 1, 't_12': 0, 't_13': 0,
+            't_20': 0, 't_21': 0, 't_22': 1, 't_23': 0,
+        }
+        (capture / 'keyframes/cameras/001.json').write_text(json.dumps(camera))
+        for directory in ('tmp', 'matplotlib'):
+            (root / directory).mkdir()
+        environment = os.environ.copy()
+        environment.update({'TMPDIR': str(root / 'tmp'), 'MPLCONFIGDIR': str(root / 'matplotlib'),
+                            'PYTHONDONTWRITEBYTECODE': '1'})
+        spec = {'capture': 'capture', 'orientation': 'raw', 'max_depth_m': 5,
+                'confidence_value': 255, 'patches': [{
+                    'id': 'patch', 'frame_id': '001', 'physical_surface': 'synthetic plane',
+                    'fit': False, 'polygon_px': [[0, 0], [1.99, 0], [1.99, 1.99], [0, 1.99]],
+                }], 'comparisons': []}
+        spec_path = root / 'spec.json'
+        spec_path.write_text(json.dumps(spec))
+        output = root / 'output'
+        process = subprocess.run([sys.executable, str(SCRIPT), '--spec', str(spec_path),
+                                  '--output', str(output), '--pixel-inspections'],
+                                 env=environment, capture_output=True, text=True)
+        self.assertEqual(process.returncode, 0, process.stderr)
+        row = json.loads((output / 'measurements.json').read_text())['patches'][0]
+        mapping = row['pixel_inspection']['eligible_samples']['mapping']
+        self.assertEqual(mapping['rounding'], 'NumPy rint (ties-to-even)')
+        self.assertEqual(mapping['clipping'], 'x=0..rgb_width-1, y=0..rgb_height-1')
+        self.assertEqual(row['pixel_inspection']['eligible_samples']['uv'][-1], [4, 4])
+        self.assertEqual(row['pixel_inspection']['eligible_samples']['rgb_native'][-1], [1, 1])
+        self.assertEqual(row['pixel_inspection']['eligible_samples']['display'][-1], [1, 1])
+
     def test_pixel_inspections_show_whole_patch_and_vertices_without_changing_samples(self):
         root = SCRATCH_ROOT / str(uuid.uuid4())
         capture = root / 'capture'

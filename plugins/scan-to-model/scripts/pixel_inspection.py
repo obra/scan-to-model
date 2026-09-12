@@ -65,7 +65,7 @@ def nearest_pixel_center(value):
     return math.floor(value + 0.5)
 
 
-def patch_inspection_bytes(source, displayed, display_coordinates):
+def patch_inspection_bytes(source, displayed, display_coordinates, sample_display_coordinates=None):
     """Show the entire polygon and surrounding pixels without covering the source panel."""
     bounds = display_crop_pixel_edges(display_coordinates, source)
     magnification = 3
@@ -75,7 +75,14 @@ def patch_inspection_bytes(source, displayed, display_coordinates):
     polygon = [((u + .5 - bounds[0]) * magnification - .5,
                 (v + .5 - bounds[1]) * magnification - .5)
                for u, v in display_coordinates]
-    ImageDraw.Draw(marked).line(polygon + polygon[:1], fill=COORDINATE_LOCATOR_COLOR, width=2)
+    draw = ImageDraw.Draw(marked)
+    draw.line(polygon + polygon[:1], fill=COORDINATE_LOCATOR_COLOR, width=2)
+    if sample_display_coordinates:
+        for u, v in sample_display_coordinates:
+            x = (u + .5 - bounds[0]) * magnification - .5
+            y = (v + .5 - bounds[1]) * magnification - .5
+            draw.line((x - 3, y, x + 3, y), fill=(0, 255, 0, 255), width=1)
+            draw.line((x, y - 3, x, y + 3), fill=(0, 255, 0, 255), width=1)
     padding, label_height, gap = 12, 24, 12
     sheet = Image.new('RGBA', (crop.width * 2 + padding * 2 + gap,
                                crop.height + padding * 2 + label_height), COORDINATE_BACKGROUND_COLOR)

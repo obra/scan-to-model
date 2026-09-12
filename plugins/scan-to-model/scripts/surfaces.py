@@ -14,7 +14,8 @@ from PIL import Image, ImageDraw
 from scipy.spatial import ConvexHull
 
 from polycam import camera_matrix, digest, read_frame, unproject
-from pixel_inspection import coordinate_inspection_bytes, native_pixel_center, patch_inspection_bytes
+from pixel_inspection import (coordinate_inspection_bytes, display_pixel_center,
+                               native_pixel_center, patch_inspection_bytes)
 
 
 def _finite_array(value, shape, label):
@@ -332,10 +333,19 @@ def measured_patch(patch, defaults, parent, output, pixel_inspections=False):
     transformed = points@matrix[:3,:3].T+matrix[:3,3]
     eligible = (confidence==selected_confidence)&(depth>0)&(depth<=maximum*1000)
     native_count = int(native_mask.sum())
+    selected_depth = depth[native_mask]
+    in_range = (selected_depth > 0) & (selected_depth <= maximum * 1000)
+    confidence_values, confidence_counts = np.unique(confidence[native_mask], return_counts=True)
     row = {"id":name,"capture":str(source),"frame_id":frame,"physical_surface":patch["physical_surface"],
            "orientation":orientation,"polygon_px":polygon.tolist(),"depth_variant":depth_variant,"pose_variant":pose_variant,
            "declared_tracking_segment":declared_segment,"camera_tracking_segment":camera_segment,
            "max_depth_m":maximum,"confidence_value":selected_confidence,"native_patch_pixels":native_count,
+           "native_depth_counts":{"zero":int((selected_depth == 0).sum()),
+                                  "nonzero":int((selected_depth != 0).sum()),
+                                  "in_range":int(in_range.sum()),
+                                  "out_of_range":int((~in_range).sum())},
+           "native_confidence_histogram":{str(int(value)):int(count)
+                                           for value,count in zip(confidence_values,confidence_counts)},
            "eligible_pixels":len(points),"eligible_fraction":len(points)/native_count if native_count else 0,
            "transform":matrix.tolist(),"analysis_frame":defaults.get("analysis_frame",str(source)),
            "camera_position":(camera_matrix(camera)[:3,3]@matrix[:3,:3].T+matrix[:3,3]).tolist(),
@@ -388,13 +398,24 @@ def measured_patch(patch, defaults, parent, output, pixel_inspections=False):
         display_coordinates = polygon.tolist()
         native_coordinates = [native_pixel_center(point, source_image) for point in display_coordinates]
         annotation = {"native_coordinates":native_coordinates,"display_coordinates":display_coordinates}
+        eligible_rgb_native = [[int(raw_x[v, u]), int(raw_y[v, u])] for u, v in uv]
+        eligible_display = [display_pixel_center(point, source_image) for point in eligible_rgb_native]
         displayed = Image.fromarray(shown).convert("RGBA")
-        patch_image, patch_record = patch_inspection_bytes(source_image,displayed,display_coordinates)
+        patch_image, patch_record = patch_inspection_bytes(
+            source_image, displayed, display_coordinates, eligible_display)
         vertex_image, coordinates = coordinate_inspection_bytes(source_image,displayed,annotation)
         patch_path, vertex_path = output/f"{name}-patch.png",output/f"{name}-vertices.png"
         patch_path.write_bytes(patch_image);vertex_path.write_bytes(vertex_image)
         row["pixel_inspection"] = {
             "status":"pending visual review","source_rgb":row["sources"]["rgb"],
+            "eligible_samples":{"uv":uv.tolist(),"rgb_native":eligible_rgb_native,
+                                 "display":eligible_display,
+                                 "mapping":{"depth_to_rgb":"np.rint(u * rgb_width / depth_width), np.rint(v * rgb_height / depth_height), then clip to RGB bounds",
+                                            "rounding":"NumPy rint (ties-to-even)",
+                                            "clipping":"x=0..rgb_width-1, y=0..rgb_height-1",
+                                            "depth_size":[int(depth.shape[1]),int(depth.shape[0])],
+                                            "rgb_size":[width,height],
+                                            "orientation":orientation}},
             "polygon_native_pixel_centers":native_coordinates,"polygon_display_pixel_centers":display_coordinates,
             "patch":{"path":patch_path.name,"sha256":digest(patch_path),**patch_record},
             "vertices":{"path":vertex_path.name,"sha256":digest(vertex_path),
