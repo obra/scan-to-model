@@ -1,0 +1,65 @@
+"""Numerical contracts for reusable drawing geometry helpers."""
+
+import sys
+from pathlib import Path
+import unittest
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+from drawing import clipped, intersect_face, line_segments, project
+
+
+class DrawingTests(unittest.TestCase):
+    def test_project_uses_non_axis_aligned_right_and_up_bases(self):
+        points = np.array([[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]])
+        right = np.array([1.0, 1.0, 0.0]) / np.sqrt(2.0)
+        up = np.array([0.0, 0.0, 1.0])
+
+        result = project(points, right, up)
+
+        np.testing.assert_allclose(result, [[3.0 / np.sqrt(2.0), 3.0], [-1.0 / np.sqrt(2.0), 2.0]])
+        self.assertEqual(result.shape, (2, 2))
+
+    def test_clipped_convex_polygon_keeps_below_side_and_intersection_order(self):
+        polygon = np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0],
+                            [1.0, 1.0, 0.0], [-1.0, 1.0, 0.0]])
+
+        result = clipped(polygon, axis=0, value=0.0, keep_below=True)
+
+        np.testing.assert_allclose(result, [[-1.0, -1.0, 0.0], [0.0, -1.0, 0.0],
+                                             [0.0, 1.0, 0.0], [-1.0, 1.0, 0.0]])
+
+    def test_clipped_convex_polygon_keeps_above_side(self):
+        polygon = np.array([[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0],
+                            [1.0, 1.0, 0.0], [-1.0, 1.0, 0.0]])
+
+        result = clipped(polygon, axis=0, value=0.0, keep_below=False)
+
+        np.testing.assert_allclose(result, [[0.0, -1.0, 0.0], [1.0, -1.0, 0.0],
+                                             [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
+
+    def test_intersect_face_returns_convex_planar_cut_points(self):
+        polygon = np.array([[-1.0, -1.0, -1.0], [1.0, -1.0, 1.0],
+                            [1.0, 1.0, 1.0], [-1.0, 1.0, -1.0]])
+
+        result = intersect_face(polygon, axis=2, value=0.0)
+
+        self.assertEqual(len(result), 2)
+        np.testing.assert_allclose(np.asarray(result), [[0.0, -1.0, 0.0], [0.0, 1.0, 0.0]])
+
+    def test_line_segments_closes_polygon_and_preserves_two_point_segment(self):
+        polygon = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]])
+
+        result = line_segments(polygon)
+
+        self.assertEqual(len(result), 3)
+        np.testing.assert_allclose(result[0], [[0.0, 0.0], [1.0, 0.0]])
+        np.testing.assert_allclose(result[-1], [[1.0, 1.0], [0.0, 0.0]])
+        segment = np.array([[2.0, 3.0], [4.0, 5.0]])
+        self.assertEqual(len(line_segments(segment)), 1)
+        np.testing.assert_allclose(line_segments(segment)[0], segment)
+
+
+if __name__ == '__main__':
+    unittest.main()
