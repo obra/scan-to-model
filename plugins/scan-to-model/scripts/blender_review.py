@@ -111,10 +111,13 @@ def layer_layout(layer):
 
 
 def layer_snapshot(layer, layout):
-    children = layer.children
-    return {"name": layer.name, "exclude": layer.exclude, "hide_viewport": layer.hide_viewport,
-            "holdout": layer.holdout, "indirect_only": layer.indirect_only,
-            "children": [layer_snapshot(children[index], child_layout) for index, child_layout in layout]}
+    snapshot = {"name": layer.name, "exclude": layer.exclude, "hide_viewport": layer.hide_viewport,
+                "holdout": layer.holdout, "indirect_only": layer.indirect_only, "children": []}
+    if layout:
+        children = layer.children.values()
+        snapshot["children"] = [layer_snapshot(children[index], child_layout)
+                                for index, child_layout in layout]
+    return snapshot
 
 
 def view_layer_snapshots(scene):
