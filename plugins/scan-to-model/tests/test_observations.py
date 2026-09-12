@@ -215,8 +215,8 @@ class ObservationSheetTests(unittest.TestCase):
         record = self.generate(write_spec(root, data), root / "evidence")
 
         sheet_path = root / "evidence" / record["sources"][0]["sheet"]["path"]
-        document = fitz.open(stream=sheet_path.read_bytes(), filetype="svg")
-        pixmap = document[0].get_pixmap(alpha=False)
+        with fitz.open(stream=sheet_path.read_bytes(), filetype="svg") as document:
+            pixmap = document[0].get_pixmap(alpha=False)
         rendered = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
         white_pixels = sum(pixel == (255, 255, 255) for pixel in rendered.getdata())
         black_pixels = sum(pixel == (0, 0, 0) for pixel in rendered.getdata())
@@ -232,11 +232,26 @@ class ObservationSheetTests(unittest.TestCase):
         outline, foreground = label_nodes
         position = ("x", "y", "dx", "dy", "text-anchor", "font-family", "font-size")
         self.assertEqual(
+            {name: foreground.attrib[name] for name in position},
+            {
+                "x": "20.5", "y": "20.5", "dx": "6", "dy": "14",
+                "text-anchor": "start", "font-family": "sans-serif", "font-size": "14",
+            },
+        )
+        self.assertEqual(
             {name: outline.attrib[name] for name in position},
             {name: foreground.attrib[name] for name in position},
         )
+        self.assertEqual(
+            {name: outline.attrib[name] for name in ("fill", "stroke", "stroke-width")},
+            {"fill": "#000000", "stroke": "#000000", "stroke-width": "3"},
+        )
         self.assertEqual(outline.attrib["aria-hidden"], "true")
         self.assertNotIn("data-observation-id", outline.attrib)
+        self.assertEqual(
+            {name: foreground.attrib[name] for name in ("fill", "stroke")},
+            {"fill": "#ffffff", "stroke": "none"},
+        )
         self.assertEqual(foreground.attrib["data-observation-id"], "readable-label")
         self.assertNotIn("aria-hidden", foreground.attrib)
 

@@ -395,21 +395,31 @@ def _sheet_bytes(source, annotations, bounds=None, title=None, draw_labels=True)
         if draw_labels:
             x, y = displayed_edges[0]
             label_on_right = x <= left + width / 2
-            text = ET.SubElement(group, _svg("text"), {
+            label_attributes = {
                 "x": _number(x),
                 "y": _number(y),
                 "dx": "6" if label_on_right else "-6",
                 "dy": "14" if y <= top + height / 2 else "-6",
                 "text-anchor": "start" if label_on_right else "end",
-                "fill": "#ffffff",
-                "stroke": "#000000",
-                "stroke-width": "3",
-                "paint-order": "stroke",
                 "font-family": "sans-serif",
                 "font-size": "14",
+            }
+            outline = ET.SubElement(group, _svg("text"), {
+                **label_attributes,
+                "fill": "#000000",
+                "stroke": "#000000",
+                "stroke-width": "3",
+                "stroke-linejoin": "round",
+                "aria-hidden": "true",
+            })
+            outline.text = annotation["label"]
+            foreground = ET.SubElement(group, _svg("text"), {
+                **label_attributes,
+                "fill": "#ffffff",
+                "stroke": "none",
                 "data-observation-id": annotation["id"],
             })
-            text.text = annotation["label"]
+            foreground.text = annotation["label"]
     return ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
 
 
