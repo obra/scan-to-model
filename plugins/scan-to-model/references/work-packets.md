@@ -1,6 +1,6 @@
 # Reusable work packets
 
-Use this reference to give a bounded worker or reviewer enough context to produce a reusable project record. It is a prompt pattern, not a queue format or executor. Keep the job-specific room, source, model, paths and decisions in the private project.
+Use this reference to give a bounded worker or reviewer enough context to produce a reusable project record. It is a prompt pattern, not a queue format or executor. Keep the job-specific room, source, model, paths and decisions in the private project. Pair it with [goals.md](goals.md) when the work item belongs to a larger completion goal.
 
 ## Shared brief
 
