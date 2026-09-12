@@ -109,6 +109,49 @@ def read_frame(root, frame_id, depth_variant='raw', pose_variant='raw'):
     return camera, depth, confidence, rgb
 
 
+def clip_camera_segment(start, end, near_depth_m):
+    """Retain a camera-space segment at or in front of a positive depth plane."""
+    start = np.asarray(start, dtype=float)
+    end = np.asarray(end, dtype=float)
+    if start.shape != (3,) or end.shape != (3,) or not np.isfinite(start).all() or not np.isfinite(end).all():
+        raise ValueError('Camera segment endpoints must be finite 3-D points')
+    if (isinstance(near_depth_m, bool)
+            or not isinstance(near_depth_m, (int, float, np.integer, np.floating))
+            or not np.isfinite(near_depth_m) or near_depth_m <= 0):
+        raise ValueError('Camera segment near depth must be finite and positive')
+    near_depth_m = float(near_depth_m)
+    start_depth, end_depth = -float(start[2]), -float(end[2])
+    result = {
+        'visible': False,
+        'camera_plane_clipped': False,
+        'near_depth_m': near_depth_m,
+        'original_camera_points_m': [start.tolist(), end.tolist()],
+        'original_camera_depth_m': [start_depth, end_depth],
+        'clip_parameters': None,
+        'camera_points_m': None,
+        'safe_camera_depth_m': None,
+    }
+    if max(start_depth, end_depth) < near_depth_m:
+        return result
+    t0, t1 = 0.0, 1.0
+    if start_depth < near_depth_m:
+        t0 = (near_depth_m - start_depth) / (end_depth - start_depth)
+    if end_depth < near_depth_m:
+        t1 = (near_depth_m - start_depth) / (end_depth - start_depth)
+    if t0 > t1:
+        return result
+    safe_start = start + t0 * (end - start)
+    safe_end = start + t1 * (end - start)
+    result.update({
+        'visible': True,
+        'camera_plane_clipped': t0 != 0.0 or t1 != 1.0,
+        'clip_parameters': [float(t0), float(t1)],
+        'camera_points_m': [safe_start.tolist(), safe_end.tolist()],
+        'safe_camera_depth_m': [-float(safe_start[2]), -float(safe_end[2])],
+    })
+    return result
+
+
 def capture_inventory(root):
     """Require matching component IDs and complete optional variant sets."""
     base = Path(root) / 'keyframes'

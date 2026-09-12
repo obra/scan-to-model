@@ -21,7 +21,7 @@ import numpy as np
 from PIL import Image, __version__ as pillow_version
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from polycam import digest, read_frame, unproject, validate_depth
+from polycam import clip_camera_segment, digest, read_frame, unproject, validate_depth
 
 
 def write_png(path, values, bit_depth, color_type):
@@ -124,6 +124,65 @@ class PolycamTests(unittest.TestCase):
         for depth in invalid:
             with self.subTest(dtype=depth.dtype, shape=depth.shape), self.assertRaises(ValueError):
                 validate_depth(depth, confidence, camera)
+
+    def test_camera_segment_with_positive_depth_is_preserved(self):
+        result = clip_camera_segment([0, 0, -2], [1, 1, -3], near_depth_m=0.1)
+
+        self.assertTrue(result['visible'])
+        self.assertFalse(result['camera_plane_clipped'])
+        self.assertEqual(result['original_camera_depth_m'], [2.0, 3.0])
+        self.assertEqual(result['original_camera_points_m'], [[0.0, 0.0, -2.0], [1.0, 1.0, -3.0]])
+        self.assertEqual(result['clip_parameters'], [0.0, 1.0])
+        np.testing.assert_allclose(result['camera_points_m'], [[0, 0, -2], [1, 1, -3]])
+
+    def test_camera_segment_wholly_behind_is_excluded_with_audit_record(self):
+        result = clip_camera_segment([0, 0, 1], [1, 1, 0.2], near_depth_m=0.1)
+
+        self.assertFalse(result['visible'])
+        self.assertFalse(result['camera_plane_clipped'])
+        self.assertEqual(result['original_camera_depth_m'], [-1.0, -0.2])
+        self.assertIsNone(result['clip_parameters'])
+        self.assertIsNone(result['camera_points_m'])
+
+    def test_camera_segment_forward_crossing_clips_at_positive_near_depth(self):
+        result = clip_camera_segment([0, 0, 0.5], [1, 1, -2], near_depth_m=0.1)
+
+        self.assertTrue(result['visible'])
+        self.assertTrue(result['camera_plane_clipped'])
+        self.assertAlmostEqual(result['clip_parameters'][0], 0.24)
+        self.assertEqual(result['clip_parameters'][1], 1.0)
+        np.testing.assert_allclose(result['camera_points_m'][0], [0.24, 0.24, -0.1])
+        self.assertEqual(result['original_camera_depth_m'], [-0.5, 2.0])
+        self.assertAlmostEqual(result['safe_camera_depth_m'][0], 0.1)
+
+    def test_camera_segment_reverse_crossing_clips_at_positive_near_depth(self):
+        result = clip_camera_segment([0, 0, -2], [1, 1, 0.5], near_depth_m=0.1)
+
+        self.assertTrue(result['visible'])
+        self.assertTrue(result['camera_plane_clipped'])
+        self.assertEqual(result['clip_parameters'][0], 0.0)
+        self.assertAlmostEqual(result['clip_parameters'][1], 0.76)
+        np.testing.assert_allclose(result['camera_points_m'][1], [0.76, 0.76, -0.1])
+        self.assertEqual(result['original_camera_depth_m'], [2.0, -0.5])
+        self.assertAlmostEqual(result['safe_camera_depth_m'][1], 0.1)
+
+    def test_camera_segment_on_camera_plane_is_clipped_forward(self):
+        result = clip_camera_segment([0, 0, 0], [1, 1, -1], near_depth_m=0.1)
+
+        self.assertTrue(result['visible'])
+        self.assertTrue(result['camera_plane_clipped'])
+        self.assertAlmostEqual(result['clip_parameters'][0], 0.1)
+        np.testing.assert_allclose(result['camera_points_m'][0], [0.1, 0.1, -0.1])
+        self.assertEqual(result['original_camera_depth_m'], [0.0, 1.0])
+
+    def test_camera_segment_rejects_nonfinite_endpoints_and_invalid_near_depth(self):
+        for start, end in (([float('nan'), 0, -1], [0, 0, -1]),
+                           ([0, 0, -1], [float('inf'), 0, -1])):
+            with self.subTest(start=start, end=end), self.assertRaises(ValueError):
+                clip_camera_segment(start, end, near_depth_m=0.1)
+        for near_depth in (0, -0.1, float('nan'), float('inf')):
+            with self.subTest(near_depth=near_depth), self.assertRaises(ValueError):
+                clip_camera_segment([0, 0, -1], [0, 0, -2], near_depth_m=near_depth)
 
 
 if __name__ == '__main__':
