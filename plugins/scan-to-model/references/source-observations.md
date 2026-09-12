@@ -98,7 +98,7 @@ Deliver the source manifest, observation/feature-relation records, annotated sou
 The bundled renderer accepts local JPEG and PNG paths and writes only to a new output directory:
 
 ```sh
-python "$PLUGIN/scripts/observations.py" \
+python -B "$PLUGIN/scripts/observations.py" \
   --spec /path/to/review/observations.json \
   --output /path/to/review/annotated-source-evidence \
   --coordinate-inspections

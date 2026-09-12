@@ -1,12 +1,12 @@
 # Commands and record formats
 
-Use a Python 3.11+ environment with the packages in `requirements.txt`. In these examples `$PLUGIN` is the absolute installed plugin root, `$PROJECT` is the project directory, and `$CAPTURE` is an extracted directory containing `keyframes/`. Quote paths. Investigate CLI failures before continuing. Do not edit raw inputs to make a tool pass.
+Use a Python 3.11+ environment with the packages in `requirements.txt`. In these examples `$PLUGIN` is the absolute installed plugin root, `$PROJECT` is the project directory, and `$CAPTURE` is an extracted directory containing `keyframes/`. Quote paths. Use `-B` so Python imports do not write bytecode into the installed plugin cache. Investigate CLI failures before continuing. Do not edit raw inputs to make a tool pass.
 
 ## Preserve and inspect a capture
 
 ```sh
-python "$PLUGIN/scripts/ingest.py" /path/to/capture.zip --project "$PROJECT" --capture-id survey-one
-python "$PLUGIN/scripts/reference.py" "$CAPTURE" "$PROJECT/derived/reference-one.npz" --frame-step 20 --pixel-step 4 --depth-variant raw --pose-variant raw
+python -B "$PLUGIN/scripts/ingest.py" /path/to/capture.zip --project "$PROJECT" --capture-id survey-one
+python -B "$PLUGIN/scripts/reference.py" "$CAPTURE" "$PROJECT/derived/reference-one.npz" --frame-step 20 --pixel-step 4 --depth-variant raw --pose-variant raw
 ```
 
 Intake preserves the original archive in `sources/`, extracts it under `derived/scan-to-model/captures/`, and writes a frame index and inventory under `docs/scan-to-model/captures/`. Read the returned `capture_root`: exports may contain an enclosing folder. References are sampled, not a full surface reconstruction. Clean depth and corrected poses require explicit selection and actual corresponding source files.
@@ -16,7 +16,7 @@ Native depth must be a 16-bit grayscale PNG (IHDR bit depth 16, color type 0), w
 ## Surface measurement
 
 ```sh
-python "$PLUGIN/scripts/surfaces.py" --spec "$PROJECT/docs/surfaces.json" --output "$PROJECT/derived/surface-review"
+python -B "$PLUGIN/scripts/surfaces.py" --spec "$PROJECT/docs/surfaces.json" --output "$PROJECT/derived/surface-review"
 ```
 
 Paths in the spec are relative to the spec's directory, or absolute. `frame_id` is the exact camera/image filename stem, not a contact-sheet index. Coordinates are pixels in the stated orientation. Polycam's usual landscape RGB can be shown upright with a 90-degree clockwise rotation; inspect the particular export before selecting it. Use coordinates strictly inside the image. Missing or low-confidence depth stays missing; it is never interpolated into a measurement.
@@ -66,7 +66,7 @@ Comparison overlap counts first-patch inliers inside the second patch's projecte
 ## Rigid landmark registration
 
 ```sh
-python "$PLUGIN/scripts/register.py" --spec "$PROJECT/docs/landmarks.json" --output "$PROJECT/derived/registration.json"
+python -B "$PLUGIN/scripts/register.py" --spec "$PROJECT/docs/landmarks.json" --output "$PROJECT/derived/registration.json"
 ```
 
 ```json

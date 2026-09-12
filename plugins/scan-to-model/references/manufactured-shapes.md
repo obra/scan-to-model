@@ -38,7 +38,7 @@ These values are synthetic and uncalibrated:
 Save as `example.json`, then run from the plugin directory:
 
 ```sh
-python3 scripts/manufactured.py --spec example.json --output fitted.json
+python3 -B scripts/manufactured.py --spec example.json --output fitted.json
 ```
 
 The common axes are `u=[0.8,0.6]`, `v=[-0.6,0.8]`; sizes are `4 × 2` and `2 × 3` input units. Errors are zero up to floating-point precision. These dimensions remain uncalibrated.
@@ -46,5 +46,5 @@ The common axes are `u=[0.8,0.6]`, `v=[-0.6,0.8]`; sizes are `4 × 2` and `2 × 
 Run the synthetic numeric contract tests from the repository root:
 
 ```sh
-python3 -m unittest discover -s plugins/scan-to-model/tests -v
+python3 -B -m unittest discover -s plugins/scan-to-model/tests -v
 ```
