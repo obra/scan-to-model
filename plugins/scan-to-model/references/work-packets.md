@@ -6,8 +6,9 @@ Use this reference to give a bounded worker or reviewer enough context to produc
 
 ```text
 Work item: <stable project ID and one-sentence decision>
-Role: <planner/PM, source examiner, geometry builder, or independent reviewer>
+Role: <the agent executing this work item: planner/PM, source examiner, geometry builder, or independent reviewer>
 Dependencies / accepted scope: <records, accepted transforms, and prerequisite review that must remain valid>
+Readiness: <ready to dispatch, or planning-only with the missing prerequisites>
 Parent milestone: <the larger project milestone; do not treat this work item as the milestone itself>
 Investigation outcome: <what this bounded item can establish, or the explicit unknown it may preserve>
 Inputs: <absolute or project-relative paths, source IDs, model/transform IDs, and SHA256 values>
@@ -18,7 +19,7 @@ Next gate: <the concrete evidence or review required before the next stage>
 Stop/escalate when: <identity, scope, conflicting control, accepted-geometry, or validation condition that needs an operator>
 ```
 
-Bind immutable inputs before work and write only to fresh allowed outputs. Report what was actually opened or measured, preserve rejected alternatives and unresolved limits, and distinguish a finished investigation from a finished project milestone. A reviewer must be able to follow each claim to the project records and source components. Use [project-records.md](project-records.md) as the record authority and [evidence-workflow.md](evidence-workflow.md) for provenance and uncertainty rules.
+The `Role` names the agent executing the work item, not the person or agent who authored the brief. Bind immutable inputs before work and write only to fresh allowed outputs. Report what was actually opened or measured, preserve rejected alternatives and unresolved limits, and distinguish a finished investigation from a finished project milestone. A reviewer must be able to follow each claim to the project records and source components. Use [project-records.md](project-records.md) as the record authority and [evidence-workflow.md](evidence-workflow.md) for provenance and uncertainty rules. A discovery job binds its starting index or input set and may return newly identified frame or source bindings; it does not require undiscovered frame IDs as prerequisites. Mark the packet planning-only when a required accepted scope or input is still missing.
 
 ## Planner or PM
 
