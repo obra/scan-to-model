@@ -53,7 +53,53 @@ def transform_plane(normal, offset, transform):
     return transformed_normal, transformed_offset
 
 
-def _planar_polygon(polygon, planarity_tolerance):
+def _point_on_segment(point, start, end, tolerance):
+    edge = end - start
+    length = np.linalg.norm(edge)
+    if length == 0:
+        return np.linalg.norm(point - start) <= tolerance
+    parameter = (point - start) @ edge / (length * length)
+    if parameter < -tolerance / length or parameter > 1. + tolerance / length:
+        return False
+    cross = edge[0] * (point - start)[1] - edge[1] * (point - start)[0]
+    return abs(cross) / length <= tolerance
+
+
+def _segments_intersect(first_start, first_end, second_start, second_end, tolerance):
+    def cross(first, second):
+        return first[0] * second[1] - first[1] * second[0]
+
+    first_edge = first_end - first_start
+    second_edge = second_end - second_start
+    scale = max(np.linalg.norm(first_edge), np.linalg.norm(second_edge), 1e-12)
+    epsilon = tolerance * scale
+    orientations = np.array([
+        cross(first_edge, second_start - first_start),
+        cross(first_edge, second_end - first_start),
+        cross(second_edge, first_start - second_start),
+        cross(second_edge, first_end - second_start),
+    ])
+    if (abs(orientations[0]) <= epsilon
+            and _point_on_segment(second_start, first_start, first_end, tolerance)):
+        return True
+    if (abs(orientations[1]) <= epsilon
+            and _point_on_segment(second_end, first_start, first_end, tolerance)):
+        return True
+    if (abs(orientations[2]) <= epsilon
+            and _point_on_segment(first_start, second_start, second_end, tolerance)):
+        return True
+    if (abs(orientations[3]) <= epsilon
+            and _point_on_segment(first_end, second_start, second_end, tolerance)):
+        return True
+    if np.all(np.abs(orientations) <= epsilon):
+        return True
+    return ((orientations[0] > epsilon and orientations[1] < -epsilon)
+            or (orientations[0] < -epsilon and orientations[1] > epsilon)) and (
+                (orientations[2] > epsilon and orientations[3] < -epsilon)
+                or (orientations[2] < -epsilon and orientations[3] > epsilon))
+
+
+def _planar_polygon(polygon, planarity_tolerance, boundary_tolerance):
     polygon = np.asarray(polygon, float)
     if polygon.ndim != 2 or polygon.shape[1] != 3 or len(polygon) < 3:
         raise ValueError("Planar polygons require at least three 3-D vertices")
@@ -74,6 +120,18 @@ def _planar_polygon(polygon, planarity_tolerance):
     along /= np.linalg.norm(along)
     across = np.cross(normal, along)
     coordinates = np.column_stack((relative @ along, relative @ across))
+    for first_index in range(len(coordinates)):
+        first_start = coordinates[first_index]
+        first_end = coordinates[(first_index + 1) % len(coordinates)]
+        for second_index in range(first_index + 1, len(coordinates)):
+            if (second_index == first_index + 1
+                    or first_index == 0 and second_index == len(coordinates) - 1):
+                continue
+            second_start = coordinates[second_index]
+            second_end = coordinates[(second_index + 1) % len(coordinates)]
+            if _segments_intersect(first_start, first_end, second_start, second_end,
+                                   boundary_tolerance):
+                raise ValueError("Planar polygon ring is not simple")
     return polygon[0], normal, along, across, coordinates
 
 
@@ -136,9 +194,13 @@ def compare_points_to_planar_polygons(points, polygons, *, source_normal=None,
     offsets = []
     for index, polygon in enumerate(polygons):
         origin, normal, along, across, coordinates = _planar_polygon(
-            polygon, planarity_tolerance)
-        if source_normal is not None and normal @ source_normal < 0:
-            normal = -normal
+            polygon, planarity_tolerance, boundary_tolerance)
+        if source_normal is not None:
+            alignment = normal @ source_normal
+            if abs(alignment) <= 1e-12:
+                raise ValueError("Source normal is orthogonal to a polygon normal")
+            if alignment < 0:
+                normal = -normal
         signed = (points - origin) @ normal
         inside = _projected_polygon_contains(
             points, coordinates, origin, normal, along, across, boundary_tolerance)

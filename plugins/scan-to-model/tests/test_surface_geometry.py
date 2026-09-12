@@ -72,6 +72,40 @@ class SurfaceGeometryTests(unittest.TestCase):
         self.assertEqual(result['normal_convention'], 'source-aligned')
         np.testing.assert_allclose(result['residuals'], [.25])
 
+    def test_collinear_boundary_vertices_remain_valid(self):
+        from surfaces import compare_points_to_planar_polygons
+
+        polygon = np.array([
+            [0., 0., 0.], [1., 0., 0.], [2., 0., 0.],
+            [2., 2., 0.], [0., 2., 0.],
+        ])
+        result = compare_points_to_planar_polygons(
+            np.array([[.5, .5, .1]]), [polygon])
+        self.assertEqual(result['overlap_count'], 1)
+
+    def test_non_simple_ring_and_ambiguous_source_normal_are_rejected(self):
+        from surfaces import _segments_intersect, compare_points_to_planar_polygons
+
+        self.assertTrue(_segments_intersect(
+            np.array([0., 0.]), np.array([2., 0.]),
+            np.array([2., 0.]), np.array([3., 1.]), 1e-9))
+        self.assertTrue(_segments_intersect(
+            np.array([0., 0.]), np.array([3., 0.]),
+            np.array([1., 0.]), np.array([2., 0.]), 1e-9))
+
+        non_simple = np.array([
+            [0., 0., 0.], [4., 0., 0.], [0., 4., 0.],
+            [4., 4., 0.], [2., 1., 0.],
+        ])
+        with self.assertRaises(ValueError):
+            compare_points_to_planar_polygons(np.zeros((1, 3)), [non_simple])
+        square = np.array([
+            [0., 0., 0.], [2., 0., 0.], [2., 2., 0.], [0., 2., 0.],
+        ])
+        with self.assertRaises(ValueError):
+            compare_points_to_planar_polygons(
+                np.array([[1., 1., .1]]), [square], source_normal=[1., 0., 0.])
+
     def test_zero_overlap_has_null_statistics(self):
         from surfaces import compare_points_to_planar_polygons
 
