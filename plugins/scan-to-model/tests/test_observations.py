@@ -181,6 +181,86 @@ class ObservationSheetTests(unittest.TestCase):
         labels = [node.text for node in raw_svg.findall(f".//{SVG}text")]
         self.assertIn("A < B > C & \"quoted\" café 🧱", labels)
 
+    def test_full_sheet_label_stays_readable_when_rasterizer_ignores_paint_order(self):
+        try:
+            import fitz
+        except ImportError:
+            self.skipTest("requires optional PyMuPDF SVG rasterizer")
+
+        root = make_workspace()
+        source_path = root / "images/label-source.png"
+        Image.new("RGB", (320, 80), (80, 110, 140)).save(source_path)
+        source_bytes = source_path.read_bytes()
+        data = {
+            "sources": [{
+                "id": "label-source",
+                "path": "images/label-source.png",
+                "orientation": "raw",
+            }],
+            "observations": [{
+                "id": "readable-label",
+                "label": "Readable label",
+                "source_id": "label-source",
+                "marks": {
+                    "type": "point",
+                    "meaning": "synthetic locator",
+                    "coordinates": [[20, 20]],
+                },
+                "endpoints": [],
+                "qualification": {"status": "synthetic"},
+            }],
+            "features": [],
+        }
+
+        record = self.generate(write_spec(root, data), root / "evidence")
+
+        sheet_path = root / "evidence" / record["sources"][0]["sheet"]["path"]
+        with fitz.open(stream=sheet_path.read_bytes(), filetype="svg") as document:
+            pixmap = document[0].get_pixmap(alpha=False)
+        rendered = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+        white_pixels = sum(pixel == (255, 255, 255) for pixel in rendered.getdata())
+        black_pixels = sum(pixel == (0, 0, 0) for pixel in rendered.getdata())
+        self.assertGreater(white_pixels, 0)
+        self.assertGreater(black_pixels, 0)
+
+        sheet = svg_root(sheet_path)
+        label_nodes = [
+            node for node in sheet.findall(f".//{SVG}text")
+            if node.text == "Readable label"
+        ]
+        self.assertEqual(len(label_nodes), 2)
+        outline, foreground = label_nodes
+        position = ("x", "y", "dx", "dy", "text-anchor", "font-family", "font-size")
+        self.assertEqual(
+            {name: foreground.attrib[name] for name in position},
+            {
+                "x": "20.5", "y": "20.5", "dx": "6", "dy": "14",
+                "text-anchor": "start", "font-family": "sans-serif", "font-size": "14",
+            },
+        )
+        self.assertEqual(
+            {name: outline.attrib[name] for name in position},
+            {name: foreground.attrib[name] for name in position},
+        )
+        self.assertEqual(
+            {name: outline.attrib[name] for name in ("fill", "stroke", "stroke-width")},
+            {"fill": "#000000", "stroke": "#000000", "stroke-width": "3"},
+        )
+        self.assertEqual(outline.attrib["aria-hidden"], "true")
+        self.assertNotIn("data-observation-id", outline.attrib)
+        self.assertEqual(
+            {name: foreground.attrib[name] for name in ("fill", "stroke")},
+            {"fill": "#ffffff", "stroke": "none"},
+        )
+        self.assertEqual(foreground.attrib["data-observation-id"], "readable-label")
+        self.assertNotIn("aria-hidden", foreground.attrib)
+
+        assertion = svg_root(
+            root / "evidence" / record["annotations"][0]["review"]["assertion"]["path"]
+        )
+        self.assertEqual(embedded_bytes(assertion), source_bytes)
+        self.assertIsNone(assertion.find(f".//{SVG}text"))
+
     def test_writes_native_scale_assertion_and_endpoint_review_crops(self):
         root = make_workspace()
         Image.new("RGB", (160, 120), (36, 72, 108)).save(root / "images/review.png")
