@@ -11,6 +11,8 @@ Use `scripts/surfaces.py` with the exact filename stem, image orientation, physi
 
 To review mapped sample locations before fitting, set `"fit": false` on every patch and `"comparisons": []` in the spec. Inspect the retained eligible native pixels and points against the source; this mode does not validate the selection's physical meaning. Its all-false `inlier_mask` means not fitted, not rejected samples. Enable fitting only in a fresh run after physical sample review; see [formats.md](../../references/formats.md).
 
+For small patches or ambiguous edges, add `--pixel-inspections`. Inspect the complete unmarked/marked polygon crop and every vertex's native-pixel context before interpreting support. Nearest-neighbor enlargement adds no detail, and a clean vertex does not prove the polygon interior avoids another surface. These optional outputs leave sampling and fitting unchanged and remain pending human review.
+
 Compare the same physical patch only within a shared coordinate frame and overlapping footprint. Reserve sufficiently separated views and independent features to expose pose/depth correlation. Report support counts, all-sample and retained residuals, overlap size and cross-view disagreement separately. Measure a slope freely before deciding whether it should be horizontal. Do not call a mixed ramp/floor fit a scan error.
 
 If a boundary lacks native depth, report it as an image observation or an intersection inferred from identified planes. Do not give that boundary the same confidence as a directly supported patch. An optional physical length can check absolute scale; it is not a prerequisite for processing calibrated native depth.
