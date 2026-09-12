@@ -18,6 +18,105 @@ SCRATCH_ROOT = Path(os.environ.get('SCAN_TO_MODEL_TEST_SCRATCH', Path.cwd() / '.
 
 
 class SurfaceSampleTests(unittest.TestCase):
+    def test_pixel_inspections_show_whole_patch_and_vertices_without_changing_samples(self):
+        root = SCRATCH_ROOT / str(uuid.uuid4())
+        capture = root / 'capture'
+        for directory in ('images', 'depth', 'confidence', 'cameras'):
+            (capture / 'keyframes' / directory).mkdir(parents=True)
+        grid = np.array([[(u * 2, v * 3, (u + v) % 256) for u in range(96)]
+                         for v in range(64)], dtype=np.uint8)
+        Image.fromarray(grid).save(capture / 'keyframes/images/001.jpg')
+        Image.fromarray(np.full((32, 48), 2000, dtype=np.uint16)).save(
+            capture / 'keyframes/depth/001.png')
+        Image.fromarray(np.full((32, 48), 255, dtype=np.uint8)).save(
+            capture / 'keyframes/confidence/001.png')
+        camera = {
+            'width': 96, 'height': 64, 'fx': 96, 'fy': 96, 'cx': 48, 'cy': 32,
+            't_00': 1, 't_01': 0, 't_02': 0, 't_03': 0,
+            't_10': 0, 't_11': 1, 't_12': 0, 't_13': 0,
+            't_20': 0, 't_21': 0, 't_22': 1, 't_23': 0,
+        }
+        (capture / 'keyframes/cameras/001.json').write_text(json.dumps(camera))
+        source_hashes = {path: hashlib.sha256(path.read_bytes()).hexdigest()
+                         for path in capture.rglob('*') if path.is_file()}
+        environment = os.environ.copy()
+        for key, directory in [('TMPDIR', 'tmp'), ('MPLCONFIGDIR', 'matplotlib')]:
+            path = root / directory
+            path.mkdir()
+            environment[key] = str(path)
+        environment['PYTHONDONTWRITEBYTECODE'] = '1'
+        cases = [
+            ('raw', [[0, 0], [18.5, 3.5], [19, 47], [3, 47]],
+             [[0, 0], [18.5, 3.5], [19, 47], [3, 47]], [0, 0, 52, 64], [19, 4]),
+            ('upright90cw', [[0, 0], [20.5, 3.5], [21, 70], [3, 70]],
+             [[0, 63], [3.5, 42.5], [70, 42], [70, 60]], [0, 0, 54, 96], [20, 4]),
+        ]
+        with Image.open(capture / 'keyframes/images/001.jpg') as image:
+            decoded = image.convert('RGBA')
+        for orientation, polygon, native, crop_edges, nearest_display in cases:
+            for fitting in (False, True):
+                with self.subTest(orientation=orientation, fitting=fitting):
+                    spec = {'capture': 'capture', 'orientation': orientation, 'patches': [{
+                        'id': 'patch', 'frame_id': '001', 'physical_surface': 'synthetic plane',
+                        'fit': fitting, 'polygon_px': polygon,
+                    }], 'comparisons': []}
+                    spec_path = root / f'{orientation}-{fitting}.json'
+                    spec_path.write_text(json.dumps(spec))
+                    results = []
+                    outputs = []
+                    for enabled in (False, True):
+                        output = root / f'{orientation}-{fitting}-{enabled}'
+                        command = [sys.executable, str(SCRIPT), '--spec', str(spec_path),
+                                   '--output', str(output)]
+                        if enabled:
+                            command.append('--pixel-inspections')
+                        process = subprocess.run(command, env=environment, capture_output=True, text=True)
+                        (root / f'{output.name}.log').write_text(process.stdout + process.stderr)
+                        self.assertEqual(process.returncode, 0, process.stderr)
+                        results.append(json.loads((output / 'measurements.json').read_text()))
+                        outputs.append(output)
+                    baseline = results[0]['patches'][0]
+                    inspected = results[1]['patches'][0]
+                    self.assertNotIn('pixel_inspection', baseline)
+                    inspection = inspected.pop('pixel_inspection')
+                    self.assertEqual(results[0], results[1])
+                    self.assertEqual(inspection['status'], 'pending visual review')
+                    self.assertEqual(inspection['polygon_native_pixel_centers'], native)
+                    self.assertEqual(inspection['polygon_display_pixel_centers'], polygon)
+                    self.assertEqual(inspection['source_rgb'], baseline['sources']['rgb'])
+                    self.assertEqual((outputs[0] / baseline['figure']).read_bytes(),
+                                     (outputs[1] / baseline['figure']).read_bytes())
+                    with np.load(outputs[0] / baseline['samples']) as original, np.load(
+                            outputs[1] / baseline['samples']) as extra:
+                        for key in original.files:
+                            np.testing.assert_array_equal(original[key], extra[key])
+                        if not fitting:
+                            self.assertFalse(extra['inlier_mask'].any())
+                            self.assertIsNone(inspected['plane'])
+                    crop = inspection['patch']
+                    self.assertEqual(crop['display_bounds_pixel_edges'], crop_edges)
+                    self.assertEqual(crop['resampling'], 'nearest')
+                    shown = decoded if orientation == 'raw' else decoded.transpose(Image.Transpose.ROTATE_270)
+                    expected = shown.crop(crop_edges)
+                    expected = expected.resize((expected.width * 3, expected.height * 3), Image.Resampling.NEAREST)
+                    for artifact in (crop, inspection['vertices']):
+                        path = outputs[1] / artifact['path']
+                        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), artifact['sha256'])
+                    with Image.open(outputs[1] / crop['path']) as sheet:
+                        np.testing.assert_array_equal(np.asarray(sheet.crop(crop['unmarked_bounds'])), np.asarray(expected))
+                        self.assertNotEqual(sheet.crop(crop['marked_bounds']).tobytes(), expected.tobytes())
+                    coordinates = inspection['vertices']['coordinates']
+                    self.assertEqual([row['native'] for row in coordinates], native)
+                    self.assertEqual([row['display'] for row in coordinates], polygon)
+                    self.assertEqual(coordinates[1]['nearest_display_pixel'], nearest_display)
+                    with Image.open(outputs[1] / inspection['vertices']['path']) as sheet:
+                        for row in coordinates:
+                            left, top, _, _ = row['unmarked_context_bounds']
+                            self.assertEqual(sheet.getpixel((left + 128, top + 128)),
+                                             decoded.getpixel(tuple(row['nearest_native_pixel'])))
+        self.assertEqual(source_hashes, {path: hashlib.sha256(path.read_bytes()).hexdigest()
+                                        for path in source_hashes})
+
     def test_tracking_segment_scope_rejects_mismatch_and_preserves_unknown(self):
         missing = object()
 
