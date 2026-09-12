@@ -17,6 +17,155 @@ from polycam import camera_matrix, digest, read_frame, unproject
 from pixel_inspection import coordinate_inspection_bytes, native_pixel_center, patch_inspection_bytes
 
 
+def _finite_array(value, shape, label):
+    try:
+        array = np.asarray(value, float)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label} must be a finite array") from error
+    if array.shape != shape or not np.isfinite(array).all():
+        raise ValueError(f"{label} must be a finite array with shape {shape}")
+    return array
+
+
+def _rigid_matrix(transform):
+    matrix = _finite_array(transform, (4, 4), "Transform")
+    rotation = matrix[:3, :3]
+    if not np.allclose(matrix[3], [0., 0., 0., 1.], atol=1e-7, rtol=0):
+        raise ValueError("Transform must be homogeneous")
+    if not np.allclose(rotation.T @ rotation, np.eye(3), atol=1e-6, rtol=0):
+        raise ValueError("Transform must contain a rigid rotation")
+    if not np.isclose(np.linalg.det(rotation), 1., atol=1e-6, rtol=0):
+        raise ValueError("Transform must contain a proper rigid rotation")
+    return matrix
+
+
+def transform_plane(normal, offset, transform):
+    """Transform the explicit plane equation ``normal @ point = offset``."""
+    normal = _finite_array(normal, (3,), "Plane normal")
+    if np.linalg.norm(normal) <= 1e-12:
+        raise ValueError("Plane normal must be nonzero")
+    scalar = np.asarray(offset, float)
+    if scalar.ndim or not np.isfinite(scalar).all():
+        raise ValueError("Plane offset must be a finite scalar")
+    matrix = _rigid_matrix(transform)
+    transformed_normal = matrix[:3, :3] @ normal
+    transformed_offset = float(scalar + transformed_normal @ matrix[:3, 3])
+    return transformed_normal, transformed_offset
+
+
+def _planar_polygon(polygon, planarity_tolerance):
+    polygon = np.asarray(polygon, float)
+    if polygon.ndim != 2 or polygon.shape[1] != 3 or len(polygon) < 3:
+        raise ValueError("Planar polygons require at least three 3-D vertices")
+    if not np.isfinite(polygon).all():
+        raise ValueError("Planar polygon vertices must be finite")
+    relative = polygon - polygon[0]
+    area_vector = sum(np.cross(relative[index], relative[(index + 1) % len(relative)])
+                      for index in range(len(relative)))
+    edge_scale = max(np.linalg.norm(relative[index] - relative[(index + 1) % len(relative)])
+                     for index in range(len(relative)))
+    if np.linalg.norm(area_vector) <= 1e-12 * edge_scale**2:
+        raise ValueError("Planar polygon is degenerate")
+    normal = area_vector / np.linalg.norm(area_vector)
+    if np.max(np.abs(relative @ normal)) > planarity_tolerance:
+        raise ValueError("Planar polygon vertices are not coplanar")
+    reference = np.eye(3)[np.argmin(np.abs(normal))]
+    along = np.cross(reference, normal)
+    along /= np.linalg.norm(along)
+    across = np.cross(normal, along)
+    coordinates = np.column_stack((relative @ along, relative @ across))
+    return polygon[0], normal, along, across, coordinates
+
+
+def _projected_polygon_contains(points, polygon, origin, normal, along, across, tolerance):
+    relative = points - origin
+    projected = relative - np.outer(relative @ normal, normal)
+    coordinates = np.column_stack((projected @ along, projected @ across))
+    inside = np.zeros(len(points), dtype=bool)
+    boundary = np.zeros(len(points), dtype=bool)
+    for index, start in enumerate(polygon):
+        end = polygon[(index + 1) % len(polygon)]
+        edge = end - start
+        length_squared = edge @ edge
+        if length_squared == 0:
+            boundary |= np.linalg.norm(coordinates - start, axis=1) <= tolerance
+            continue
+        parameter = np.clip(((coordinates - start) @ edge) / length_squared, 0., 1.)
+        nearest = start + parameter[:, None] * edge
+        boundary |= np.linalg.norm(coordinates - nearest, axis=1) <= tolerance
+        crosses = (start[1] > coordinates[:, 1]) != (end[1] > coordinates[:, 1])
+        crossing_x = np.zeros(len(points))
+        if edge[1] != 0:
+            crossing_x = start[0] + (coordinates[:, 1] - start[1]) * edge[0] / edge[1]
+        inside ^= crosses & (coordinates[:, 0] < crossing_x)
+    return boundary | inside
+
+
+def compare_points_to_planar_polygons(points, polygons, *, source_normal=None,
+                                       planarity_tolerance=1e-7, boundary_tolerance=1e-9):
+    """Compare source points with a union of actual planar polygon footprints.
+
+    Each input point is retained in the returned arrays and receives at most one
+    signed plane residual. Points whose orthogonal projection is inside several
+    polygons use the closest supporting plane; ties use polygon input order.
+    Polygon vertex winding controls signs unless ``source_normal`` is supplied,
+    in which case each polygon normal is flipped toward that source direction.
+    """
+    points = np.asarray(points, float)
+    if points.ndim != 2 or points.shape[1] != 3 or not np.isfinite(points).all():
+        raise ValueError("Points must be a finite array with shape (N, 3)")
+    for value, label in ((planarity_tolerance, "Planarity tolerance"),
+                         (boundary_tolerance, "Boundary tolerance")):
+        scalar = np.asarray(value, float)
+        if scalar.ndim or not np.isfinite(scalar).all() or scalar < 0:
+            raise ValueError(f"{label} must be finite and nonnegative")
+    if source_normal is not None:
+        source_normal = _finite_array(source_normal, (3,), "Source normal")
+        length = np.linalg.norm(source_normal)
+        if length <= 1e-12:
+            raise ValueError("Source normal must be nonzero")
+        source_normal = source_normal / length
+    try:
+        polygons = list(polygons)
+    except TypeError as error:
+        raise ValueError("Polygons must be an iterable of 3-D vertex arrays") from error
+    residuals = np.full(len(points), np.nan)
+    supporting = np.full(len(points), -1, dtype=int)
+    nearest_distance = np.full(len(points), np.inf)
+    normals = []
+    offsets = []
+    for index, polygon in enumerate(polygons):
+        origin, normal, along, across, coordinates = _planar_polygon(
+            polygon, planarity_tolerance)
+        if source_normal is not None and normal @ source_normal < 0:
+            normal = -normal
+        signed = (points - origin) @ normal
+        inside = _projected_polygon_contains(
+            points, coordinates, origin, normal, along, across, boundary_tolerance)
+        distance = np.abs(signed)
+        selected = inside & (distance < nearest_distance)
+        residuals[selected] = signed[selected]
+        supporting[selected] = index
+        nearest_distance[selected] = distance[selected]
+        normals.append(normal)
+        offsets.append(float(normal @ origin))
+    overlap = supporting >= 0
+    return {
+        "points": points.copy(),
+        "overlap_mask": overlap,
+        "overlap_indices": np.flatnonzero(overlap),
+        "overlap_count": int(overlap.sum()),
+        "supporting_polygon": supporting,
+        "residuals": residuals,
+        "statistics": stats(np.abs(residuals[overlap])) if overlap.any() else None,
+        "polygon_normals": np.asarray(normals).reshape((-1, 3)),
+        "polygon_offsets": np.asarray(offsets),
+        "normal_convention": "source-aligned" if source_normal is not None else "vertex-winding",
+        "source_normal": None if source_normal is None else source_normal.copy(),
+        "residual_definition": "signed distance to n @ point = d; absolute values are used for statistics",
+    }
+
+
 def fit_plane(points, rejection_m):
     keep = np.ones(len(points), dtype=bool)
     for _ in range(5):
