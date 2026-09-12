@@ -53,6 +53,28 @@ def resolve(path, parent):
     return path.resolve() if path.is_absolute() else (parent/path).resolve()
 
 
+def tracking_scope(camera, patch, defaults):
+    if "tracking_segment" in patch:
+        declared = patch["tracking_segment"]
+        declaration_present = True
+    elif "tracking_segment" in defaults:
+        declared = defaults["tracking_segment"]
+        declaration_present = True
+    else:
+        declared = None
+        declaration_present = False
+    actual = camera.get("tracking_segment")
+    if declaration_present and (isinstance(declared, bool) or not isinstance(declared, int)):
+        raise ValueError("Declared tracking segment must be an integer")
+    if actual is not None and (isinstance(actual, bool) or not isinstance(actual, int)):
+        raise ValueError("Camera tracking segment must be an integer or null")
+    if declared is not None and actual is None:
+        raise ValueError("Camera tracking segment is unavailable for the declared segment")
+    if declared is not None and actual != declared:
+        raise ValueError(f"Camera tracking segment {actual} does not match declared segment {declared}")
+    return declared, actual
+
+
 def measured_patch(patch, defaults, parent, output):
     name = patch["id"]
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
@@ -62,6 +84,9 @@ def measured_patch(patch, defaults, parent, output):
     depth_variant = patch.get("depth_variant", defaults.get("depth_variant", "raw"))
     pose_variant = patch.get("pose_variant", defaults.get("pose_variant", "raw"))
     camera, depth, confidence, rgb = read_frame(source,frame,depth_variant,pose_variant)
+    raw_camera = (camera if pose_variant == "raw" else json.loads(
+        (source/"keyframes/cameras"/f"{frame}.json").read_text()))
+    declared_segment, camera_segment = tracking_scope(raw_camera, patch, defaults)
     maximum = float(defaults.get("max_depth_m", 5))
     selected_confidence = defaults.get("confidence_value", 255)
     if not isinstance(selected_confidence, int) or not 0 <= selected_confidence <= 255:
@@ -99,6 +124,7 @@ def measured_patch(patch, defaults, parent, output):
     native_count = int(native_mask.sum())
     row = {"id":name,"capture":str(source),"frame_id":frame,"physical_surface":patch["physical_surface"],
            "orientation":orientation,"polygon_px":polygon.tolist(),"depth_variant":depth_variant,"pose_variant":pose_variant,
+           "declared_tracking_segment":declared_segment,"camera_tracking_segment":camera_segment,
            "max_depth_m":maximum,"confidence_value":selected_confidence,"native_patch_pixels":native_count,
            "eligible_pixels":len(points),"eligible_fraction":len(points)/native_count if native_count else 0,
            "transform":matrix.tolist(),"analysis_frame":defaults.get("analysis_frame",str(source)),
