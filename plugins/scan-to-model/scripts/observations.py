@@ -393,7 +393,12 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
     spec_path = Path(spec_path).resolve(strict=True)
     output_dir = Path(output_dir)
     if os.path.lexists(output_dir):
-        raise FileExistsError(f"Output path already exists: {output_dir}")
+        if (
+            not output_dir.is_dir()
+            or output_dir.is_symlink()
+            or any(output_dir.iterdir())
+        ):
+            raise FileExistsError(f"Output path already exists: {output_dir}")
     spec_root = spec_path.parent.resolve(strict=True)
     spec_before = spec_path.read_bytes()
     spec = _load_spec(spec_before)
@@ -544,7 +549,7 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
     }
     record_bytes = json.dumps(record, indent=2, allow_nan=False).encode("utf-8") + b"\n"
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    output_dir.mkdir()
+    output_dir.mkdir(exist_ok=True)
     for name, data in sheets.items():
         destination = output_dir / name
         destination.parent.mkdir(parents=True, exist_ok=True)

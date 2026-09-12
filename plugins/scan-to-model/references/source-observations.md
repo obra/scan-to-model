@@ -95,7 +95,7 @@ A placement record identifies the observation/feature IDs, candidate/model hash,
 
 Deliver the source manifest, observation/feature-relation records, annotated source sheets and a concise scope/unknowns report. A vector overlay referencing or embedding unchanged source bytes can reproduce marks without repainting the photograph. Keep annotation labels readable and distinguish locator lines from measured outlines. Record output hashes and the script/command used to reproduce them when a generator is used.
 
-The bundled renderer accepts local JPEG and PNG paths and writes only to a new output directory:
+The bundled renderer accepts local JPEG and PNG paths and writes only to an absent or empty output directory. It rejects a nonempty output path before validating or writing anything; use a fresh successor directory for every rerun that should preserve an earlier packet:
 
 ```sh
 python -B "$PLUGIN/scripts/observations.py" \

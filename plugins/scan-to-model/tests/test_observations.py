@@ -812,6 +812,34 @@ class ObservationSheetTests(unittest.TestCase):
             self.generate(spec_path, first)
         self.assertEqual(sorted(first.iterdir()), before)
 
+    def test_accepts_empty_output_and_preserves_packet_when_spec_changes(self):
+        root = make_workspace()
+        data = valid_spec(root)
+        spec_path = write_spec(root, data)
+        output = root / "evidence"
+        output.mkdir()
+
+        self.generate(spec_path, output)
+        before = {
+            path.relative_to(output): path.read_bytes()
+            for path in output.rglob("*")
+            if path.is_file()
+        }
+
+        changed = copy.deepcopy(data)
+        changed["metadata"]["review_scope"].append("changed-after-generation")
+        write_spec(root, changed)
+
+        with self.assertRaises(FileExistsError):
+            self.generate(spec_path, output)
+
+        after = {
+            path.relative_to(output): path.read_bytes()
+            for path in output.rglob("*")
+            if path.is_file()
+        }
+        self.assertEqual(after, before)
+
     def test_cli_writes_packet_and_refuses_an_existing_output(self):
         root = make_workspace()
         spec_path = write_spec(root, valid_spec(root))
