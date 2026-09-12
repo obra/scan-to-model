@@ -130,9 +130,9 @@ After Blender exits, recompute and record the frozen model and helper hashes alo
 
 ## Preflight worker arguments and metadata
 
-Validate a worker's complete argument vector before opening a large blend. The worker contract must name every required flag and value, including `--output` and any task-specific worker flags; reject a missing or malformed value before loading the project. Keep the exact executable and argument vector in the run receipt. Each attempt gets a fresh output directory that retains stdout, stderr, exit status and the failure log, so a failed launch cannot be mistaken for a stale successful result or overwrite the evidence from an earlier attempt.
+Validate a worker's complete argument vector before opening a large blend. The worker contract must name every required flag and value, including `--output` and any task-specific worker flags; reject a missing or malformed value before loading the project. For a worker being developed or changed, exercise this parser and its metadata serialization on a small `--factory-startup` fixture before its first large-project run. The actual review serializes metadata from the loaded scene after that load; an unchanged worker does not need an extra Blender launch solely to repeat the fixture check. Keep the exact executable and argument vector in the run receipt. Each attempt gets a fresh output directory that retains stdout, stderr, exit status and the failure log, so a failed launch cannot be mistaken for a stale successful result or overwrite the evidence from an earlier attempt.
 
-When a worker records Blender custom properties, reuse `tags()` and `value_snapshot()` from `scripts/blender_review.py`. They preserve nested `IDPropertyGroup` values as structured JSON data; converting properties with `str()` loses that structure and can leave values that `json.dumps()` cannot serialize. Normalize Blender's build identity before assembling the receipt because some builds expose `bpy.app.build_hash` as bytes:
+When a worker records Blender custom properties, reuse `tags()` and `value_snapshot()` from `scripts/blender_review.py`. They preserve nested `IDPropertyGroup` values as structured JSON data; converting properties with `str()` loses that structure, while incomplete ad hoc conversion can leave bytes or other unsupported values that `json.dumps()` cannot serialize. Normalize Blender's build identity before assembling the receipt because some builds expose `bpy.app.build_hash` as bytes:
 
 ```python
 from blender_review import tags, value_snapshot
@@ -148,7 +148,7 @@ metadata = {
 json.dumps(metadata, allow_nan=False)
 ```
 
-Run this serialization check and the worker argument preflight before the large-project load. Preserve the resulting metadata with the exact command and any failed-run logs.
+Run this serialization check on the small fixture when the worker is developed or changed. During the actual review, preserve the loaded-scene metadata with the exact command and any failed-run logs.
 
 ## Isolate interactive GUI review state
 
