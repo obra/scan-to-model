@@ -264,13 +264,16 @@ A source ID stored on an object does not bring its photograph or registry record
 
 Audit every substantive object and every source ID it declares. An original or qualified-upright record must resolve to the named image datablock with matching identity metadata and source hash; the image must be packed and its pixels readable after reopening the final file. A qualified-upright record must also resolve to its original record. Append and pack that original even when no object cites it directly. A packed derivative alone does not preserve the native source.
 
+`image.pack()` stores the bytes in the blend but does not retain a zero-user evidence-only image at save. Set `image.use_fake_user = True`, or give the image a genuine datablock user, then reopen the saved file and verify every declared image, its packed exact source bytes, and its readable pixels.
+
 Classify documentary evidence with no established image or location as documentary and unlocated. Preserve its full document identity and uncertainty without inventing a photograph binding or using it to claim image-grounded placement. In an interactive review, select representative substantive objects and follow their declared references. The promotion gate must then traverse all substantive objects and declared source chains under the same explicit schema; representative inspection alone is not closure. The inventory records custom properties and images, but it does not establish this semantic relationship.
 
-The synthetic Blender fixture uses an explicit invented schema. Its first mode must fail even though every image present is packed, because a cited qualified-upright source has no appended original. Its complete mode appends and packs that original, reopens the final blend, and audits all declared visual and documentary references:
+The synthetic Blender fixture uses an explicit invented schema. Its `missing-original` mode must fail even though every image present is packed, because a cited qualified-upright source has no appended original. Its `complete` mode appends and packs that original, reopens the final blend, and audits all declared visual and documentary references. Its `missing-retention` mode starts from that complete schema, packs the original, then removes its fake user before saving; reopening reports the declared original image as absent, demonstrating why packing alone is insufficient:
 
 ```text
 blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_evidence_reference_closure.py -- --mode missing-original --output /path/to/review/evidence-closure-missing-original
 blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_evidence_reference_closure.py -- --mode complete --output /path/to/review/evidence-closure-complete
+blender -b --factory-startup --disable-autoexec --python-exit-code 1 --python scripts/blender_runtime.py --python tests/blender_evidence_reference_closure.py -- --mode missing-retention --output /path/to/review/evidence-closure-missing-retention
 ```
 
 The inventory covers these source properties:

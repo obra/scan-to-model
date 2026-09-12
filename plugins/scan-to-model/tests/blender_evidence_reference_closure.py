@@ -25,7 +25,9 @@ DOCUMENTARY_IDENTITY_FIELDS = ("source_id", "document_id", "locator", "variant")
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=("missing-original", "complete"), required=True
+        "--mode",
+        choices=("missing-original", "complete", "missing-retention"),
+        required=True,
     )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1 :])
@@ -149,12 +151,15 @@ def build_fixture(root, mode):
         "Qualified upright evidence",
         schema["sources"]["frame-upright"]["identity"],
     )
-    if mode == "complete":
+    if mode in ("complete", "missing-retention"):
         append_packed_image(
             original_path,
             "Original evidence",
             schema["sources"]["frame-original"]["identity"],
         )
+        if mode == "missing-retention":
+            # Packing stores the payload; a fake user retains an evidence-only image through save.
+            bpy.data.images["Original evidence"].use_fake_user = False
     registry = bpy.data.texts.new(REGISTRY_TEXT)
     registry.write(json.dumps(schema, indent=2, sort_keys=True))
 
