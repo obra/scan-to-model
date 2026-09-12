@@ -88,6 +88,8 @@ env \
 
 Create a manifest before rendering a room sheet. Give each view a stable ID and record its kind, named coordinate frame, projection, view direction, image-up direction, camera and view-layer identity, complete renderable object inclusion list, and intentional exclusions. Collection membership is organizational evidence only: do not derive the sheet from a room or collection name. Resolve the physical subjects first, then declare their actual objects. Keep the manifest with the rendered output.
 
+For small room-sheet drawings, use the pure helpers in `scripts/drawing.py` after the manifest has declared the frame and face selections. Callers supply those selections explicitly, and `intersect_face` applies to convex planar section faces; the helpers do not discover room subjects or hidden geometry.
+
 For every wall elevation, list the exact room-facing wall-face identifiers and the exact attached-fixture identifiers separately. A face identifier must resolve through the project's explicit geometry schema to an object face or other stable wall-surface record; an object or collection name alone does not identify one side of a wall. Include returns, neighboring faces, loose objects and fixtures from other collections only when the manifest names them for that elevation. Record the view from the room toward the wall, building-up direction, projection and framing bounds.
 
 Define the remaining views without relying on drawing-name conventions:
