@@ -90,6 +90,8 @@ Create a manifest before rendering a room sheet. Give each view a stable ID and 
 
 For small room-sheet drawings, use the pure helpers in `scripts/drawing.py` after the manifest has declared the frame and face selections. Callers supply those selections explicitly, and `intersect_face` applies to convex planar section faces; the helpers do not discover room subjects or hidden geometry.
 
+For a complete declared room sheet, use `scripts/draw_room.py` with explicit native, view-specification, math-helper, title, output-stem and output paths; it preserves the same predeclared selections while writing detail sheets, a paginated overview and a PDF.
+
 Treat an object-name prefix as a discovery hint only: reconcile its candidates with the current accepted scope and native membership because sample masks and unpromoted proposals can differ from accepted geometry. Verify copied derivative descriptions against decoded pixels, dimensions and the recorded source relation before relying on them. For large section reads, build a polygon-indexed loop-triangle lookup once per object before iterating faces.
 
 For every wall elevation, list the exact room-facing wall-face identifiers and the exact attached-fixture identifiers separately. A face identifier must resolve through the project's explicit geometry schema to an object face or other stable wall-surface record; an object or collection name alone does not identify one side of a wall. Include returns, neighboring faces, loose objects and fixtures from other collections only when the manifest names them for that elevation. Record the view from the room toward the wall, building-up direction, projection and framing bounds.
