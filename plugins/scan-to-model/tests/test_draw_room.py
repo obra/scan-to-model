@@ -480,6 +480,43 @@ class DrawRoomTests(unittest.TestCase):
         self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {'fixture-mesh': [0, 1]})
         self.assertAlmostEqual(manifest['rendered_selections'][0]['emitted_length_inside_bounds'], 6.0)
 
+    def test_coplanar_boundary_coverage_excludes_fully_interior_tile(self):
+        vertices = [[x, y, 0] for y in range(4) for x in range(4)]
+        polygons = []
+        for row in range(3):
+            for column in range(3):
+                lower_left = row * 4 + column
+                polygons.append([
+                    lower_left, lower_left + 1,
+                    lower_left + 5, lower_left + 4,
+                ])
+        native_data = {
+            'schema_version': 1, 'status': 'ok', 'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [{
+                'name': 'tiled-mesh', 'vertices_world_m': vertices,
+                'polygons': polygons, 'loop_triangles': [],
+            }],
+        }
+        view = {
+            'id': 'E1', 'kind': 'elevation', 'title': 'Tiled boundary fixture',
+            'note': 'fixture', 'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, -1],
+            'subjects': [{'object_id': 'tiled-mesh', 'style': 'architecture',
+                          'face_indices': list(range(9)), 'edge_mode': 'coplanar_boundary'}],
+            'spatial_clips': [{'axis': 0, 'value_m': 2.5, 'keep_below': True}],
+            'bounds_frame': [-0.5, 3.0, -0.5, 3.5],
+            'axis_labels': ['horizontal', 'vertical'], 'annotations': [],
+        }
+
+        result, manifest = self.run_single_view(view, native_data, return_manifest=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {
+            'tiled-mesh': [0, 1, 2, 3, 5, 6, 7, 8],
+        })
+        self.assertAlmostEqual(manifest['rendered_selections'][0]['emitted_length_inside_bounds'], 11.0)
+
 
 if __name__ == '__main__':
     unittest.main()
