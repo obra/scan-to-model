@@ -165,6 +165,30 @@ def segment_is_subsegment(segment, source, tolerance=1e-7):
     return True
 
 
+def validate_boundary_tolerance(subject, view_id, object_id):
+    """Return a subject boundary tolerance after finite-positive validation."""
+    value = subject.get('boundary_tolerance_m', 1e-7)
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{view_id} subject {object_id} boundary tolerance must be finite and positive")
+    if not np.isfinite(value) or value <= 0:
+        raise ValueError(f"{view_id} subject {object_id} boundary tolerance must be finite and positive")
+    return value
+
+
+def validate_boundary_line_tolerance(subject, view_id, object_id, boundary_tolerance):
+    """Return a subject supporting-line tolerance after validation."""
+    value = subject.get('boundary_line_tolerance_m', boundary_tolerance)
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{view_id} subject {object_id} boundary line tolerance must be finite and positive")
+    if not np.isfinite(value) or value <= 0:
+        raise ValueError(f"{view_id} subject {object_id} boundary line tolerance must be finite and positive")
+    return value
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--native', type=Path, required=True)
@@ -221,6 +245,9 @@ def main():
             edge_mode = subject.get('edge_mode', 'existing_edges')
             if edge_mode not in ('existing_edges', 'coplanar_boundary'):
                 raise ValueError(f"{view['id']} subject {name} has unsupported edge_mode")
+            boundary_tolerance = validate_boundary_tolerance(subject, view['id'], name)
+            boundary_line_tolerance = validate_boundary_line_tolerance(
+                subject, view['id'], name, boundary_tolerance)
             if edge_mode == 'coplanar_boundary' and view['kind'] == 'section':
                 raise ValueError(f"{view['id']} subject {name} cannot use coplanar_boundary in a section")
             classification = math.classify_selected_geometry(
@@ -280,15 +307,22 @@ def main():
                 if not drawn:
                     face_segments.pop(index, None)
             if edge_mode == 'coplanar_boundary':
-                boundary_segments = [edge for edge in math.coplanar_boundary_segments(
-                    [face for _, face in boundary_faces])
-                            if np.linalg.norm(edge[1] - edge[0]) > 1e-7]
+                boundary_records = math.coplanar_boundary_records(
+                    [face for _, face in boundary_faces],
+                    tolerance=boundary_tolerance,
+                    line_tolerance=boundary_line_tolerance)
+                boundary_segments = []
+                face_segments = {}
+                for owner, edge in boundary_records:
+                    if np.linalg.norm(edge[1] - edge[0]) <= 1e-7:
+                        continue
+                    boundary_segments.append(edge)
+                    index, _ = boundary_faces[owner]
+                    face_segments.setdefault(index, []).append(edge)
                 segments = [math.project(edge, right, up) for edge in boundary_segments]
                 face_segments = {
-                    index: [math.project(edge, right, up) for edge in boundary_segments
-                            if any(segment_is_subsegment(edge, source)
-                                   for source in math.line_segments(face))]
-                    for index, face in boundary_faces
+                    index: [math.project(edge, right, up) for edge in edges]
+                    for index, edges in face_segments.items()
                 }
             used = [index for index in subject['face_indices']
                     if any(segment_length_inside_bounds(edge, bounds) > 1e-9

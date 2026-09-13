@@ -480,6 +480,70 @@ class DrawRoomTests(unittest.TestCase):
         self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {'fixture-mesh': [0, 1]})
         self.assertAlmostEqual(manifest['rendered_selections'][0]['emitted_length_inside_bounds'], 6.0)
 
+    def test_coplanar_boundary_mode_passes_explicit_boundary_tolerance(self):
+        native_data = {
+            'schema_version': 1, 'status': 'ok', 'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [{
+                'name': 'drifted-mesh',
+                'vertices_world_m': [
+                    [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
+                    [1 + 1.5e-6, 0, 0], [2, 0, 0], [2, 1, 0], [1 + 1.5e-6, 1, 0],
+                ],
+                'polygons': [[0, 1, 2, 3], [4, 5, 6, 7]],
+                'loop_triangles': [],
+            }],
+        }
+        base_view = {
+            'kind': 'elevation', 'title': 'Fixture', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, -1],
+            'subjects': [{'object_id': 'drifted-mesh', 'style': 'architecture',
+                          'face_indices': [0, 1], 'edge_mode': 'coplanar_boundary'}],
+            'bounds_frame': [-1, 3, -1, 2], 'axis_labels': ['horizontal', 'vertical'],
+            'annotations': [],
+        }
+
+        default_result, default_manifest = self.run_single_view(
+            dict(base_view, id='default'), native_data, return_manifest=True)
+        explicit_result, explicit_manifest = self.run_single_view(
+            dict(base_view, id='explicit', subjects=[dict(base_view['subjects'][0],
+                                                          boundary_tolerance_m=5e-6,
+                                                          boundary_line_tolerance_m=2e-6)]),
+            native_data, return_manifest=True)
+
+        self.assertEqual(default_result.returncode, 0, default_result.stderr)
+        self.assertEqual(explicit_result.returncode, 0, explicit_result.stderr)
+        self.assertAlmostEqual(
+            default_manifest['rendered_selections'][0]['emitted_length_inside_bounds'], 8.0,
+            delta=1e-3)
+        self.assertAlmostEqual(
+            explicit_manifest['rendered_selections'][0]['emitted_length_inside_bounds'], 6.0,
+            delta=1e-3)
+
+    def test_coplanar_boundary_mode_rejects_invalid_boundary_tolerance(self):
+        view = {
+            'id': 'invalid-tolerance', 'kind': 'elevation', 'title': 'Fixture', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, -1],
+            'subjects': [{'object_id': 'fixture-mesh', 'style': 'architecture',
+                          'face_indices': [0], 'edge_mode': 'coplanar_boundary',
+                          'boundary_tolerance_m': 0}],
+            'bounds_frame': [-1, 3, -1, 3], 'axis_labels': ['horizontal', 'vertical'],
+            'annotations': [],
+        }
+
+        result = self.run_single_view(view)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('boundary tolerance must be finite and positive', result.stderr)
+        line_view = dict(view, id='invalid-line-tolerance', subjects=[
+            dict(view['subjects'][0], boundary_tolerance_m=1e-7,
+                 boundary_line_tolerance_m=0)])
+        line_result = self.run_single_view(line_view)
+        self.assertNotEqual(line_result.returncode, 0)
+        self.assertIn('boundary line tolerance must be finite and positive', line_result.stderr)
+
     def test_coplanar_boundary_coverage_excludes_fully_interior_tile(self):
         vertices = [[x, y, 0] for y in range(4) for x in range(4)]
         polygons = []
