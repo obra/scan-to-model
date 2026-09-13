@@ -93,6 +93,11 @@ class DrawRoomTests(unittest.TestCase):
                     {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
                     {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
                 ],
+            }, {
+                'name': 'retained-empty-mesh',
+                'vertices_world_m': [],
+                'polygons': [],
+                'loop_triangles': [],
             }],
         }
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -139,6 +144,11 @@ class DrawRoomTests(unittest.TestCase):
                     {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
                     {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
                 ],
+            }, {
+                'name': 'retained-empty-mesh',
+                'vertices_world_m': [],
+                'polygons': [],
+                'loop_triangles': [],
             }],
         }
         base_view = {

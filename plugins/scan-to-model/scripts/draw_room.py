@@ -169,7 +169,7 @@ def main():
     objects = {row['name']: row for row in native['objects']}
     basis = np.asarray(specification['frame_axes_world'], float)
     assert np.allclose(basis @ basis.T, np.eye(3), atol=1e-7)
-    vertices = {name: np.asarray(row['vertices_world_m']) @ basis.T
+    vertices = {name: np.asarray(row['vertices_world_m'], dtype=float).reshape(-1, 3) @ basis.T
                 for name, row in objects.items()}
     triangles_by_polygon = {}
     for name, row in objects.items():
