@@ -226,3 +226,28 @@ def unproject(depth, confidence, camera, max_depth_m=5, confidence_value=255):
     points = np.column_stack(((u - cx) * z / fx, -(v - cy) * z / fy, -z))
     transform = camera_matrix(camera)
     return points @ transform[:3, :3].T + transform[:3, 3], np.column_stack((u, v))
+
+
+def project_points(points, camera):
+    """Project world points to native RGB pixels without display rotation.
+
+    The returned pixels and positive camera-axis depths are ``NaN`` for points
+    on or behind the camera plane; ``front_mask`` identifies the valid rows.
+    """
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 3 or not np.isfinite(points).all():
+        raise ValueError('Points must be a finite Nx3 array')
+    validate_camera(camera)
+    transform = camera_matrix(camera)
+    camera_points = (points - transform[:3, 3]) @ transform[:3, :3]
+    depths = -camera_points[:, 2]
+    front_mask = depths > 0
+    pixels = np.full((len(points), 2), np.nan, dtype=float)
+    positive_depths = np.full(len(points), np.nan, dtype=float)
+    positive_depths[front_mask] = depths[front_mask]
+    pixels[front_mask, 0] = (camera['fx'] * camera_points[front_mask, 0]
+                             / depths[front_mask] + camera['cx'])
+    pixels[front_mask, 1] = (camera['cy']
+                             - camera['fy'] * camera_points[front_mask, 1]
+                             / depths[front_mask])
+    return pixels, positive_depths, front_mask

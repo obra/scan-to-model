@@ -21,7 +21,8 @@ import numpy as np
 from PIL import Image, __version__ as pillow_version
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from polycam import clip_camera_segment, digest, read_frame, unproject, validate_depth
+from polycam import (clip_camera_segment, digest, project_points, read_frame,
+                     unproject, validate_depth)
 
 
 def write_png(path, values, bit_depth, color_type):
@@ -96,6 +97,49 @@ class PolycamTests(unittest.TestCase):
         points, pixels = unproject(depth, confidence, camera)
         np.testing.assert_array_equal(pixels, [[1, 0], [0, 1], [2, 1]])
         np.testing.assert_allclose(points, np.array(expected)[[0, 1, 3]], atol=1e-12, rtol=0)
+
+    def test_project_points_round_trips_rotated_translated_camera(self):
+        angle = np.deg2rad(23)
+        rotation = np.array([[np.cos(angle), 0, np.sin(angle)],
+                             [0, 1, 0],
+                             [-np.sin(angle), 0, np.cos(angle)]])
+        camera = {'width': 640, 'height': 480, 'fx': 500, 'fy': 510,
+                  'cx': 311, 'cy': 229}
+        transform = np.eye(4)
+        transform[:3, :3] = rotation
+        transform[:3, 3] = [2, -1, 4]
+        for i in range(3):
+            for j in range(4):
+                camera[f't_{i}{j}'] = transform[i, j]
+        camera_points = np.array([[-.7, .4, -2], [.2, -.3, -3], [1, .8, -1.5]])
+        world = camera_points @ rotation.T + transform[:3, 3]
+        pixels, depths, front = project_points(world, camera)
+        expected_pixels = np.column_stack((500 * camera_points[:, 0] / -camera_points[:, 2] + 311,
+                                            229 - 510 * camera_points[:, 1] / -camera_points[:, 2]))
+        np.testing.assert_allclose(pixels, expected_pixels, atol=1e-12)
+        np.testing.assert_allclose(depths, -camera_points[:, 2], atol=1e-12)
+        np.testing.assert_array_equal(front, [True, True, True])
+
+    def test_project_points_marks_camera_plane_and_behind_without_infinities(self):
+        _, camera = frame_fixture(self.root)
+        pixels, depths, front = project_points(np.array([[2, 3, 2], [2, 3, 4], [2, 3, 5.0]]), camera)
+        np.testing.assert_array_equal(front, [True, False, False])
+        self.assertTrue(np.isfinite(pixels[0]).all())
+        self.assertTrue(np.isfinite(depths[0]))
+        self.assertTrue(np.isnan(pixels[1:]).all())
+        self.assertTrue(np.isnan(depths[1:]).all())
+        with self.assertRaises(ValueError):
+            project_points([[0, 0, float('nan')]], camera)
+
+    def test_project_points_round_trips_scaled_depth_pixels_to_native_rgb(self):
+        _, camera = frame_fixture(self.root)
+        depth = np.array([[1000, 0, 2000], [0, 1500, 0]], dtype=np.uint16)
+        confidence = np.full((2, 3), 255, dtype=np.uint8)
+        points, depth_pixels = unproject(depth, confidence, camera)
+        rgb_pixels, depths, front = project_points(points, camera)
+        np.testing.assert_allclose(rgb_pixels, depth_pixels * 2, atol=1e-12)
+        np.testing.assert_allclose(depths, [1, 2, 1.5], atol=1e-12)
+        np.testing.assert_array_equal(front, [True, True, True])
 
     def test_rejects_png_samples_that_are_not_16_bit_grayscale(self):
         for bits, color_type, channels in [(8, 0, 1), (8, 2, 3), (16, 2, 3),
