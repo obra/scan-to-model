@@ -4,6 +4,7 @@ import numpy as np
 
 
 EPS = 2e-5
+PLANE_DISTANCE_TOLERANCE = 1e-6
 
 
 def classify_selected_geometry(vertices_world, polygons, face_indices):
@@ -85,17 +86,19 @@ def coplanar_boundary_segments(polygons, tolerance=1e-7):
     Shared edges are removed exactly when two pieces use them.  The helper
     rejects non-coplanar pieces and edges used by more than two pieces rather
     than hiding uncertain topology with a hull or union operation.
+    Plane consistency allows one micron of point distance for float32
+    evaluation noise; edge matching continues to use ``tolerance``.
     """
     pieces = [np.asarray(p, float) for p in polygons if len(p) >= 2]
     if not pieces:
         return []
     if not all(np.isfinite(piece).all() for piece in pieces):
         raise ValueError('coplanar boundary pieces must be finite')
-    reference_normal = None
-    reference_point = None
-    for piece in pieces:
-        if len(piece) < 3:
-            continue
+    polygon_pieces = [piece for piece in pieces if len(piece) >= 3]
+    if not polygon_pieces:
+        raise ValueError('line-only boundary pieces have no established plane')
+    polygon_normals = []
+    for piece in polygon_pieces:
         normal = None
         for first, second in zip(piece[1:-1], piece[2:]):
             candidate = np.cross(second - piece[0], first - piece[0])
@@ -104,19 +107,20 @@ def coplanar_boundary_segments(polygons, tolerance=1e-7):
                 break
         if normal is None:
             raise ValueError('coplanar boundary pieces must be non-degenerate')
-        if reference_normal is None:
-            reference_normal, reference_point = normal, piece[0]
-        elif (abs(np.dot(reference_normal, normal)) < 1.0 - 1e-6 or
-              np.max(np.abs((piece - reference_point) @ reference_normal)) > tolerance):
-            raise ValueError('coplanar boundary pieces must share one plane')
-        elif np.dot(reference_normal, normal) < 0:
-            normal = -normal
-        if np.max(np.abs((piece - piece[0]) @ normal)) > tolerance:
+        if np.max(np.abs((piece - piece[0]) @ normal)) > PLANE_DISTANCE_TOLERANCE:
             raise ValueError('polygon piece is non-planar')
-    if reference_normal is None:
-        raise ValueError('line-only boundary pieces have no established plane')
+        polygon_normals.append(normal)
+    polygon_points = np.vstack(polygon_pieces)
+    reference_point = polygon_points.mean(axis=0)
+    _, _, singular_vectors = np.linalg.svd(polygon_points - reference_point, full_matrices=False)
+    reference_normal = singular_vectors[-1]
+    for normal in polygon_normals:
+        if abs(np.dot(reference_normal, normal)) < 1.0 - 1e-6:
+            raise ValueError('coplanar boundary pieces must share one plane')
+    if np.max(np.abs((polygon_points - reference_point) @ reference_normal)) > PLANE_DISTANCE_TOLERANCE:
+        raise ValueError('coplanar boundary pieces must share one plane')
     for piece in pieces:
-        if len(piece) == 2 and np.max(np.abs((piece - reference_point) @ reference_normal)) > tolerance:
+        if len(piece) == 2 and np.max(np.abs((piece - reference_point) @ reference_normal)) > PLANE_DISTANCE_TOLERANCE:
             raise ValueError('line boundary piece is not on the selected plane')
     raw_edges = []
     for piece_index, piece in enumerate(pieces):

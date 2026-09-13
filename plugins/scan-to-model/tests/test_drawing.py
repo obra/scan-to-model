@@ -115,6 +115,24 @@ class DrawingTests(unittest.TestCase):
 
         self.assertEqual(len(coplanar_boundary_segments(pieces)), 8)
 
+    def test_coplanar_boundary_segments_accepts_rotated_float32_planar_tiles(self):
+        rotation = np.array([
+            [0.90270109637546, 0.135368930289204, 0.408418882172334],
+            [0.182986571299987, 0.738317559743762, -0.649155679092382],
+            [-0.389418342308651, 0.660728714137938, 0.641709374239779],
+        ])
+        local_vertices = np.array([
+            [0, 0, 0], [0.02, 0, 0], [0.02, 0.02, 0], [0, 0.02, 0],
+            [1.02, 0, 0], [1.02, 0.02, 0],
+        ])
+        world_vertices = ((local_vertices @ rotation.T) + [8.0, -3.0, 5.0])
+        world_vertices = world_vertices.astype(np.float32).astype(float)
+        pieces = [world_vertices[[0, 1, 2, 3]], world_vertices[[1, 4, 5, 2]]]
+
+        result = coplanar_boundary_segments(pieces)
+
+        self.assertEqual(len(result), 6)
+
     def test_coplanar_boundary_segments_rejects_non_coplanar_pieces(self):
         pieces = [
             np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], float),
