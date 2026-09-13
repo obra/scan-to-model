@@ -14,6 +14,38 @@ from matplotlib.patches import Polygon
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
+DEFAULT_LEGEND = 'Blue-gray: architecture   •   Ochre: services   •   Purple: contents   •   Dashed: finish footprint, including crops and open seams'
+
+
+def legend_text(view):
+    legend = view.get('legend')
+    if legend is None:
+        return DEFAULT_LEGEND
+    if not isinstance(legend, dict) or legend.get('mode') not in ('default', 'none', 'explicit'):
+        raise ValueError(f"{view['id']} legend mode must be default, none, or explicit")
+    if legend['mode'] == 'default':
+        return DEFAULT_LEGEND
+    if legend['mode'] == 'none':
+        return ''
+    items = legend.get('items')
+    if not isinstance(items, list) or not all(isinstance(item, str) and item for item in items):
+        raise ValueError(f"{view['id']} explicit legend items must be non-empty strings")
+    return '   •   '.join(items)
+
+
+def apply_view_presentation(ax, view):
+    show_coordinates = view.get('show_coordinates', True)
+    if not isinstance(show_coordinates, bool):
+        raise ValueError(f"{view['id']} show_coordinates must be boolean")
+    if not show_coordinates:
+        ax.set_axis_off()
+        ax.grid(False)
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+        ax.tick_params(bottom=False, left=False, labelbottom=False, labelleft=False)
+        ax.set_xlabel('')
+        ax.set_ylabel('')
+
 
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -208,7 +240,7 @@ def main():
                 label.set_ha('center')
         ax.grid(True, color='#cbd5e1', lw=.4, alpha=.6)
         ax.tick_params(labelsize=7 if overview else 10)
-        if not overview:
+        if not overview and view.get('show_coordinates', True):
             ax.set_xlabel(view['axis_labels'][0] + ' (model m)', fontsize=10)
             ax.set_ylabel(view['axis_labels'][1] + ' (model m)', fontsize=10)
         if view['kind'] == 'plan':
@@ -228,6 +260,7 @@ def main():
                 fontsize=7 if overview else 9, ha=note.get('ha', 'center'), va='center',
                 color='#475569', arrowprops={'arrowstyle': '-', 'color': '#64748b', 'lw': .65},
                 bbox={'facecolor': 'white', 'edgecolor': 'none', 'alpha': .9, 'pad': 2})
+        apply_view_presentation(ax, view)
         return {'view_id': view['id'], 'drawn_faces': selection,
                 'emitted_length_inside_bounds': emitted_length_inside_bounds,
                 'nondrawable_objects': nondrawable_objects,
@@ -245,8 +278,9 @@ def main():
         record = render(ax, view)
         assert record['drawn_faces'], view['id']
         records.append(record)
-        fig.text(.055, .075, 'Blue-gray: architecture   •   Ochre: services   •   Purple: contents   •   Dashed: finish footprint, including crops and open seams',
-                 fontsize=10, color='#475569')
+        legend = legend_text(view)
+        if legend:
+            fig.text(.055, .075, legend, fontsize=10, color='#475569')
         fig.text(.055, .045, 'Current-model documentation. Hidden cores, exact contacts, physical room extents and survey accuracy remain unestablished.',
                  fontsize=9, color='#475569')
         fig.savefig(args.output / (view['id'] + '.png'), dpi=130)

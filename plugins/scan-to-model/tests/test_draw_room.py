@@ -8,13 +8,44 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import importlib.util
+
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 PRODUCER = PLUGIN_ROOT / 'scripts' / 'draw_room.py'
 MATH_HELPER = PLUGIN_ROOT / 'scripts' / 'drawing.py'
+SPEC = importlib.util.spec_from_file_location('draw_room', PRODUCER)
+DRAW_ROOM = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(DRAW_ROOM)
 
 
 class DrawRoomTests(unittest.TestCase):
+    def test_shape_only_presentation_hides_coordinates_and_legend(self):
+        figure, axis = plt.subplots()
+        try:
+            axis.set_xlabel('u (model m)')
+            axis.set_ylabel('v (model m)')
+            axis.grid(True)
+            DRAW_ROOM.apply_view_presentation(axis, {'show_coordinates': False, 'legend': {'mode': 'none'}})
+            self.assertFalse(axis.axison)
+            self.assertEqual(axis.get_xlabel(), '')
+            self.assertEqual(axis.get_ylabel(), '')
+            self.assertFalse(axis.xaxis.get_visible())
+            self.assertFalse(axis.yaxis.get_visible())
+            self.assertFalse(any(line.get_visible() for line in axis.get_xgridlines() + axis.get_ygridlines()))
+            self.assertEqual(DRAW_ROOM.legend_text({'show_coordinates': False, 'legend': {'mode': 'none'}}), '')
+        finally:
+            plt.close(figure)
+
+    def test_default_and_explicit_legend_modes_are_structured(self):
+        self.assertIn('Blue-gray: architecture', DRAW_ROOM.legend_text({}))
+        self.assertEqual(DRAW_ROOM.legend_text({'legend': {'mode': 'explicit', 'items': ['Mosaic', 'Light']}}), 'Mosaic   •   Light')
+        with self.assertRaisesRegex(ValueError, 'legend mode'):
+            DRAW_ROOM.legend_text({'id': 'bad', 'legend': 'none'})
+
     def run_single_view(self, view):
         native_data = {
             'schema_version': 1,
