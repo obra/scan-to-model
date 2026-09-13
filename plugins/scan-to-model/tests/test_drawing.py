@@ -159,6 +159,18 @@ class DrawingTests(unittest.TestCase):
         self.assertIn(np.array([[0, 0, 0], [1, 0, 0]]).tolist(), [edge.tolist() for edge in result])
         self.assertIn(np.array([[1, 0, 0], [2, 0, 0]]).tolist(), [edge.tolist() for edge in result])
 
+    def test_coplanar_boundary_segments_rejects_collinear_polygon(self):
+        with self.assertRaisesRegex(ValueError, 'non-degenerate'):
+            coplanar_boundary_segments([
+                np.array([[0, 0, 0], [1, 0, 0], [2, 0, 0]], float),
+            ])
+
+    def test_coplanar_boundary_segments_rejects_plane_residual_over_one_micron(self):
+        with self.assertRaisesRegex(ValueError, 'one plane'):
+            coplanar_boundary_segments([
+                np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 5e-6]], float),
+            ])
+
     def test_coplanar_boundary_segments_rejects_non_coplanar_pieces(self):
         pieces = [
             np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], float),

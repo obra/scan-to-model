@@ -97,26 +97,14 @@ def coplanar_boundary_segments(polygons, tolerance=1e-7):
     polygon_pieces = [piece for piece in pieces if len(piece) >= 3]
     if not polygon_pieces:
         raise ValueError('line-only boundary pieces have no established plane')
-    polygon_normals = []
     for piece in polygon_pieces:
-        normal = None
-        for first, second in zip(piece[1:-1], piece[2:]):
-            candidate = np.cross(second - piece[0], first - piece[0])
-            if np.linalg.norm(candidate) > tolerance:
-                normal = candidate / np.linalg.norm(candidate)
-                break
-        if normal is None:
+        centered = piece - piece.mean(axis=0)
+        if np.linalg.matrix_rank(centered) < 2:
             raise ValueError('coplanar boundary pieces must be non-degenerate')
-        if np.max(np.abs((piece - piece[0]) @ normal)) > PLANE_DISTANCE_TOLERANCE:
-            raise ValueError('polygon piece is non-planar')
-        polygon_normals.append(normal)
     polygon_points = np.vstack(polygon_pieces)
     reference_point = polygon_points.mean(axis=0)
     _, _, singular_vectors = np.linalg.svd(polygon_points - reference_point, full_matrices=False)
     reference_normal = singular_vectors[-1]
-    for normal in polygon_normals:
-        if abs(np.dot(reference_normal, normal)) < 1.0 - 1e-6:
-            raise ValueError('coplanar boundary pieces must share one plane')
     if np.max(np.abs((polygon_points - reference_point) @ reference_normal)) > PLANE_DISTANCE_TOLERANCE:
         raise ValueError('coplanar boundary pieces must share one plane')
     for piece in pieces:
