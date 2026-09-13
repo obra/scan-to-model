@@ -46,7 +46,7 @@ class DrawRoomTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'legend mode'):
             DRAW_ROOM.legend_text({'id': 'bad', 'legend': 'none'})
 
-    def run_single_view(self, view, native_data=None):
+    def run_single_view(self, view, native_data=None, return_manifest=False):
         native_data = native_data or {
             'schema_version': 1,
             'status': 'ok',
@@ -79,7 +79,7 @@ class DrawRoomTests(unittest.TestCase):
             }
             views_path = root / 'views.json'
             views_path.write_text(json.dumps(specification, indent=2) + '\n')
-            return subprocess.run([
+            result = subprocess.run([
                 sys.executable, '-B', str(PRODUCER),
                 '--native', str(native_path),
                 '--views', str(views_path),
@@ -88,6 +88,9 @@ class DrawRoomTests(unittest.TestCase):
                 '--output-stem', 'fixture-room',
                 '--output', str(root / 'output'),
             ], capture_output=True, text=True)
+            if return_manifest and result.returncode == 0:
+                return result, json.loads((root / 'output' / 'drawing-manifest.json').read_text())
+            return result
 
     def test_declared_views_draw_selected_faces_and_write_review_outputs(self):
         native_data = {
@@ -374,15 +377,17 @@ class DrawRoomTests(unittest.TestCase):
             'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
             'view_direction_frame': [0, 0, -1],
             'subjects': [{'object_id': 'fixture-mesh', 'style': 'architecture',
-                          'face_indices': [0, 1], 'subjectedge_mode': 'coplanar_boundary'}],
+                          'face_indices': [0, 1], 'edge_mode': 'coplanar_boundary'}],
             'bounds_frame': [-1, 3, -1, 2], 'axis_labels': ['horizontal', 'vertical'],
             'annotations': [],
         }
 
-        result = self.run_single_view(view, native_data)
+        result, manifest = self.run_single_view(view, native_data, return_manifest=True)
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)['geometry_pages'], 1)
+        self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {'fixture-mesh': [0, 1]})
+        self.assertAlmostEqual(manifest['rendered_selections'][0]['emitted_length_inside_bounds'], 6.0)
 
 
 if __name__ == '__main__':

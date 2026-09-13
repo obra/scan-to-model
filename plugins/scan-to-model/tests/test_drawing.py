@@ -96,15 +96,15 @@ class DrawingTests(unittest.TestCase):
 
     def test_coplanar_boundary_segments_removes_shared_diagonal_from_concave_l(self):
         pieces = [
-            np.array([[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]], float),
-            np.array([[0, 1, 0], [1, 1, 0], [1, 2, 0], [0, 2, 0]], float),
+            np.array([[2, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 0]], float),
+            np.array([[2, 0, 0], [2, 2, 0], [1, 2, 0], [1, 1, 0]], float),
         ]
 
         result = coplanar_boundary_segments(pieces)
 
-        self.assertEqual(len(result), 7)
-        self.assertFalse(any(np.allclose(edge, [[0, 1, 0], [1, 1, 0]]) or
-                             np.allclose(edge, [[1, 1, 0], [0, 1, 0]])
+        self.assertEqual(len(result), 6)
+        self.assertFalse(any(np.allclose(edge, [[2, 0, 0], [1, 1, 0]]) or
+                             np.allclose(edge, [[1, 1, 0], [2, 0, 0]])
                              for edge in result))
 
     def test_coplanar_boundary_segments_preserves_disjoint_patch_edges(self):
@@ -132,6 +132,15 @@ class DrawingTests(unittest.TestCase):
         ]
 
         with self.assertRaisesRegex(ValueError, 'non-manifold'):
+            coplanar_boundary_segments(pieces)
+
+    def test_coplanar_boundary_segments_rejects_non_coplanar_line_piece(self):
+        pieces = [
+            np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0]], float),
+            np.array([[0, 0, 1], [1, 0, 1]], float),
+        ]
+
+        with self.assertRaisesRegex(ValueError, 'not on the selected plane'):
             coplanar_boundary_segments(pieces)
 
 

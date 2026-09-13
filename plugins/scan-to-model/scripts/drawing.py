@@ -113,6 +113,11 @@ def coplanar_boundary_segments(polygons, tolerance=1e-7):
             normal = -normal
         if np.max(np.abs((piece - piece[0]) @ normal)) > tolerance:
             raise ValueError('polygon piece is non-planar')
+    if reference_normal is None:
+        raise ValueError('line-only boundary pieces have no established plane')
+    for piece in pieces:
+        if len(piece) == 2 and np.max(np.abs((piece - reference_point) @ reference_normal)) > tolerance:
+            raise ValueError('line boundary piece is not on the selected plane')
     raw_edges = []
     for piece_index, piece in enumerate(pieces):
         if len(piece) == 2:

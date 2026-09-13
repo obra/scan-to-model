@@ -156,10 +156,10 @@ def main():
         for subject in view['subjects']:
             name = subject['object_id']
             row, points = objects[name], vertices[name]
-            subjectedge_mode = subject.get('subjectedge_mode', 'existing_edges')
-            if subjectedge_mode not in ('existing_edges', 'coplanar_boundary'):
-                raise ValueError(f"{view['id']} subject {name} has unsupported subjectedge_mode")
-            if subjectedge_mode == 'coplanar_boundary' and view['kind'] == 'section':
+            edge_mode = subject.get('edge_mode', 'existing_edges')
+            if edge_mode not in ('existing_edges', 'coplanar_boundary'):
+                raise ValueError(f"{view['id']} subject {name} has unsupported edge_mode")
+            if edge_mode == 'coplanar_boundary' and view['kind'] == 'section':
                 raise ValueError(f"{view['id']} subject {name} cannot use coplanar_boundary in a section")
             classification = math.classify_selected_geometry(
                 row['vertices_world_m'], row['polygons'], subject['face_indices'])
@@ -215,7 +215,7 @@ def main():
                                              edgecolor='none', alpha=.085))
                 if drawn:
                     used.append(index)
-            if subjectedge_mode == 'coplanar_boundary':
+            if edge_mode == 'coplanar_boundary':
                 segments = [edge for edge in math.coplanar_boundary_segments(boundary_faces)
                             if np.linalg.norm(edge[1] - edge[0]) > 1e-7]
                 segments = [math.project(edge, right, up) for edge in segments]
