@@ -88,6 +88,16 @@ The example is synthetic. Supply real points from named frames and pixels. At le
 
 ## Blender
 
+### Declared native membership
+
+`run_native_readback.py` requires a strict membership object with `room_id`, `model_sha256`, `groups`, and `counts.total_native_targets`. Each group contains exact `target_names`; names must be unique and the count must match. The launcher freezes the launcher, worker, membership and runtime before Blender, evaluates only those names in a temporary all-visible view layer, and never saves or renders the input. Extra scene objects are outside this readback contract and must be audited separately.
+
+For example, save this as `membership.json` and run `python3 -B scripts/run_native_readback.py --blender /path/to/blender --blend room.blend --membership membership.json --output readback-01`:
+
+```json
+{"room_id":"front-room","model_sha256":"<64 lowercase hex characters>","groups":{"architecture":{"target_names":["Wall north"]},"services":{"target_names":["Ceiling light"]}},"counts":{"total_native_targets":2}}
+```
+
 ### Room drawing subject edges
 
 Room view subjects use `edge_mode: "existing_edges"` by default, which emits each selected polygon's edges. Non-section views may set `edge_mode: "coplanar_boundary"` to draw the boundary of a selected coplanar patch after spatial and plan clipping. The drawing helper cancels only shared edge segments used by two selected pieces; it preserves boundaries of concave and disjoint pieces and rejects non-coplanar or non-manifold selections. It assumes a finite, non-overlapping patch with valid edge valences; it does not perform a full polygon union. This mode is rejected for sections, whose cut geometry has separate semantics. Face selection accounting remains unchanged.

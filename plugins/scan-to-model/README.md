@@ -29,6 +29,7 @@ Read [commands and scan-geometry JSON examples](references/formats.md), the [sou
 - `scripts/manufactured.py`: [fit manufactured rectangles](references/manufactured-shapes.md) in common component axes and report original controls and residuals.
 - `scripts/register.py`: fit unit-scale rigid landmark alignment and report withheld checks.
 - `scripts/blender_review.py`: run inside Blender to inventory and render without saving the input.
+- `scripts/run_native_readback.py`: launch a no-save, no-render evaluated readback for an explicit room membership.
 - `scripts/presentation.py`: validate a reported presentation contract, run receipt and hash-bound sample evidence; it does not generate a tour or movie.
 - `scripts/polycam.py`: shared native reader and calibrated unprojection.
 
