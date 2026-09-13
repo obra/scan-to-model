@@ -222,6 +222,130 @@ class DrawRoomTests(unittest.TestCase):
             self.assertTrue((output / 'fixture-room-overview.png').is_file())
             self.assertTrue(all(path.stat().st_size > 0 for path in detail_images))
 
+    def test_subject_spatial_clip_is_scoped_to_one_subject(self):
+        native_data = {
+            'schema_version': 1,
+            'status': 'ok',
+            'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [],
+        }
+        for name, offset in [('clipped-object', 0), ('unchanged-object', 3)]:
+            native_data['objects'].append({
+                'name': name,
+                'vertices_world_m': [[offset, 0, 0], [offset + 2, 0, 0],
+                                     [offset + 2, 2, 0], [offset, 2, 0]],
+                'polygons': [[0, 1, 2, 3]],
+                'loop_triangles': [
+                    {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
+                    {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
+                ],
+            })
+        base_view = {
+            'kind': 'plan', 'title': 'Subject clip fixture', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, -1],
+            'bounds_frame': [-1, 6, -1, 3],
+            'axis_labels': ['horizontal', 'vertical'],
+            'cut': {'axis': 2, 'value_m': 1, 'keep_below': True},
+            'annotations': [],
+        }
+        views = [
+            dict(base_view, id='B', subjects=[{
+                'object_id': 'unchanged-object', 'style': 'architecture', 'face_indices': [0],
+            }]),
+            dict(base_view, id='A', subjects=[{
+                'object_id': 'clipped-object', 'style': 'architecture', 'face_indices': [0],
+                'spatial_clips': [{'axis': 0, 'value_m': 1, 'keep_below': True}],
+            }]),
+            dict(base_view, id='AB', subjects=[
+                {
+                    'object_id': 'clipped-object', 'style': 'architecture', 'face_indices': [0],
+                    'spatial_clips': [{'axis': 0, 'value_m': 1, 'keep_below': True}],
+                },
+                {'object_id': 'unchanged-object', 'style': 'architecture', 'face_indices': [0]},
+            ]),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            native_path = root / 'native.json'
+            native_path.write_text(json.dumps(native_data, indent=2) + '\n')
+            specification = {
+                'model_sha256': native_data['model_sha256'],
+                'native_sha256': hashlib.sha256(native_path.read_bytes()).hexdigest(),
+                'frame_axes_world': [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                'styles': {'architecture': {'color': '#566573'}},
+                'section_marks': [], 'views': views,
+            }
+            views_path = root / 'views.json'
+            views_path.write_text(json.dumps(specification, indent=2) + '\n')
+            output = root / 'output'
+            result = subprocess.run([
+                sys.executable, '-B', str(PRODUCER),
+                '--native', str(native_path), '--views', str(views_path),
+                '--math-helper', str(MATH_HELPER), '--title', 'Fixture Room',
+                '--output-stem', 'fixture-room', '--output', str(output),
+            ], capture_output=True, text=True, check=True)
+            self.assertEqual(json.loads(result.stdout)['geometry_pages'], 3)
+            manifest = json.loads((output / 'drawing-manifest.json').read_text())
+            lengths = {record['view_id']: record['emitted_length_inside_bounds']
+                       for record in manifest['rendered_selections']}
+            self.assertAlmostEqual(lengths['B'], 8.0)
+            self.assertAlmostEqual(lengths['A'], 6.0)
+            self.assertAlmostEqual(lengths['AB'], 14.0)
+
+    def test_view_and_subject_clips_continue_to_later_section_triangles(self):
+        native_data = {
+            'schema_version': 1,
+            'status': 'ok',
+            'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [{
+                'name': 'section-quad',
+                'vertices_world_m': [[0, 0, 0], [2, 0, 0], [2, 2, 0], [0, 2, 0]],
+                'polygons': [[0, 1, 2, 3]],
+                'loop_triangles': [
+                    {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
+                    {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
+                ],
+            }],
+        }
+        view = {
+            'id': 'section-clips', 'kind': 'section', 'title': 'Section clips',
+            'note': 'fixture', 'right_frame': [1, 0, 0], 'up_frame': [0, 0, 1],
+            'view_direction_frame': [0, 1, 0], 'bounds_frame': [-1, 3, -1, 1],
+            'axis_labels': ['X', 'Z'], 'cut': {'axis': 1, 'value_m': 1.8},
+            'spatial_clips': [{'axis': 0, 'value_m': 0.5, 'keep_below': True}],
+            'annotations': [], 'subjects': [{
+                'object_id': 'section-quad', 'style': 'architecture', 'face_indices': [0],
+                'spatial_clips': [{'axis': 1, 'value_m': 1.5, 'keep_below': False}],
+            }],
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            native_path = root / 'native.json'
+            native_path.write_text(json.dumps(native_data, indent=2) + '\n')
+            specification = {
+                'model_sha256': native_data['model_sha256'],
+                'native_sha256': hashlib.sha256(native_path.read_bytes()).hexdigest(),
+                'frame_axes_world': [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                'styles': {'architecture': {'color': '#566573'}},
+                'section_marks': [], 'views': [view],
+            }
+            views_path = root / 'views.json'
+            views_path.write_text(json.dumps(specification, indent=2) + '\n')
+            output = root / 'output'
+            subprocess.run([
+                sys.executable, '-B', str(PRODUCER),
+                '--native', str(native_path), '--views', str(views_path),
+                '--math-helper', str(MATH_HELPER), '--title', 'Fixture Room',
+                '--output-stem', 'fixture-room', '--output', str(output),
+            ], capture_output=True, text=True, check=True)
+            manifest = json.loads((output / 'drawing-manifest.json').read_text())
+            record = manifest['rendered_selections'][0]
+            self.assertEqual(record['drawn_faces'], {'section-quad': [0]})
+            self.assertAlmostEqual(record['emitted_length_inside_bounds'], 0.5)
+
     def test_rejects_direction_mismatch(self):
         result = self.run_single_view({
             'id': 'bad-direction', 'kind': 'plan', 'title': 'Bad direction', 'note': 'fixture',

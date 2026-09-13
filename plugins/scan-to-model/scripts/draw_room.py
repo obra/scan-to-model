@@ -278,7 +278,8 @@ def main():
                         assert pieces_to_cut, (name, index)
                 drawn = False
                 for face in pieces_to_cut:
-                    for crop in view.get('spatial_clips', []):
+                    for crop in (view.get('spatial_clips', []) +
+                                 subject.get('spatial_clips', [])):
                         face = math.clipped(face, crop['axis'], crop['value_m'], crop['keep_below'])
                         if len(face) < 2:
                             break
