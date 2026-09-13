@@ -60,8 +60,10 @@ class ArtifactBindingTests(unittest.TestCase):
 
     def test_explicit_absolute_path_is_allowed(self):
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            artifact = Path(temporary).parent / (Path(temporary).name + "-external")
+            temporary_root = Path(temporary)
+            root = temporary_root / "project"
+            root.mkdir()
+            artifact = temporary_root / "external"
             artifact.write_bytes(b"external")
             binding = {"path": str(artifact), "sha256": hashlib.sha256(b"external").hexdigest()}
             report = artifact_bindings.verify(self.binding_file(root, [binding]), root)
