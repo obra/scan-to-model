@@ -19,6 +19,12 @@ def digest(path):
     return native_readback.sha256(path)
 
 
+def blender_command(blender, blend, runtime, worker):
+    return [str(blender), "-b", "--factory-startup", "--disable-autoexec", "--threads", "2",
+            "--python-exit-code", "1", "--python", str(runtime), str(blend),
+            "--python", str(worker)]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--blender", type=Path, required=True)
@@ -64,9 +70,7 @@ def main():
         "SCAN_TO_MODEL_NATIVE_OUTPUT": str(output),
         "SCAN_TO_MODEL_NATIVE_MEMBERSHIP": str(frozen_membership),
     })
-    command = [str(blender), "-b", "--disable-autoexec", "--threads", "2",
-               "--python-exit-code", "1", "--python", str(frozen_runtime),
-               str(blend), "--python", str(frozen_worker)]
+    command = blender_command(blender, blend, frozen_runtime, frozen_worker)
     controlled_environment = {key: environment[key] for key in (
         "SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT", "TMPDIR", "SCAN_TO_MODEL_NATIVE_OUTPUT",
         "SCAN_TO_MODEL_NATIVE_MEMBERSHIP")}

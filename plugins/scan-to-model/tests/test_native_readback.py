@@ -18,9 +18,22 @@ FIXTURE = Path(__file__).with_name("native_readback_fixture.py")
 SPEC = importlib.util.spec_from_file_location("native_readback", NATIVE)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+LAUNCHER_SPEC = importlib.util.spec_from_file_location("run_native_readback", LAUNCHER)
+LAUNCHER_MODULE = importlib.util.module_from_spec(LAUNCHER_SPEC)
+sys.path.insert(0, str(ROOT / "scripts"))
+LAUNCHER_SPEC.loader.exec_module(LAUNCHER_MODULE)
+sys.path.pop(0)
 
 
 class NativeReadbackTests(unittest.TestCase):
+    def test_blender_command_uses_factory_startup_and_two_threads(self):
+        command = LAUNCHER_MODULE.blender_command(
+            Path("/opt/blender"), Path("scene.blend"), Path("runtime.py"), Path("worker.py"))
+        self.assertEqual(command, [
+            "/opt/blender", "-b", "--factory-startup", "--disable-autoexec", "--threads", "2",
+            "--python-exit-code", "1", "--python", "runtime.py", "scene.blend",
+            "--python", "worker.py"])
+
     def membership(self, model_sha):
         return {"room_id": "fixture-room", "model_sha256": model_sha,
                 "groups": {"architecture": {"target_names": ["Fixture mesh", "Fixture excluded mesh"]},
