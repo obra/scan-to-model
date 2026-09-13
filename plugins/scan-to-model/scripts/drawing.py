@@ -132,19 +132,28 @@ def coplanar_boundary_segments(polygons, tolerance=1e-7):
             if np.linalg.norm(end - start) <= tolerance:
                 continue
             raw_edges.append((piece_index, np.asarray(start), np.asarray(end)))
+    edge_starts = np.asarray([edge[1] for edge in raw_edges])
+    edge_ends = np.asarray([edge[2] for edge in raw_edges])
+    candidate_points = np.vstack((edge_starts, edge_ends))
+    candidate_count = len(raw_edges)
     edge_records = {}
     for edge_index, (piece_index, start, end) in enumerate(raw_edges):
         delta = end - start
         length_squared = delta @ delta
         split = [0.0, 1.0]
-        for other_index, (_, other_start, other_end) in enumerate(raw_edges):
-            if edge_index == other_index:
-                continue
-            for point in (other_start, other_end):
-                parameter = ((point - start) @ delta) / length_squared
-                nearest = start + parameter * delta
-                if -tolerance <= parameter <= 1.0 + tolerance and np.linalg.norm(point - nearest) <= tolerance:
-                    split.append(float(np.clip(parameter, 0.0, 1.0)))
+        extension = tolerance * (np.abs(delta) + 1.0)
+        lower = np.minimum(start, end) - extension
+        upper = np.maximum(start, end) + extension
+        valid = np.all((candidate_points >= lower) & (candidate_points <= upper), axis=1)
+        valid[edge_index] = False
+        valid[candidate_count + edge_index] = False
+        candidate_points_for_edge = candidate_points[valid]
+        if len(candidate_points_for_edge) > 0:
+            parameters = ((candidate_points_for_edge - start) @ delta) / length_squared
+            nearest = start + parameters[:, None] * delta
+            candidate_valid = ((parameters >= -tolerance) & (parameters <= 1.0 + tolerance) &
+                               (np.linalg.norm(candidate_points_for_edge - nearest, axis=1) <= tolerance))
+            split.extend(np.clip(parameters[candidate_valid], 0.0, 1.0).tolist())
         split = sorted(set(round(value, 12) for value in split))
         for first, second in zip(split, split[1:]):
             sub_start, sub_end = start + first * delta, start + second * delta

@@ -133,6 +133,32 @@ class DrawingTests(unittest.TestCase):
 
         self.assertEqual(len(result), 6)
 
+    def test_coplanar_boundary_segments_preserves_t_junction_boundary_splits(self):
+        pieces = [
+            np.array([[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]], float),
+            np.array([[.5, 0, 0], [1.5, 0, 0], [1.5, -1, 0], [.5, -1, 0]], float),
+        ]
+
+        result = coplanar_boundary_segments(pieces)
+
+        self.assertEqual(len(result), 8)
+        self.assertFalse(any(np.allclose(edge, [[.5, 0, 0], [1.5, 0, 0]]) or
+                             np.allclose(edge, [[1.5, 0, 0], [.5, 0, 0]])
+                             for edge in result))
+
+    def test_coplanar_boundary_segments_splits_line_at_following_t_junction(self):
+        pieces = [
+            np.array([[0, 0, 0], [2, 0, 0]], float),
+            np.array([[1, 0, 0], [1, 1, 0]], float),
+            np.array([[10, 10, 0], [11, 10, 0], [10, 11, 0]], float),
+        ]
+
+        result = coplanar_boundary_segments(pieces)
+
+        self.assertEqual(len(result), 6)
+        self.assertIn(np.array([[0, 0, 0], [1, 0, 0]]).tolist(), [edge.tolist() for edge in result])
+        self.assertIn(np.array([[1, 0, 0], [2, 0, 0]]).tolist(), [edge.tolist() for edge in result])
+
     def test_coplanar_boundary_segments_rejects_non_coplanar_pieces(self):
         pieces = [
             np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], float),
