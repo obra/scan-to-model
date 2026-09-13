@@ -46,8 +46,8 @@ class DrawRoomTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'legend mode'):
             DRAW_ROOM.legend_text({'id': 'bad', 'legend': 'none'})
 
-    def run_single_view(self, view):
-        native_data = {
+    def run_single_view(self, view, native_data=None):
+        native_data = native_data or {
             'schema_version': 1,
             'status': 'ok',
             'all_visible_guard': True,
@@ -351,6 +351,38 @@ class DrawRoomTests(unittest.TestCase):
             ], capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('selected polygon vertices for nonfinite are non-finite', result.stderr)
+
+    def test_coplanar_boundary_mode_renders_adjacent_faces_without_shared_edge(self):
+        native_data = {
+            'schema_version': 1, 'status': 'ok', 'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [{
+                'name': 'fixture-mesh',
+                'vertices_world_m': [[0, 0, 0], [1, 0, 0], [1, 1, 0],
+                                     [0, 1, 0], [2, 0, 0], [2, 1, 0]],
+                'polygons': [[0, 1, 2, 3], [1, 4, 5, 2]],
+                'loop_triangles': [
+                    {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
+                    {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
+                    {'polygon_index': 1, 'vertex_indices': [1, 4, 5]},
+                    {'polygon_index': 1, 'vertex_indices': [1, 5, 2]},
+                ],
+            }],
+        }
+        view = {
+            'id': 'E1', 'kind': 'elevation', 'title': 'Fixture', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, -1],
+            'subjects': [{'object_id': 'fixture-mesh', 'style': 'architecture',
+                          'face_indices': [0, 1], 'subjectedge_mode': 'coplanar_boundary'}],
+            'bounds_frame': [-1, 3, -1, 2], 'axis_labels': ['horizontal', 'vertical'],
+            'annotations': [],
+        }
+
+        result = self.run_single_view(view, native_data)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['geometry_pages'], 1)
 
 
 if __name__ == '__main__':

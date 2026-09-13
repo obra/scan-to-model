@@ -8,7 +8,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from drawing import (classify_selected_geometry, clipped, intersect_face,
-                     line_segments, project)
+                     coplanar_boundary_segments, line_segments, project)
 
 
 class DrawingTests(unittest.TestCase):
@@ -93,6 +93,46 @@ class DrawingTests(unittest.TestCase):
         segment = np.array([[2.0, 3.0], [4.0, 5.0]])
         self.assertEqual(len(line_segments(segment)), 1)
         np.testing.assert_allclose(line_segments(segment)[0], segment)
+
+    def test_coplanar_boundary_segments_removes_shared_diagonal_from_concave_l(self):
+        pieces = [
+            np.array([[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]], float),
+            np.array([[0, 1, 0], [1, 1, 0], [1, 2, 0], [0, 2, 0]], float),
+        ]
+
+        result = coplanar_boundary_segments(pieces)
+
+        self.assertEqual(len(result), 7)
+        self.assertFalse(any(np.allclose(edge, [[0, 1, 0], [1, 1, 0]]) or
+                             np.allclose(edge, [[1, 1, 0], [0, 1, 0]])
+                             for edge in result))
+
+    def test_coplanar_boundary_segments_preserves_disjoint_patch_edges(self):
+        pieces = [
+            np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], float),
+            np.array([[3, 0, 0], [4, 0, 0], [4, 1, 0], [3, 1, 0]], float),
+        ]
+
+        self.assertEqual(len(coplanar_boundary_segments(pieces)), 8)
+
+    def test_coplanar_boundary_segments_rejects_non_coplanar_pieces(self):
+        pieces = [
+            np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], float),
+            np.array([[0, 1, 0], [1, 1, 0], [1, 2, 1], [0, 2, 1]], float),
+        ]
+
+        with self.assertRaisesRegex(ValueError, 'one plane'):
+            coplanar_boundary_segments(pieces)
+
+    def test_coplanar_boundary_segments_rejects_non_manifold_edge(self):
+        pieces = [
+            np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0]], float),
+            np.array([[1, 0, 0], [0, 0, 0], [0, -1, 0]], float),
+            np.array([[0, 0, 0], [1, 0, 0], [0, -1, 0]], float),
+        ]
+
+        with self.assertRaisesRegex(ValueError, 'non-manifold'):
+            coplanar_boundary_segments(pieces)
 
 
 if __name__ == '__main__':

@@ -77,3 +77,75 @@ def line_segments(p, closed=True):
     if len(p) == 2:
         return [p]
     return [np.array([a, b]) for a, b in zip(p, np.vstack((p[1:], p[:1])))] if closed else []
+
+
+def coplanar_boundary_segments(polygons, tolerance=1e-7):
+    """Return only outer edges of selected coplanar polygon pieces.
+
+    Shared edges are removed exactly when two pieces use them.  The helper
+    rejects non-coplanar pieces and edges used by more than two pieces rather
+    than hiding uncertain topology with a hull or union operation.
+    """
+    pieces = [np.asarray(p, float) for p in polygons if len(p) >= 2]
+    if not pieces:
+        return []
+    if not all(np.isfinite(piece).all() for piece in pieces):
+        raise ValueError('coplanar boundary pieces must be finite')
+    reference_normal = None
+    reference_point = None
+    for piece in pieces:
+        if len(piece) < 3:
+            continue
+        normal = None
+        for first, second in zip(piece[1:-1], piece[2:]):
+            candidate = np.cross(second - piece[0], first - piece[0])
+            if np.linalg.norm(candidate) > tolerance:
+                normal = candidate / np.linalg.norm(candidate)
+                break
+        if normal is None:
+            raise ValueError('coplanar boundary pieces must be non-degenerate')
+        if reference_normal is None:
+            reference_normal, reference_point = normal, piece[0]
+        elif (abs(np.dot(reference_normal, normal)) < 1.0 - 1e-6 or
+              np.max(np.abs((piece - reference_point) @ reference_normal)) > tolerance):
+            raise ValueError('coplanar boundary pieces must share one plane')
+        elif np.dot(reference_normal, normal) < 0:
+            normal = -normal
+        if np.max(np.abs((piece - piece[0]) @ normal)) > tolerance:
+            raise ValueError('polygon piece is non-planar')
+    raw_edges = []
+    for piece_index, piece in enumerate(pieces):
+        if len(piece) == 2:
+            edges = [(piece[0], piece[1])]
+        else:
+            edges = zip(piece, np.vstack((piece[1:], piece[:1])))
+        for start, end in edges:
+            if np.linalg.norm(end - start) <= tolerance:
+                continue
+            raw_edges.append((piece_index, np.asarray(start), np.asarray(end)))
+    edge_records = {}
+    for edge_index, (piece_index, start, end) in enumerate(raw_edges):
+        delta = end - start
+        length_squared = delta @ delta
+        split = [0.0, 1.0]
+        for other_index, (_, other_start, other_end) in enumerate(raw_edges):
+            if edge_index == other_index:
+                continue
+            for point in (other_start, other_end):
+                parameter = ((point - start) @ delta) / length_squared
+                nearest = start + parameter * delta
+                if -tolerance <= parameter <= 1.0 + tolerance and np.linalg.norm(point - nearest) <= tolerance:
+                    split.append(float(np.clip(parameter, 0.0, 1.0)))
+        split = sorted(set(round(value, 12) for value in split))
+        for first, second in zip(split, split[1:]):
+            sub_start, sub_end = start + first * delta, start + second * delta
+            key_points = tuple(sorted((tuple(np.round(sub_start, 7)), tuple(np.round(sub_end, 7)))))
+            edge_records.setdefault(key_points, []).append((piece_index, np.asarray([sub_start, sub_end])))
+    boundary = []
+    for key, records in edge_records.items():
+        owners = {owner for owner, _ in records}
+        if len(records) > 2 or len(owners) != len(records):
+            raise ValueError('selected coplanar pieces contain a non-manifold edge')
+        if len(records) == 1:
+            boundary.append(records[0][1])
+    return boundary

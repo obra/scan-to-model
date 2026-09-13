@@ -88,4 +88,8 @@ The example is synthetic. Supply real points from named frames and pixels. At le
 
 ## Blender
 
+### Room drawing subject edges
+
+Room view subjects use `subjectedge_mode: "existing_edges"` by default, which emits each selected polygon's edges. Non-section views may set `subjectedge_mode: "coplanar_boundary"` to draw the boundary of a selected coplanar patch after spatial and plan clipping. The drawing helper cancels only shared edge segments used by two selected pieces; it preserves boundaries of concave and disjoint pieces and rejects non-coplanar or non-manifold selections. This mode is rejected for sections, whose cut geometry has separate semantics. Face selection accounting remains unchanged.
+
 See [blender-review.md](blender-review.md) for the Blender command, inventory scope, candidate comparison and rendering. The Python measurement tools run outside Blender; Blender's own Python supplies `bpy` for scene review.

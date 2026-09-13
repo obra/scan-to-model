@@ -156,6 +156,11 @@ def main():
         for subject in view['subjects']:
             name = subject['object_id']
             row, points = objects[name], vertices[name]
+            subjectedge_mode = subject.get('subjectedge_mode', 'existing_edges')
+            if subjectedge_mode not in ('existing_edges', 'coplanar_boundary'):
+                raise ValueError(f"{view['id']} subject {name} has unsupported subjectedge_mode")
+            if subjectedge_mode == 'coplanar_boundary' and view['kind'] == 'section':
+                raise ValueError(f"{view['id']} subject {name} cannot use coplanar_boundary in a section")
             classification = math.classify_selected_geometry(
                 row['vertices_world_m'], row['polygons'], subject['face_indices'])
             if not classification['finite']:
@@ -170,6 +175,7 @@ def main():
                 continue
             color = styles[subject['style']]['color']
             segments, used = [], []
+            boundary_faces = []
             for index in subject['face_indices']:
                 polygon = points[np.asarray(row['polygons'][index], int)]
                 pieces_to_cut = [polygon]
@@ -202,12 +208,17 @@ def main():
                     if not pieces:
                         continue
                     segments.extend(pieces)
+                    boundary_faces.append(face)
                     drawn = True
                     if subject.get('fill', False) and view['kind'] != 'section' and len(projected) > 2:
                         ax.add_patch(Polygon(projected, closed=True, facecolor=color,
                                              edgecolor='none', alpha=.085))
                 if drawn:
                     used.append(index)
+            if subjectedge_mode == 'coplanar_boundary':
+                segments = [edge for edge in math.coplanar_boundary_segments(boundary_faces)
+                            if np.linalg.norm(edge[1] - edge[0]) > 1e-7]
+                segments = [math.project(edge, right, up) for edge in segments]
             if segments:
                 emitted_segments.extend(segments)
                 unique = {tuple(sorted(tuple(np.round(p, 7)) for p in edge)): edge
