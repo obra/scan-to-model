@@ -7,3 +7,7 @@ Depth availability, local repeatability, and absolute accuracy are separate find
 Use rigid shared surfaces and distributed landmarks. Keep withheld check sets independent. Preserve rejected samples and all point residuals. Regularize with planes or right angles only when evidence supports it; never deform rooms to hide drift. Unknown boundaries remain unknown.
 
 In Blender, separate architecture, contents, current, historical, and services. Preserve unrelated objects and materials. Review source matched and top/section renders, reopen saved files, then promote only changes supported by evidence.
+
+## Multi-view corner rays
+
+Review full-resolution pixels first and confirm that every view selects the same physical top corner; a nearby bevel or underside corner is a different feature. Inspect pair angles, conditioning, signed along-ray distances, perpendicular residuals, and reprojection errors. Correlated pose or pixel sensitivity does not establish field accuracy, and a source-local point does not determine the whole countertop.
