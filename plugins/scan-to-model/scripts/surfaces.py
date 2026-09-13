@@ -228,6 +228,7 @@ def compare_points_to_planar_polygons(points, polygons, *, source_normal=None,
 
 
 def fit_plane(points, rejection_m):
+    """Return center, normal, in-plane basis, retained mask, and absolute residuals."""
     keep = np.ones(len(points), dtype=bool)
     for _ in range(5):
         center = points[keep].mean(axis=0)
