@@ -61,11 +61,23 @@ class ArtifactBindingTests(unittest.TestCase):
     def test_explicit_absolute_path_is_allowed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            artifact = root / "outside"
+            artifact = Path(temporary).parent / (Path(temporary).name + "-external")
             artifact.write_bytes(b"external")
             binding = {"path": str(artifact), "sha256": hashlib.sha256(b"external").hexdigest()}
             report = artifact_bindings.verify(self.binding_file(root, [binding]), root)
             self.assertTrue(report["valid"])
+
+    def test_cli_refuses_existing_output_without_changing_it(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binding = self.binding_file(root, [])
+            output = root / "report.json"
+            original = b"accepted report\n"
+            output.write_bytes(original)
+            result = subprocess.run([sys.executable, "-B", str(VERIFY), "--root", str(root), "--bindings", str(binding), "--output", str(output)], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(output.read_bytes(), original)
+            self.assertIn("output_exists", result.stdout)
 
     def test_cli_writes_report_and_returns_nonzero_for_mismatch(self):
         with tempfile.TemporaryDirectory() as temporary:
