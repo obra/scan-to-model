@@ -37,6 +37,8 @@ Inspect the named original photos or native frames and preserve their hashes and
 
 Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md), and [source-observations.md](source-observations.md) for the source record and review contract. Route native depth and surface support to [depth-inspect](../skills/depth-inspect/SKILL.md), and rigid correspondence questions to [scan-register](../skills/scan-register/SKILL.md).
 
+When projecting reviewed world points, use `polycam.project_points` to obtain native RGB pixels and positive camera-axis depths, then convert those native pixels with the existing `display_pixel_center` helper for presentation. First round-trip saved depth-grid points against the actual RGB/depth resolution ratio and check native/display known corners; only then interpret cross-view errors. Do not apply upright rotation inside the projection helper.
+
 ## Geometry builder
 
 ```text
