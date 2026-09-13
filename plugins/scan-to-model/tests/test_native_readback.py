@@ -76,6 +76,12 @@ class NativeReadbackTests(unittest.TestCase):
             self.assertIsNone(rows["Fixture empty mesh"]["bounds_world_m"])
             self.assertEqual(rows["Fixture mesh"]["parent_chain"], ["Fixture parent"])
             self.assertEqual(rows["Fixture mesh"]["vertices_world_m"][0], [2.0, 3.0, 4.0])
+            self.assertEqual(rows["Fixture mesh"]["visibility"]["hide_viewport"], True)
+            self.assertEqual(rows["Fixture mesh"]["visibility"]["hide_render"], True)
+            self.assertEqual(readback["temporary_visibility_overrides"], [{
+                "name": "Fixture mesh", "hide_viewport": True, "hide_render": True,
+                "restored_after_capture": True,
+            }])
             self.assertIn("Fixture excluded", rows["Fixture excluded mesh"]["collections"])
             self.assertGreater(len(rows["Fixture curve"]["vertices_world_m"]), 0)
             self.assertGreater(len(rows["Fixture curve"]["polygons"]), 0)

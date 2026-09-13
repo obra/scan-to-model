@@ -147,7 +147,7 @@ def _parent_chain(obj):
     return result
 
 
-def _object_row(obj, evaluated, depsgraph, deps_names, group, bpy):
+def _object_row(obj, evaluated, depsgraph, deps_names, group, bpy, original_visibility):
     mesh = evaluated.to_mesh()
     try:
         local = [_vector(vertex.co) for vertex in mesh.vertices]
@@ -189,8 +189,7 @@ def _object_row(obj, evaluated, depsgraph, deps_names, group, bpy):
             "constraints": [{"name": constraint.name, "type": constraint.type,
                              "settings": _rna_settings(constraint, bpy),
                              "custom_properties": _properties(constraint, bpy)} for constraint in obj.constraints],
-            "visibility": {"hide_viewport": bool(obj.hide_viewport), "hide_render": bool(obj.hide_render),
-                           "hide_get_temporary_layer": bool(obj.hide_get())},
+            "visibility": {**original_visibility, "hide_get_temporary_layer": bool(obj.hide_get())},
             "animation_data_present": obj.animation_data is not None,
             "shape_keys_present": bool(getattr(obj.data, "shape_keys", None)) if getattr(obj, "data", None) else False,
             "guard": {"present_in_depsgraph": evaluated.name in deps_names,
@@ -222,16 +221,24 @@ def main():
     if layer_name in scene.view_layers:
         raise RuntimeError("temporary view layer already exists")
     layer = scene.view_layers.new(layer_name)
+    original_visibility = {}
+    changed_visibility = {}
+
+    def restore_visibility():
+        for name, visibility in changed_visibility.items():
+            obj = bpy.data.objects.get(name)
+            if obj is not None:
+                obj.hide_viewport = visibility["hide_viewport"]
+        for name, visibility in changed_visibility.items():
+            obj = bpy.data.objects.get(name)
+            if obj is None or obj.hide_viewport != visibility["hide_viewport"]:
+                raise RuntimeError("declared object visibility restoration failed: " + name)
+        return True
+
     try:
         _unexclude(layer.layer_collection)
-        if bpy.context.window is not None:
-            bpy.context.window.view_layer = layer
-        bpy.context.view_layer.update()
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-        deps_names = {item.name for item in depsgraph.objects}
-        rows = []
+        declared_objects = {}
         missing = []
-        unavailable = []
         unsupported = []
         for name in targets:
             obj = bpy.data.objects.get(name)
@@ -241,13 +248,32 @@ def main():
             if obj.type not in CONVERTIBLE_TYPES:
                 unsupported.append({"name": name, "type": obj.type})
                 continue
+            original_visibility[name] = {"hide_viewport": bool(obj.hide_viewport),
+                                         "hide_render": bool(obj.hide_render)}
+            declared_objects[name] = obj
+            if obj.hide_viewport:
+                changed_visibility[name] = original_visibility[name]
+                obj.hide_viewport = False
+        if missing or unsupported:
+            raise RuntimeError(json.dumps({"missing": missing, "unavailable": [],
+                                           "unsupported": unsupported}, sort_keys=True))
+        if bpy.context.window is not None:
+            bpy.context.window.view_layer = layer
+        bpy.context.view_layer.update()
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        deps_names = {item.name for item in depsgraph.objects}
+        rows = []
+        unavailable = []
+        for name in targets:
+            obj = declared_objects[name]
             evaluated = obj.evaluated_get(depsgraph)
             if evaluated is None or evaluated.name not in deps_names:
                 unavailable.append(name)
                 continue
             if evaluated.original is not obj:
                 raise RuntimeError("evaluated/original identity mismatch: " + name)
-            rows.append(_object_row(obj, evaluated, depsgraph, deps_names, group_by_name[name], bpy))
+            rows.append(_object_row(obj, evaluated, depsgraph, deps_names, group_by_name[name], bpy,
+                                    original_visibility[name]))
         if missing or unavailable or unsupported:
             raise RuntimeError(json.dumps({"missing": missing, "unavailable": unavailable, "unsupported": unsupported}, sort_keys=True))
         result = {
@@ -262,16 +288,22 @@ def main():
             "target_count": len(rows), "missing_names": missing,
             "unavailable_from_evaluated_depsgraph": unavailable, "unsupported_types": unsupported,
             "depsgraph_object_count": len(deps_names), "all_visible_guard": True, "objects": rows,
+            "temporary_visibility_overrides": [
+                {"name": name, **visibility, "restored_after_capture": False}
+                for name, visibility in changed_visibility.items()],
             "no_save": True, "no_render": True,
             "triangulation": {"method": "Blender evaluated mesh.calc_loop_triangles()",
                               "polygon_index_retained": True},
         }
-        output.mkdir(parents=True, exist_ok=True)
-        (output / "native-readback.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        print(json.dumps({"status": "ok", "requested": len(targets), "captured": len(rows),
-                          "depsgraph_objects": len(deps_names)}))
     finally:
+        restore_visibility()
         scene.view_layers.remove(layer)
+    for override in result["temporary_visibility_overrides"]:
+        override["restored_after_capture"] = True
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "native-readback.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"status": "ok", "requested": len(targets), "captured": len(rows),
+                      "depsgraph_objects": len(deps_names)}))
 
 
 if __name__ == "__main__":

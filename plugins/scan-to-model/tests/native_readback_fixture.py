@@ -29,6 +29,8 @@ def main():
     mesh = bpy.data.objects.new("Fixture mesh", mesh_data)
     room.objects.link(mesh)
     mesh.parent = parent
+    mesh.hide_viewport = True
+    mesh.hide_render = True
 
     curve_data = bpy.data.curves.new("Fixture curve data", "CURVE")
     curve_data.dimensions = "3D"
