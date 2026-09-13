@@ -41,6 +41,8 @@ Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md
 
 ```text
 Build only the named candidate increment in a fresh candidate/output path. Preserve unrelated architecture, current finishes, contents, historical construction and observed services as separate categories. Bind source records and accepted transforms before using coordinates; keep diagnostic or provisional results out of physical contacts. Return the candidate hash, changed object IDs, input bindings, unresolved dimensions, inventory comparison and reviewed renders. Escalate any proposed change to accepted geometry, transform scope or physical identity that lacks the required independent record.
+
+For a room's native extraction or drawing, derive membership from accepted object/feature records and semantic room tags; inspect shared collections as well as room collections, then compare the live membership with the declared set so collection layout cannot silently drop artwork or other contents.
 ```
 
 Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-review.md](blender-review.md), and [manufactured-shapes.md](manufactured-shapes.md) for candidate, component and saved-file contracts.
