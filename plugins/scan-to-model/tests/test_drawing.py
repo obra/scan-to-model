@@ -7,10 +7,44 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from drawing import clipped, intersect_face, line_segments, project
+from drawing import (classify_selected_geometry, clipped, intersect_face,
+                     line_segments, project)
 
 
 class DrawingTests(unittest.TestCase):
+    def test_classify_selected_geometry_detects_exact_world_point_collapse(self):
+        vertices = np.array([[1.0, 2.0, 3.0]] * 4)
+        polygons = [[0, 1, 2, 3]]
+
+        result = classify_selected_geometry(vertices, polygons, [0])
+
+        self.assertTrue(result['all_vertices_coincident'])
+        self.assertTrue(result['finite'])
+        self.assertEqual(result['unique_point_count'], 1)
+        self.assertEqual(result['vertex_indices'], [0, 1, 2, 3])
+
+    def test_classify_selected_geometry_ignores_unselected_faces(self):
+        vertices = np.array([[1.0, 2.0, 3.0]] * 4 +
+                             [[4.0, 5.0, 6.0], [7.0, 8.0, 9.0], [10.0, 11.0, 12.0]])
+        polygons = [[0, 1, 2, 3], [4, 5, 6]]
+
+        result = classify_selected_geometry(vertices, polygons, [0])
+
+        self.assertTrue(result['all_vertices_coincident'])
+        self.assertEqual(result['unique_point_count'], 1)
+        self.assertEqual(result['vertex_indices'], [0, 1, 2, 3])
+
+    def test_classify_selected_geometry_does_not_call_edge_on_or_clipped_geometry_collapsed(self):
+        vertices = np.array([[0.0, -1.0, 0.0], [0.0, 1.0, 0.0],
+                             [1.0, 1.0, 0.0], [1.0, -1.0, 0.0]])
+        polygons = [[0, 1, 2, 3]]
+
+        result = classify_selected_geometry(vertices, polygons, [0])
+
+        self.assertFalse(result['all_vertices_coincident'])
+        self.assertTrue(result['finite'])
+        self.assertEqual(result['unique_point_count'], 4)
+
     def test_project_uses_non_axis_aligned_right_and_up_bases(self):
         points = np.array([[1.0, 2.0, 3.0], [-1.0, 0.0, 2.0]])
         right = np.array([1.0, 1.0, 0.0]) / np.sqrt(2.0)

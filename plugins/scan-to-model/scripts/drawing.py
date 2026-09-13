@@ -6,6 +6,27 @@ import numpy as np
 EPS = 2e-5
 
 
+def classify_selected_geometry(vertices_world, polygons, face_indices):
+    """Classify exact point collapse in the selected world-space polygon vertices."""
+    vertex_indices = sorted({
+        int(vertex_index)
+        for face_index in face_indices
+        for vertex_index in polygons[int(face_index)]
+    })
+    if not vertex_indices:
+        return {'finite': True, 'unique_point_count': 0,
+                'all_vertices_coincident': False, 'vertex_indices': []}
+    points = np.asarray(vertices_world, float)[vertex_indices]
+    finite = bool(np.isfinite(points).all())
+    unique_point_count = int(len(np.unique(points, axis=0))) if finite else 0
+    return {
+        'finite': finite,
+        'unique_point_count': unique_point_count,
+        'all_vertices_coincident': finite and unique_point_count == 1,
+        'vertex_indices': vertex_indices,
+    }
+
+
 def project(p, right, up):
     """Project 3-D points onto the declared drawing right/up basis."""
     p = np.asarray(p, float)

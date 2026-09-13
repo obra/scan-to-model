@@ -109,18 +109,33 @@ def main():
                 'native_sha256': digest(args.native), 'model_sha256': native['model_sha256'],
                 'view_specification': specification, 'views_sha256': digest(args.views),
                 'math_helper_sha256': digest(args.math_helper),
-                'producer_sha256': digest(__file__), 'no_model_edit': True}
+                'producer_sha256': digest(__file__), 'no_model_edit': True,
+                'nondrawable_objects': [], 'omitted_objects': []}
     manifest_path = args.output / 'drawing-manifest.json'
     manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
 
     def render(ax, view, overview=False):
         selection = {}
+        nondrawable_objects = []
+        omitted_objects = []
         validate_view_frame(view)
         right, up = view['right_frame'], view['up_frame']
         emitted_segments = []
         for subject in view['subjects']:
             name = subject['object_id']
             row, points = objects[name], vertices[name]
+            classification = math.classify_selected_geometry(
+                row['vertices_world_m'], row['polygons'], subject['face_indices'])
+            if not classification['finite']:
+                raise ValueError(f"{view['id']} selected polygon vertices for {name} are non-finite")
+            if classification['all_vertices_coincident']:
+                nondrawable_objects.append({
+                    'view_id': view['id'], 'object_id': name,
+                    'reason': 'selected_polygon_vertices_coincident',
+                    'vertex_indices': classification['vertex_indices'],
+                    'unique_point_count': classification['unique_point_count'],
+                })
+                continue
             color = styles[subject['style']]['color']
             segments, used = [], []
             for index in subject['face_indices']:
@@ -169,6 +184,12 @@ def main():
                     linewidths=.8 if subject['style'] == 'architecture' else .55,
                     linestyles='--' if subject.get('crop_boundary') and view['kind'] in ('plan', 'reflected_ceiling') else '-', alpha=.85))
                 selection[name] = used
+            else:
+                omitted_objects.append({
+                    'view_id': view['id'], 'object_id': name,
+                    'reason': 'selected_faces_emitted_no_segments_after_cuts_or_clips',
+                    'face_indices': list(subject['face_indices']),
+                })
         bounds = view['bounds_frame']
         emitted_length_inside_bounds = sum(
             segment_length_inside_bounds(segment, bounds)
@@ -208,7 +229,9 @@ def main():
                 color='#475569', arrowprops={'arrowstyle': '-', 'color': '#64748b', 'lw': .65},
                 bbox={'facecolor': 'white', 'edgecolor': 'none', 'alpha': .9, 'pad': 2})
         return {'view_id': view['id'], 'drawn_faces': selection,
-                'emitted_length_inside_bounds': emitted_length_inside_bounds}
+                'emitted_length_inside_bounds': emitted_length_inside_bounds,
+                'nondrawable_objects': nondrawable_objects,
+                'omitted_objects': omitted_objects}
 
     room_title = args.title
     output_stem = args.output_stem
@@ -257,6 +280,10 @@ def main():
         plt.close(fig)
     manifest['status'] = 'generated_pending_root_review'
     manifest['rendered_selections'] = records
+    manifest['nondrawable_objects'] = [item for record in records
+                                       for item in record['nondrawable_objects']]
+    manifest['omitted_objects'] = [item for record in records
+                                   for item in record['omitted_objects']]
     manifest['outputs'] = [{'path': p.name, 'sha256': digest(p)}
                            for p in sorted(args.output.iterdir()) if p.suffix in ('.png', '.pdf')]
     manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')

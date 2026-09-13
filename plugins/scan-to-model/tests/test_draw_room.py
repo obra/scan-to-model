@@ -179,6 +179,148 @@ class DrawRoomTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('offscreen emits no geometry inside', result.stderr)
 
+    def test_manifest_separates_exact_point_collapse_from_projection_omission(self):
+        native_data = {
+            'schema_version': 1,
+            'status': 'ok',
+            'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [
+                {
+                    'name': 'collapsed',
+                    'vertices_world_m': [[1, 1, 1]] * 4,
+                    'polygons': [[0, 1, 2, 3]],
+                    'loop_triangles': [
+                        {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
+                        {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
+                    ],
+                },
+                {
+                    'name': 'edge-on-plane',
+                    'vertices_world_m': [[0, -1, 0], [0, 1, 0], [1, 1, 0], [1, -1, 0]],
+                    'polygons': [[0, 1, 2, 3]],
+                    'loop_triangles': [
+                        {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
+                        {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
+                    ],
+                },
+                {
+                    'name': 'clipped-normal',
+                    'vertices_world_m': [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+                    'polygons': [[0, 1, 2, 3]],
+                    'loop_triangles': [
+                        {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
+                        {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
+                    ],
+                },
+                {
+                    'name': 'drawable',
+                    'vertices_world_m': [[-2, 0, 0], [-1.5, 0, 0], [-1.5, 0, 1], [-2, 0, 1]],
+                    'polygons': [[0, 1, 2, 3]],
+                    'loop_triangles': [
+                        {'polygon_index': 0, 'vertex_indices': [0, 1, 2]},
+                        {'polygon_index': 0, 'vertex_indices': [0, 2, 3]},
+                    ],
+                },
+            ],
+        }
+        view = {
+            'id': 'E1', 'kind': 'elevation', 'title': 'Fixture', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 0, 1],
+            'view_direction_frame': [0, 1, 0],
+            'subjects': [
+                {'object_id': 'collapsed', 'style': 'architecture', 'face_indices': [0]},
+                {'object_id': 'edge-on-plane', 'style': 'architecture', 'face_indices': [0]},
+            ],
+            'bounds_frame': [-2, 2, -2, 2], 'axis_labels': ['horizontal', 'vertical'],
+            'annotations': [],
+        }
+        clipped_view = dict(view, id='E2', title='Clipped fixture',
+                            spatial_clips=[{'axis': 0, 'value_m': -1, 'keep_below': True}],
+                            subjects=[
+                                {'object_id': 'drawable', 'style': 'architecture', 'face_indices': [0]},
+                                {'object_id': 'clipped-normal', 'style': 'architecture', 'face_indices': [0]},
+                            ])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            native_path = root / 'native.json'
+            native_path.write_text(json.dumps(native_data, indent=2) + '\n')
+            specification = {
+                'model_sha256': native_data['model_sha256'],
+                'native_sha256': hashlib.sha256(native_path.read_bytes()).hexdigest(),
+                'room_id': 'fixture-room',
+                'frame_axes_world': [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                'frame_source': 'fixture', 'frame_source_sha256': 'fixture-sha',
+                'styles': {'architecture': {'color': '#566573'}},
+                'section_marks': [], 'views': [view, clipped_view],
+            }
+            views_path = root / 'views.json'
+            views_path.write_text(json.dumps(specification, indent=2) + '\n')
+            output = root / 'output'
+            subprocess.run([
+                sys.executable, '-B', str(PRODUCER), '--native', str(native_path),
+                '--views', str(views_path), '--math-helper', str(MATH_HELPER),
+                '--title', 'Fixture Room', '--output-stem', 'fixture-room',
+                '--output', str(output),
+            ], capture_output=True, text=True, check=True)
+            manifest = json.loads((output / 'drawing-manifest.json').read_text())
+            self.assertEqual(manifest['nondrawable_objects'], [{
+                'view_id': 'E1', 'object_id': 'collapsed',
+                'reason': 'selected_polygon_vertices_coincident',
+                'vertex_indices': [0, 1, 2, 3], 'unique_point_count': 1,
+            }])
+            self.assertEqual(manifest['omitted_objects'], [{
+                'view_id': 'E2', 'object_id': 'clipped-normal',
+                'reason': 'selected_faces_emitted_no_segments_after_cuts_or_clips',
+                'face_indices': [0],
+            }])
+            self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {'edge-on-plane': [0]})
+            self.assertEqual(manifest['rendered_selections'][1]['drawn_faces'], {'drawable': [0]})
+
+    def test_rejects_nonfinite_selected_polygon_coordinates(self):
+        native_data = {
+            'schema_version': 1,
+            'status': 'ok',
+            'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [{
+                'name': 'nonfinite',
+                'vertices_world_m': [[float('nan'), 0, 0], [0, 0, 0], [0, 0, 1]],
+                'polygons': [[0, 1, 2]],
+                'loop_triangles': [{'polygon_index': 0, 'vertex_indices': [0, 1, 2]}],
+            }],
+        }
+        view = {
+            'id': 'E1', 'kind': 'elevation', 'title': 'Fixture', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 0, 1],
+            'view_direction_frame': [0, 1, 0],
+            'subjects': [{'object_id': 'nonfinite', 'style': 'architecture', 'face_indices': [0]}],
+            'bounds_frame': [-2, 2, -2, 2], 'axis_labels': ['horizontal', 'vertical'],
+            'annotations': [],
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            native_path = root / 'native.json'
+            native_path.write_text(json.dumps(native_data, indent=2, allow_nan=True) + '\n')
+            specification = {
+                'model_sha256': native_data['model_sha256'],
+                'native_sha256': hashlib.sha256(native_path.read_bytes()).hexdigest(),
+                'room_id': 'fixture-room',
+                'frame_axes_world': [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                'styles': {'architecture': {'color': '#566573'}},
+                'section_marks': [], 'views': [view],
+            }
+            views_path = root / 'views.json'
+            views_path.write_text(json.dumps(specification, indent=2) + '\n')
+            result = subprocess.run([
+                sys.executable, '-B', str(PRODUCER), '--native', str(native_path),
+                '--views', str(views_path), '--math-helper', str(MATH_HELPER),
+                '--title', 'Fixture Room', '--output-stem', 'fixture-room',
+                '--output', str(root / 'output'),
+            ], capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('selected polygon vertices for nonfinite are non-finite', result.stderr)
+
 
 if __name__ == '__main__':
     unittest.main()
