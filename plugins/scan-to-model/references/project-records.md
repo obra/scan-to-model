@@ -33,3 +33,7 @@ Generate requests only after checking supplied evidence. For each missing fact, 
 ## Bounded completion
 
 Finish one room/connection increment with its ceilings and connections, source-backed geometry, uncertainty, saved-file review and a concrete remaining list. Do not call the building complete because the intake pipeline ran or a plausible render exists. A review candidate may be complete as a deliverable while its geometry is still provisional; name both facts plainly.
+
+## Selected artifact bindings
+
+When a project record points to current files, keep a small explicit JSON list of `{ "path": ..., "sha256": ... }` bindings and optionally `bytes`. Verify that list with `python3 -B plugins/scan-to-model/scripts/verify_artifact_bindings.py --root <project-root> --bindings <bindings.json> --output <report.json>`. Relative paths resolve from `--root`; absolute paths are allowed when deliberately recorded for an external artifact. The report verifies only the listed files and returns nonzero with structured missing, hash or size mismatches. Historical snapshots remain evidence records and are not silently treated as current bindings.
