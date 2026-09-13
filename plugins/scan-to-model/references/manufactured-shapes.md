@@ -2,6 +2,8 @@
 
 Use a component-local shape pass when evidence establishes manufactured rectangles. Inventory the whole assembly: outer leaf/boundary, panels/insets, their dependent openings, rectangular hardware and regular surrounds. Declare which members have evidence for common axes; fit those together while retaining each member's independent size and position. If an axis came only from one uncertain traced edge, fit the common orientation to the unchanged controls instead. Keep deliberately rotated or dissimilar parts in separate groups and preserve circular/rotational parts.
 
+Establish the opening's operating type from source evidence or the owner before measuring through profiles. Pocket and sliding assemblies can expose retracted leaf edges alongside fixed linings or trim, so keep moving-part identity separate from sampled surfaces and fitted points; an opaque planar patch alone is not a fixed registration control.
+
 Regular shape does not establish nominal stock dimensions, installation plumb, house registration, hidden depth profiles or exact product reuse. Preserve the original controls, constraint justification and dimensional qualification. The helper carries arbitrary JSON metadata unchanged; it does not validate that metadata or decide which parts belong together. Investigate large residuals against existing evidence allowances. Update dependent openings/profiles from the constrained geometry and verify the saved native meshes as described in [Blender review](blender-review.md).
 
 ## Numeric contract
