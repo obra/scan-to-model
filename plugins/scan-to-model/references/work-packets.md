@@ -43,6 +43,8 @@ Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md
 Build only the named candidate increment in a fresh candidate/output path. Preserve unrelated architecture, current finishes, contents, historical construction and observed services as separate categories. Bind source records and accepted transforms before using coordinates; keep diagnostic or provisional results out of physical contacts. Return the candidate hash, changed object IDs, input bindings, unresolved dimensions, inventory comparison and reviewed renders. Escalate any proposed change to accepted geometry, transform scope or physical identity that lacks the required independent record.
 
 For a room's native extraction or drawing, derive membership from accepted object/feature records and semantic room tags; inspect shared collections as well as room collections, then compare the live membership with the declared set so collection layout cannot silently drop artwork or other contents.
+
+For native extraction, preserve the exact producer bytes beside each attempt, whether it succeeds or fails. If correction is needed, use a fresh runtime directory and bind that process to its own frozen producer, inputs and outputs; if failed-producer bytes are unavailable, record that gap explicitly rather than claiming complete preservation.
 ```
 
 Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-review.md](blender-review.md), and [manufactured-shapes.md](manufactured-shapes.md) for candidate, component and saved-file contracts.
@@ -50,7 +52,7 @@ Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-revi
 ## Independent reviewer
 
 ```text
-Review the supplied candidate or evidence packet against its declared scope and immutable input hashes. Preserve the evidence packet itself, including failed attempts and retained inputs. Use a fresh review output directory; retain command, runtime, failure and receipt details. Archived producers may write beside their scripts, so inspect write behavior before rerunning and use frozen input copies or an explicit fresh output path. Check source identity, accepted versus diagnostic roles, preservation of unrelated content, model membership and visual evidence. Return pass, bounded pass, or fail with exact findings and the next gate. Do not repair the candidate, promote geometry, or treat a valid tool receipt as proof of depicted pixels or physical acceptance.
+Review the supplied candidate or evidence packet against its declared scope and immutable input hashes. Preserve the evidence packet itself, including failed attempts, their exact producer bytes when available, and retained inputs. Use a fresh review output directory; retain command, runtime, failure and receipt details. Archived producers may write beside their scripts, so inspect write behavior before rerunning and use frozen input copies or an explicit fresh output path. Check source identity, accepted versus diagnostic roles, preservation of unrelated content, model membership and visual evidence. Return pass, bounded pass, or fail with exact findings and the next gate. Do not repair the candidate, promote geometry, or treat a valid tool receipt as proof of depicted pixels or physical acceptance.
 ```
 
 Use [blender-review.md](blender-review.md) for saved-scene and presentation review. For scripted presentations, validate the contract and hash-bound sample receipt with `scripts/presentation.py`, then inspect the actual sample images.
