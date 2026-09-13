@@ -133,6 +133,24 @@ class DrawingTests(unittest.TestCase):
 
         self.assertEqual(len(result), 6)
 
+    def test_coplanar_boundary_segments_preserves_skinny_float32_polygon_coordinates(self):
+        rotation = np.array([
+            [0.6417093742397794, -0.32151006762371553, 0.6963047863036593],
+            [0.2713103718292879, 0.944348152154766, 0.18600335927002182],
+            [-0.7173560908995228, 0.06955461119489617, 0.6932260777775765],
+        ])
+        local_vertices = np.array([
+            [0, 0, 0], [0.001, 0, 0], [0.002, 0.001, 0], [1, 1, 0], [0, 1, 0],
+        ])
+        world_vertices = ((local_vertices @ rotation.T) + [8.0, -3.0, 5.0])
+        world_vertices = world_vertices.astype(np.float32).astype(float)
+        original_vertices = world_vertices.copy()
+
+        result = coplanar_boundary_segments([world_vertices])
+
+        self.assertEqual(len(result), 5)
+        np.testing.assert_array_equal(world_vertices, original_vertices)
+
     def test_coplanar_boundary_segments_preserves_t_junction_boundary_splits(self):
         pieces = [
             np.array([[0, 0, 0], [2, 0, 0], [2, 1, 0], [0, 1, 0]], float),
