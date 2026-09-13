@@ -16,6 +16,10 @@ Before rendering the full animation, render a saved sample frame for every route
 
 For a static presentation, reuse the existing renderer with an explicit camera selection and render exactly one still per requested view. Keep the reviewed framing and the actual raster object/material ID passes and coverage gates; reducing the frame count does not replace those checks. Pin the Blender executable used by the producer and record its complete `--version` output, then check it against the accepted producer version before launch instead of relying on the default `blender` found on `PATH`.
 
+For a cutaway sample, validate the exact enabled object set before rendering and keep it separate from raster visibility: an included object may be fully occluded, and a declared empty mesh may produce no pixels. Require every raster ID to belong to the enabled set, record the final camera position after any orthographic fit shift, and omit floor, eye-height and clearance claims because those checks describe first-person routes.
+
+The worker fixture for this path should exercise those cases with overlapping included geometry, an included empty mesh and a distinct excluded object, then verify the PNG, separate object/material passes and restored native state.
+
 Schema 1 has three hash-bound JSON documents. The contract contains `schema_version` and `presentation`, whose fields are `mode`, `eye_height_m`, `objects`, `renderer`, and `required_features`. The run receipt contains `schema_version`, `contract_sha256`, `run`, `presentation_mode`, `renderer`, `scene_audit`, ordered `shots`, adjacent `transitions`, and `coverage_file`. The coverage document contains `schema_version`, `method`, and `sample_frames`. See `tests/test_presentation.py` for a complete synthetic document set and the exact nested field names.
 
 `scripts/presentation.py` validates schema version 1 of the contract, run receipt, separate coverage file, and bound sample images:
