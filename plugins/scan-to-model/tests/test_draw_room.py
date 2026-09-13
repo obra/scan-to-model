@@ -23,6 +23,23 @@ SPEC.loader.exec_module(DRAW_ROOM)
 
 
 class DrawRoomTests(unittest.TestCase):
+    def test_section_marks_follow_referenced_section_cut_and_direction(self):
+        section = {
+            'id': 'S1', 'kind': 'section', 'cut': {'axis': 0, 'value_m': 6.0},
+            'view_direction_frame': [-1, 0, 0],
+        }
+        base = {'views': [section]}
+        valid = {'section_id': 'S1', 'axis': 0, 'value_m': 6.0,
+                 'arrow_from': [6.3, -1.0], 'arrow_to': [5.8, -1.0]}
+        DRAW_ROOM.validate_section_marks(dict(base, section_marks=[valid]))
+        for bad in [
+            dict(valid, arrow_from=[5.8, -1.0], arrow_to=[6.3, -1.0]),
+            dict(valid, arrow_from=[6.0, -1.0], arrow_to=[6.0, -1.5]),
+            dict(valid, axis=1, value_m=-1.0),
+        ]:
+            with self.assertRaises(ValueError):
+                DRAW_ROOM.validate_section_marks(dict(base, section_marks=[bad]))
+
     def test_shape_only_presentation_hides_coordinates_and_legend(self):
         figure, axis = plt.subplots()
         try:

@@ -92,4 +92,6 @@ The example is synthetic. Supply real points from named frames and pixels. At le
 
 Room view subjects use `edge_mode: "existing_edges"` by default, which emits each selected polygon's edges. Non-section views may set `edge_mode: "coplanar_boundary"` to draw the boundary of a selected coplanar patch after spatial and plan clipping. The drawing helper cancels only shared edge segments used by two selected pieces; it preserves boundaries of concave and disjoint pieces and rejects non-coplanar or non-manifold selections. It assumes a finite, non-overlapping patch with valid edge valences; it does not perform a full polygon union. This mode is rejected for sections, whose cut geometry has separate semantics. Face selection accounting remains unchanged.
 
+Plan `section_marks` must reference one section view by `section_id`; their axis/value must match that view's cut, and the arrow segment must be finite, nonzero, parallel to and directed along the section view's plan direction. Arrow endpoints are checked independently of label placement.
+
 See [blender-review.md](blender-review.md) for the Blender command, inventory scope, candidate comparison and rendering. The Python measurement tools run outside Blender; Blender's own Python supplies `bpy` for scene review.

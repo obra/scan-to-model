@@ -83,6 +83,48 @@ def validate_view_frame(view):
         raise ValueError(f"{view['id']} reflected_ceiling must explicitly declare {reflection_field}")
 
 
+def validate_section_marks(specification):
+    """Validate plan section marks against their uniquely named section views."""
+    sections = [view for view in specification.get('views', []) if view.get('kind') == 'section']
+    marks = specification.get('section_marks', [])
+    for mark in marks:
+        mark_id = mark.get('section_id', mark.get('label', '<unnamed>'))
+        section_id = mark.get('section_id')
+        if not isinstance(section_id, str) or not section_id:
+            raise ValueError(f"section mark {mark_id} must declare section_id")
+        matches = [view for view in sections if view.get('id') == section_id]
+        if len(matches) != 1:
+            raise ValueError(f"section mark {mark_id} must reference one section view")
+        section = matches[0]
+        cut = section.get('cut', {})
+        axis = mark.get('axis')
+        value = mark.get('value_m')
+        try:
+            value = float(value)
+            cut_value = float(cut['value_m'])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError(f"section mark {mark_id} cut must use finite numeric values")
+        if (isinstance(axis, bool) or axis != cut.get('axis') or not np.isfinite(value)
+                or not np.isfinite(cut_value) or not np.isclose(value, cut_value, atol=1e-9, rtol=0)):
+            raise ValueError(f"section mark {mark_id} cut does not match section {section_id}")
+        if axis not in (0, 1):
+            raise ValueError(f"section mark {mark_id} must use plan axis 0 or 1")
+        arrow_from = np.asarray(mark.get('arrow_from'), float)
+        arrow_to = np.asarray(mark.get('arrow_to'), float)
+        if arrow_from.shape != (2,) or arrow_to.shape != (2,) or not np.isfinite(arrow_from).all() or not np.isfinite(arrow_to).all():
+            raise ValueError(f"section mark {mark_id} arrow endpoints must be finite 2-D points")
+        delta = arrow_to - arrow_from
+        length = np.linalg.norm(delta)
+        direction = np.asarray(section.get('view_direction_frame', []), float)
+        plan_direction = direction[:2] if direction.shape == (3,) else np.asarray([])
+        if length <= 1e-12 or plan_direction.shape != (2,) or not np.isfinite(plan_direction).all():
+            raise ValueError(f"section mark {mark_id} arrow must have a finite nonzero plan direction")
+        direction_length = np.linalg.norm(plan_direction)
+        parallel_error = abs(delta[0] * plan_direction[1] - delta[1] * plan_direction[0])
+        if direction_length <= 1e-12 or parallel_error > 1e-7 * length * direction_length or np.dot(delta, plan_direction) <= 0:
+            raise ValueError(f"section mark {mark_id} arrow must follow section {section_id} view direction")
+
+
 def segment_length_inside_bounds(segment, bounds):
     """Return the positive length of a 2-D segment inside rectangular bounds."""
     start, end = np.asarray(segment[0], float), np.asarray(segment[1], float)
@@ -114,12 +156,13 @@ def main():
     parser.add_argument('--output-stem', required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    args.output.mkdir(exist_ok=False)
     module = importlib.util.spec_from_file_location('drawing_math', args.math_helper)
     math = importlib.util.module_from_spec(module)
     module.loader.exec_module(math)
     native = json.loads(args.native.read_text())
     specification = json.loads(args.views.read_text())
+    validate_section_marks(specification)
+    args.output.mkdir(exist_ok=False)
     assert native['model_sha256'] == specification['model_sha256']
     assert digest(args.native) == specification['native_sha256']
     assert native['all_visible_guard']
