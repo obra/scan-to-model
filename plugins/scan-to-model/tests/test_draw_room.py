@@ -39,6 +39,22 @@ class DrawRoomTests(unittest.TestCase):
         ]:
             with self.assertRaises(ValueError):
                 DRAW_ROOM.validate_section_marks(dict(base, section_marks=[bad]))
+        for direction, arrow_from, arrow_to in [
+            ([0, -1, 0], [1.0, -1.7], [1.0, -2.3]),
+            ([0, 1, 0], [1.0, -2.3], [1.0, -1.7]),
+        ]:
+            axis_one = {'id': 'S2', 'kind': 'section',
+                        'cut': {'axis': 1, 'value_m': -2.0},
+                        'view_direction_frame': direction}
+            mark = {'section_id': 'S2', 'axis': 1, 'value_m': -2.0,
+                    'arrow_from': arrow_from, 'arrow_to': arrow_to}
+            DRAW_ROOM.validate_section_marks({'views': [axis_one], 'section_marks': [mark]})
+        with self.assertRaises(ValueError):
+            DRAW_ROOM.validate_section_marks({'views': [section],
+                                              'section_marks': [dict(valid, section_id='missing')]})
+        with self.assertRaises(ValueError):
+            DRAW_ROOM.validate_section_marks({'views': [section, dict(section, id='S1')],
+                                              'section_marks': [valid]})
 
     def test_shape_only_presentation_hides_coordinates_and_legend(self):
         figure, axis = plt.subplots()
