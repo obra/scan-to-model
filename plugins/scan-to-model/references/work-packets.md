@@ -29,6 +29,8 @@ Choose one bounded next increment from the project's coverage atlas and register
 
 Use [scan-to-model](../skills/scan-to-model/SKILL.md) for routing and [project-records.md](project-records.md) for coverage, handoff and bounded completion.
 
+For a follow-up to a settled source investigation, preserve the settled status and attach successor evidence as a handoff note tied to the current project next gate. Do not use an expected-state guard to reopen the investigation or create a new milestone; consult the Chit command's `status` and `help` output for the note syntax.
+
 ## Source examiner
 
 ```text
