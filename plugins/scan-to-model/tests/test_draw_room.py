@@ -256,6 +256,54 @@ class DrawRoomTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('offscreen emits no geometry inside', result.stderr)
 
+    def test_manifest_counts_only_faces_with_emitted_length_inside_bounds(self):
+        native_data = {
+            'schema_version': 1,
+            'status': 'ok',
+            'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha',
+            'objects': [{
+                'name': 'mixed-coverage-mesh',
+                'vertices_world_m': [
+                    [-2, 0, 0], [2, 0, 0], [2, 0, 1], [-2, 0, 1],
+                    [10, 0, 0], [11, 0, 0], [11, 0, 1], [10, 0, 1],
+                ],
+                'polygons': [[0, 1, 2, 3], [4, 5, 6, 7]],
+                'loop_triangles': [],
+            }, {
+                'name': 'offscreen-mesh',
+                'vertices_world_m': [[10, 0, 0], [11, 0, 0], [11, 0, 1], [10, 0, 1]],
+                'polygons': [[0, 1, 2, 3]],
+                'loop_triangles': [],
+            }],
+        }
+        view = {
+            'id': 'E1', 'kind': 'elevation', 'title': 'Coverage fixture', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 0, 1],
+            'view_direction_frame': [0, 1, 0],
+            'subjects': [
+                {'object_id': 'mixed-coverage-mesh', 'style': 'architecture',
+                 'face_indices': [0, 1]},
+                {'object_id': 'offscreen-mesh', 'style': 'architecture',
+                 'face_indices': [0]},
+            ],
+            'bounds_frame': [-1, 1, -1, 2], 'axis_labels': ['horizontal', 'vertical'],
+            'annotations': [],
+        }
+
+        result, manifest = self.run_single_view(view, native_data, return_manifest=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {
+            'mixed-coverage-mesh': [0],
+        })
+        self.assertEqual(manifest['omitted_objects'], [{
+            'view_id': 'E1', 'object_id': 'offscreen-mesh',
+            'reason': 'selected_faces_have_no_segments_inside_declared_bounds',
+            'face_indices': [0],
+        }])
+        self.assertAlmostEqual(manifest['rendered_selections'][0]['emitted_length_inside_bounds'], 4.0)
+
     def test_manifest_separates_exact_point_collapse_from_projection_omission(self):
         native_data = {
             'schema_version': 1,

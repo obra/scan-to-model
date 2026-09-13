@@ -147,6 +147,24 @@ def segment_length_inside_bounds(segment, bounds):
     return float(np.linalg.norm(delta) * max(0.0, last - first))
 
 
+def segment_is_subsegment(segment, source, tolerance=1e-7):
+    """Return whether a finite segment lies on a source segment."""
+    segment = np.asarray(segment, float)
+    source = np.asarray(source, float)
+    source_delta = source[1] - source[0]
+    source_length_squared = source_delta @ source_delta
+    if source_length_squared <= tolerance * tolerance:
+        return False
+    for point in segment:
+        parameter = ((point - source[0]) @ source_delta) / source_length_squared
+        nearest = source[0] + parameter * source_delta
+        if parameter < -tolerance or parameter > 1.0 + tolerance:
+            return False
+        if np.linalg.norm(point - nearest) > tolerance:
+            return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--native', type=Path, required=True)
@@ -195,6 +213,7 @@ def main():
         omitted_objects = []
         validate_view_frame(view)
         right, up = view['right_frame'], view['up_frame']
+        bounds = view['bounds_frame']
         emitted_segments = []
         for subject in view['subjects']:
             name = subject['object_id']
@@ -217,7 +236,8 @@ def main():
                 })
                 continue
             color = styles[subject['style']]['color']
-            segments, used = [], []
+            segments = []
+            face_segments = {}
             boundary_faces = []
             for index in subject['face_indices']:
                 polygon = points[np.asarray(row['polygons'][index], int)]
@@ -251,17 +271,28 @@ def main():
                     if not pieces:
                         continue
                     segments.extend(pieces)
-                    boundary_faces.append(face)
+                    face_segments.setdefault(index, []).extend(pieces)
+                    boundary_faces.append((index, face))
                     drawn = True
                     if subject.get('fill', False) and view['kind'] != 'section' and len(projected) > 2:
                         ax.add_patch(Polygon(projected, closed=True, facecolor=color,
                                              edgecolor='none', alpha=.085))
-                if drawn:
-                    used.append(index)
+                if not drawn:
+                    face_segments.pop(index, None)
             if edge_mode == 'coplanar_boundary':
-                segments = [edge for edge in math.coplanar_boundary_segments(boundary_faces)
+                boundary_segments = [edge for edge in math.coplanar_boundary_segments(
+                    [face for _, face in boundary_faces])
                             if np.linalg.norm(edge[1] - edge[0]) > 1e-7]
-                segments = [math.project(edge, right, up) for edge in segments]
+                segments = [math.project(edge, right, up) for edge in boundary_segments]
+                face_segments = {
+                    index: [math.project(edge, right, up) for edge in boundary_segments
+                            if any(segment_is_subsegment(edge, source)
+                                   for source in math.line_segments(face))]
+                    for index, face in boundary_faces
+                }
+            used = [index for index in subject['face_indices']
+                    if any(segment_length_inside_bounds(edge, bounds) > 1e-9
+                           for edge in face_segments.get(index, []))]
             if segments:
                 emitted_segments.extend(segments)
                 unique = {tuple(sorted(tuple(np.round(p, 7)) for p in edge)): edge
@@ -269,14 +300,20 @@ def main():
                 ax.add_collection(LineCollection(list(unique.values()), colors=color,
                     linewidths=.8 if subject['style'] == 'architecture' else .55,
                     linestyles='--' if subject.get('crop_boundary') and view['kind'] in ('plan', 'reflected_ceiling') else '-', alpha=.85))
-                selection[name] = used
+                if used:
+                    selection[name] = used
+                else:
+                    omitted_objects.append({
+                        'view_id': view['id'], 'object_id': name,
+                        'reason': 'selected_faces_have_no_segments_inside_declared_bounds',
+                        'face_indices': list(subject['face_indices']),
+                    })
             else:
                 omitted_objects.append({
                     'view_id': view['id'], 'object_id': name,
                     'reason': 'selected_faces_emitted_no_segments_after_cuts_or_clips',
                     'face_indices': list(subject['face_indices']),
                 })
-        bounds = view['bounds_frame']
         emitted_length_inside_bounds = sum(
             segment_length_inside_bounds(segment, bounds)
             for segment in emitted_segments
