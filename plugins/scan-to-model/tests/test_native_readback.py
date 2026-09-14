@@ -95,6 +95,97 @@ class NativeReadbackTests(unittest.TestCase):
         path.write_text(json.dumps(data, indent=2) + "\n")
         return path
 
+    def write_fake_blender(self, directory, version_returncode=0):
+        path = directory / "fake-blender.py"
+        script = r"""#!/usr/bin/env python3
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+log = Path(os.environ["FAKE_BLENDER_LOG"])
+with log.open("ab") as stream:
+    stream.write((" ".join(sys.argv[1:]) + "\n").encode())
+if sys.argv[1:] == ["--version"]:
+    sys.stdout.buffer.write(b"Blender fake version\n")
+    sys.stderr.buffer.write(b"version diagnostic \xff\n")
+    raise SystemExit(__VERSION_EXIT__)
+if "-b" in sys.argv:
+    membership_path = Path(os.environ["SCAN_TO_MODEL_NATIVE_MEMBERSHIP"])
+    membership = json.loads(membership_path.read_text())
+    names = [name for group in membership["groups"].values() for name in group["target_names"]]
+    readback = {
+        "schema_version": 4,
+        "model_sha256": membership["model_sha256"],
+        "membership_sha256": hashlib.sha256(membership_path.read_bytes()).hexdigest(),
+        "room_id": membership["room_id"],
+        "requested_target_count": len(names),
+        "target_count": len(names),
+        "objects": [{"name": name} for name in names],
+        "groups": {
+            group: {"target_count": len(spec["target_names"]),
+                    "target_names": spec["target_names"]}
+            for group, spec in membership["groups"].items()
+        },
+        "missing_names": [],
+        "unavailable_from_evaluated_depsgraph": [],
+        "unsupported_types": [],
+    }
+    Path(os.environ["SCAN_TO_MODEL_NATIVE_OUTPUT"]).joinpath(
+        "native-readback.json").write_text(json.dumps(readback))
+    raise SystemExit(0)
+raise SystemExit(99)
+"""
+        path.write_text(script.replace("__VERSION_EXIT__", str(version_returncode)))
+        path.chmod(0o755)
+        return path
+
+    def run_fake_blender(self, root, version_returncode=0):
+        model = root / "model.blend"
+        model.write_bytes(b"fake blend")
+        model_sha = hashlib.sha256(model.read_bytes()).hexdigest()
+        membership = self.write_membership(root, self.membership(model_sha))
+        blender = self.write_fake_blender(root, version_returncode=version_returncode)
+        log = root / "blender-calls.log"
+        output = root / "readback"
+        environment = os.environ.copy()
+        environment["FAKE_BLENDER_LOG"] = str(log)
+        result = subprocess.run(
+            [sys.executable, "-B", str(LAUNCHER), "--blender", str(blender),
+             "--blend", str(model), "--membership", str(membership), "--output", str(output)],
+            env=environment, capture_output=True, text=True)
+        return result, output, log
+
+    def test_version_probe_precedes_model_launch_and_preserves_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result, output, log = self.run_fake_blender(Path(temporary))
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertEqual(log.read_text().splitlines()[0], "--version")
+            self.assertIn("-b", log.read_text().splitlines()[1].split())
+            self.assertEqual((output / "blender-version.stdout").read_bytes(), b"Blender fake version\n")
+            self.assertEqual((output / "blender-version.stderr").read_bytes(), b"version diagnostic \xff\n")
+            preflight = json.loads((output / "preflight.json").read_text())
+            receipt = json.loads((output / "launch-receipt.json").read_text())
+            for record in (preflight, receipt):
+                self.assertEqual(record["blender"]["version"]["returncode"], 0)
+                self.assertEqual(record["blender"]["version"]["stdout"]["bytes"], 21)
+                self.assertEqual(record["blender"]["version"]["stderr"]["bytes"], 21)
+                self.assertEqual(record["blender"]["path"], str(Path(temporary) / "fake-blender.py"))
+
+    def test_failed_version_probe_prevents_model_launch_and_keeps_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result, output, log = self.run_fake_blender(Path(temporary), version_returncode=7)
+            self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+            self.assertEqual(log.read_text().splitlines(), ["--version"])
+            self.assertEqual((output / "blender-version.stdout").read_bytes(), b"Blender fake version\n")
+            self.assertEqual((output / "blender-version.stderr").read_bytes(), b"version diagnostic \xff\n")
+            preflight = json.loads((output / "preflight.json").read_text())
+            receipt = json.loads((output / "launch-receipt.json").read_text())
+            self.assertEqual(preflight["blender"]["version"]["returncode"], 7)
+            self.assertEqual(receipt["status"], "fail")
+            self.assertEqual(receipt["failure_stage"], "blender_version")
+
     def test_strict_membership_rejects_duplicate_and_missing_names(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

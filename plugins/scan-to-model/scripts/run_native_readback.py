@@ -25,6 +25,20 @@ def blender_command(blender, blend, runtime, worker):
             "--python", str(worker)]
 
 
+def query_blender_version(blender):
+    command = [str(blender), "--version"]
+    process = subprocess.run(command, capture_output=True, check=False)
+    return {"argv": command, "returncode": process.returncode,
+            "stdout": process.stdout, "stderr": process.stderr}
+
+
+def record_version_output(output, name, data):
+    path = output / name
+    path.write_bytes(data)
+    return {"path": name, "sha256": digest(path), "bytes": len(data),
+            "text": data.decode("utf-8", errors="replace")}
+
+
 def prepare_runtime(output, membership_path, source_launcher=None, worker=WORKER,
                     runtime_helper=RUNTIME_HELPER):
     """Create the frozen Blender runtime and return its launch environment."""
@@ -97,10 +111,16 @@ def main():
     frozen = prepared["frozen"]
     environment = prepared["environment"]
     controlled_environment = prepared["environment_overrides"]
+    blender_sha256 = digest(blender)
+    version_query = query_blender_version(blender)
+    version = {"argv": version_query["argv"], "returncode": version_query["returncode"],
+               "stdout": record_version_output(output, "blender-version.stdout", version_query["stdout"]),
+               "stderr": record_version_output(output, "blender-version.stderr", version_query["stderr"])}
+    blender_identity = {"path": str(blender), "sha256": blender_sha256, "version": version}
     command = blender_command(blender, blend, frozen_runtime, frozen_worker)
-    preflight = {"status": "frozen_before_process", "argv": command,
-                 "environment_overrides": controlled_environment,
-                 "inherited_environment_passed": True,
+    preflight = {"status": "frozen_before_process" if version["returncode"] == 0 else "blender_version_failed",
+                 "argv": command, "environment_overrides": controlled_environment,
+                 "inherited_environment_passed": True, "blender": blender_identity,
                  "blend": {"path": str(blend), "sha256": before_model},
                  "membership": {"path": str(frozen_membership), "sha256": frozen["membership"]},
                  "producer": {"path": str(frozen_worker), "sha256": frozen["producer"]},
@@ -109,9 +129,15 @@ def main():
                  "source_launcher_sha256": before_launcher,
                  "no_save": True, "no_render": True}
     (output / "preflight.json").write_text(json.dumps(preflight, indent=2, sort_keys=True) + "\n")
-    process = subprocess.run(command, cwd=output, env=environment, capture_output=True, text=True)
-    (output / "stdout.log").write_text(process.stdout)
-    (output / "stderr.log").write_text(process.stderr)
+    launched = version["returncode"] == 0
+    if launched:
+        process = subprocess.run(command, cwd=output, env=environment, capture_output=True, text=True)
+        (output / "stdout.log").write_text(process.stdout)
+        (output / "stderr.log").write_text(process.stderr)
+    else:
+        process = None
+        (output / "stdout.log").write_bytes(b"")
+        (output / "stderr.log").write_bytes(b"")
     after_model = digest(blend)
     after_launcher = digest(source_launcher)
     after_frozen = {key: digest(path) for key, path in (
@@ -142,8 +168,11 @@ def main():
             )
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
             readback_contract = False
-    output_files = [output / name for name in ("preflight.json", "stdout.log", "stderr.log", "native-readback.json") if (output / name).is_file()]
-    checks = {"model_unchanged": after_model == before_model,
+    output_files = [output / name for name in ("preflight.json", "blender-version.stdout",
+                   "blender-version.stderr", "stdout.log", "stderr.log", "native-readback.json")
+                    if (output / name).is_file()]
+    checks = {"version_query_succeeded": version["returncode"] == 0,
+              "model_launch_started": launched, "model_unchanged": after_model == before_model,
               "membership_unchanged": after_frozen["membership"] == frozen["membership"],
               "producer_unchanged": after_frozen["producer"] == frozen["producer"],
               "runtime_unchanged": after_frozen["runtime"] == frozen["runtime"],
@@ -151,10 +180,12 @@ def main():
               "source_launcher_unchanged": after_launcher == before_launcher,
               "readback_present": readback.is_file(),
               "readback_contract": readback_contract}
-    status = "pass" if process.returncode == 0 and all(checks.values()) else "fail"
-    receipt = {"status": status, "returncode": process.returncode, "argv": command,
-               "environment_overrides": controlled_environment,
-               "inherited_environment_passed": True,
+    status = "pass" if launched and process.returncode == 0 and all(checks.values()) else "fail"
+    receipt = {"status": status,
+               "returncode": process.returncode if process is not None else version["returncode"],
+               "failure_stage": "blender_version" if not launched else None,
+               "argv": command, "environment_overrides": controlled_environment,
+               "inherited_environment_passed": True, "blender": blender_identity,
                "blender_stdout": "stdout.log", "blender_stderr": "stderr.log",
                "before": {"model_sha256": before_model, **frozen},
                "after": {"model_sha256": after_model, "source_launcher_sha256": after_launcher,
