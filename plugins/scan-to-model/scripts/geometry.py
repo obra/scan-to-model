@@ -93,11 +93,12 @@ def solid_bar(tangent, normal, plane_constant, u_bounds, z_bounds, depth):
     }
 
 
-def aperture_bars(aperture_u, aperture_z, width, outer_u):
-    """Return four non-overlapping rectangular bar bounds around an aperture."""
+def aperture_bars(aperture_u, aperture_z, width, outer_u, outer_z):
+    """Return four non-overlapping rectangular bar bounds and their true outer margins."""
     aperture_lo, aperture_hi = _bounds(aperture_u, "aperture_u")
     sill, head = _bounds(aperture_z, "aperture_z")
     outer_lo, outer_hi = _bounds(outer_u, "outer_u")
+    outer_sill, outer_head = _bounds(outer_z, "outer_z")
     width = float(width)
     if not isfinite(width) or width <= 0.0:
         raise ValueError("width must be positive and finite")
@@ -105,9 +106,13 @@ def aperture_bars(aperture_u, aperture_z, width, outer_u):
     right_margin = outer_hi - aperture_hi
     if left_margin < width or right_margin < width:
         raise ValueError("Aperture casing does not have the required outer margin")
+    sill_margin = sill - outer_sill
+    head_margin = outer_head - head
+    if sill_margin < width or head_margin < width:
+        raise ValueError("Aperture casing does not have the required outer margin")
     return [
         {"id": "left", "u_bounds": (aperture_lo - width, aperture_lo), "z_bounds": (sill, head), "margin_m": left_margin},
         {"id": "right", "u_bounds": (aperture_hi, aperture_hi + width), "z_bounds": (sill, head), "margin_m": right_margin},
-        {"id": "sill", "u_bounds": (aperture_lo - width, aperture_hi + width), "z_bounds": (sill - width, sill), "margin_m": min(left_margin, right_margin)},
-        {"id": "head", "u_bounds": (aperture_lo - width, aperture_hi + width), "z_bounds": (head, head + width), "margin_m": min(left_margin, right_margin)},
+        {"id": "sill", "u_bounds": (aperture_lo - width, aperture_hi + width), "z_bounds": (sill - width, sill), "margin_m": sill_margin},
+        {"id": "head", "u_bounds": (aperture_lo - width, aperture_hi + width), "z_bounds": (head, head + width), "margin_m": head_margin},
     ]
