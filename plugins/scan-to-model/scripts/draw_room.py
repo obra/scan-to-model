@@ -118,16 +118,14 @@ def validate_view_frame(view):
         raise ValueError(f"{view['id']} {reflection_field} must be boolean")
     if reflected and view['kind'] != 'reflected_ceiling':
         raise ValueError(f"{view['id']} {reflection_field} is only valid for reflected_ceiling")
-    if reflected and not np.allclose(direction, [0.0, 0.0, 1.0], atol=1e-7):
-        raise ValueError(f"{view['id']} {reflection_field} requires an upward +Z view_direction_frame")
+    if view['kind'] == 'reflected_ceiling' and not np.allclose(direction, [0.0, 0.0, 1.0], atol=1e-7):
+        raise ValueError(f"{view['id']} reflected_ceiling requires an upward +Z view_direction_frame")
     expected_right = np.cross(direction, up)
     if reflected:
         expected_right = -expected_right
     if not np.allclose(right, expected_right, atol=1e-7):
         relation = '-cross(view_direction_frame, up_frame)' if reflected else 'cross(view_direction_frame, up_frame)'
         raise ValueError(f"{view['id']} right_frame must equal {relation}")
-    if view['kind'] == 'reflected_ceiling' and not reflected:
-        raise ValueError(f"{view['id']} reflected_ceiling must explicitly declare {reflection_field}")
 
 
 def validate_section_marks(specification):

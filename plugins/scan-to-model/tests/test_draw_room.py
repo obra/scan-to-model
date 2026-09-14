@@ -450,6 +450,53 @@ class DrawRoomTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('bad-direction right_frame must equal', result.stderr)
 
+    def test_view_frame_accepts_ordinary_and_reflected_upward_rcp(self):
+        ordinary = {
+            'id': 'R1', 'kind': 'reflected_ceiling',
+            'right_frame': [-1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, 1],
+        }
+        reflected = dict(ordinary, id='reflected-rcp', right_frame=[1, 0, 0],
+                         horizontal_reflection_of_upward_camera=True)
+        ordinary_explicit = dict(ordinary, id='ordinary-explicit',
+                                 horizontal_reflection_of_upward_camera=False)
+        DRAW_ROOM.validate_view_frame(ordinary)
+        DRAW_ROOM.validate_view_frame(ordinary_explicit)
+        DRAW_ROOM.validate_view_frame(reflected)
+
+    def test_view_frame_rejects_rcp_handedness_and_non_upward_direction(self):
+        ordinary_wrong = {
+            'id': 'ordinary-wrong', 'kind': 'reflected_ceiling',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, 1],
+        }
+        reflected_wrong = dict(ordinary_wrong, id='reflected-wrong',
+                               horizontal_reflection_of_upward_camera=True)
+        reflected_wrong['right_frame'] = [-1, 0, 0]
+        non_upward = dict(ordinary_wrong, id='non-upward', right_frame=[1, 0, 0],
+                          up_frame=[0, 0, 1], view_direction_frame=[0, 1, 0])
+        for view in (ordinary_wrong, reflected_wrong, non_upward):
+            with self.assertRaises(ValueError):
+                DRAW_ROOM.validate_view_frame(view)
+
+    def test_ordinary_upward_rcp_renders_negative_u_bounds(self):
+        view = {
+            'id': 'P1', 'kind': 'reflected_ceiling',
+            'title': 'Ordinary RCP', 'note': 'fixture',
+            'right_frame': [-1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, 1],
+            'bounds_frame': [-3, 1, -1, 3],
+            'axis_labels': ['horizontal', 'vertical'], 'annotations': [],
+            'cut': {'axis': 2, 'value_m': 0.5, 'keep_below': False},
+            'subjects': [{'object_id': 'fixture-mesh', 'style': 'architecture',
+                          'face_indices': [0]}],
+        }
+        result, manifest, outputs = self.run_single_view(
+            view, return_manifest=True, return_outputs=True, skip_overview=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(manifest['rendered_selections'][0]['view_id'], 'P1')
+        self.assertTrue(outputs['detail_png'])
+
     def test_requires_declared_view_direction(self):
         result = self.run_single_view({
             'id': 'missing-direction', 'kind': 'plan', 'title': 'Missing direction', 'note': 'fixture',
