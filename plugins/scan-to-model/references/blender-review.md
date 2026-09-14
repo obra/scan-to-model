@@ -41,6 +41,10 @@ For each required feature, every declared object must meet both visibility thres
 
 The validator also requires exact scene membership, floor-relative eye height for walkthrough shots, cut transitions, decodable hash-bound samples, and coverage of all required material and image IDs. These are consistency checks over reported scene, projection, occlusion, material, image, and inspection evidence. They do not independently prove what the rendered pixels depict; retain the samples and the visual review findings with the validation result.
 
+### World-metre floor textures
+
+Generated shader coordinates scale with each object's bounds, so the same texture can become one oversized tile per room. For floor appearance overrides, feed `Geometry.Position` through an explicit mapping whose repeat values are recorded in metres and whose axes are shared across the floor objects. A tangent-space normal image must use matching tangent coordinates; a normal image mapped directly from world coordinates must use the shader's world normal space. Keep the override on an object-linked disposable material copy so native shared materials, image records and source tags remain unchanged.
+
 ## Keep diagnostic geometry out of physical placement
 
 A ray intersection, projected point, fitted plane or sensitivity trial can be numerically exact while remaining diagnostic. Its coordinates do not establish the physical surface used to derive them, a contact at that surface or an attachment between modeled parts. Keep the observation, assumed construction, derived result and disposition linked when evidence passes between tools. The project's explicit handoff schema should preserve the source identity and uncertainty, the assumed plane or other construction, the result, its allowed uses, and whether independent evidence has accepted it for physical placement. Do not infer acceptance from coordinates being present or from words embedded in an arbitrary property string.
