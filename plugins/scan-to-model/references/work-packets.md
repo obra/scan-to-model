@@ -63,6 +63,8 @@ Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-revi
 
 ```text
 Review the supplied candidate or evidence packet against its declared scope and immutable input hashes. Preserve the evidence packet itself, including failed attempts, their exact producer bytes when available, and retained inputs. Use a fresh review output directory; retain command, runtime, failure and receipt details. Archived producers may write beside their scripts, so inspect write behavior before rerunning and use frozen input copies or an explicit fresh output path. Check source identity, accepted versus diagnostic roles, preservation of unrelated content, model membership and visual evidence. Return pass, bounded pass, or fail with exact findings and the next gate. Do not repair the candidate, promote geometry, or treat a valid tool receipt as proof of depicted pixels or physical acceptance.
+
+Preservation is fail-closed: additions must match the exact declared allowlist, while undeclared changes or removals across every compared datablock fail the review. Match scene identities and list counts before pairing scene records; never zip unmatched lists and treat the comparison as complete.
 ```
 
 Use [blender-review.md](blender-review.md) for saved-scene and presentation review. For scripted presentations, validate the contract and hash-bound sample receipt with `scripts/presentation.py`, then inspect the actual sample images.
