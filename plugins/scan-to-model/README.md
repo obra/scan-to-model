@@ -26,6 +26,7 @@ Read [commands and scan-geometry JSON examples](references/formats.md), the [sou
 - `scripts/observations.py`: validate native marks and render exact-byte source sheets plus native-scale assertion and endpoint review crops.
 - `scripts/reference.py`: create finite metre point references with frame/pixel provenance.
 - `scripts/surfaces.py`: measure source-photo polygons; save native samples, fits and evidence figures.
+- `scripts/run_surfaces.py`: freeze the surface sampler and its native image helpers, resolve capture paths, and record a replayable subprocess receipt.
 - `scripts/manufactured.py`: [fit manufactured rectangles](references/manufactured-shapes.md) in common component axes and report original controls and residuals.
 - `scripts/register.py`: fit unit-scale rigid landmark alignment and report withheld checks.
 - `scripts/blender_review.py`: run inside Blender to inventory and render without saving the input.
