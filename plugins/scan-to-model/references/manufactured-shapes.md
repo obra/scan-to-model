@@ -4,6 +4,8 @@ Use a component-local shape pass when evidence establishes manufactured rectangl
 
 Establish the opening's operating type from source evidence or the owner before measuring through profiles. Pocket and sliding assemblies can expose retracted leaf edges alongside fixed linings or trim, so keep moving-part identity separate from sampled surfaces and fitted points; an opaque planar patch alone is not a fixed registration control.
 
+Before declaring an interior window edge unavailable or repeating curtain/glass depth probes, inspect exterior RGB or scans for the same opening. Establish correspondence from fixed neighboring landmarks and capture sequence, accounting for left/right reversal; use opaque surrounding wall or frame depth for plane support, with glass only as visible boundary evidence. Keep dimensions and registration qualified: matching-looking windows alone do not establish correspondence.
+
 Regular shape does not establish nominal stock dimensions, installation plumb, house registration, hidden depth profiles or exact product reuse. Preserve the original controls, constraint justification and dimensional qualification. The helper carries arbitrary JSON metadata unchanged; it does not validate that metadata or decide which parts belong together. Investigate large residuals against existing evidence allowances. Update dependent openings/profiles from the constrained geometry and verify the saved native meshes as described in [Blender review](blender-review.md).
 
 ## Numeric contract
