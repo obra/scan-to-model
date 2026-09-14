@@ -61,6 +61,8 @@ For a room's native extraction or drawing, derive membership from accepted objec
 For native extraction, preserve the exact producer bytes beside each attempt, whether it succeeds or fails. If correction is needed, use a fresh runtime directory and bind that process to its own frozen producer, inputs and outputs; if failed-producer bytes are unavailable, record that gap explicitly rather than claiming complete preservation.
 
 For geometry producers, declare the source and destination coordinate frames and apply the source-to-model transform exactly once before deriving extents, voids, or attached parts. When a reviewed plan supplies explicit vertices and faces, consume those arrays verbatim and validate the resulting mesh against the plan. Appearance parameters are not geometry: resolve shader inputs, UV mapping, and created datablock names in the saved candidate and record those resolved values in the receipt.
+
+Reuse `geometry.panel_quad` for regular planar faces so its finite and increasing bounds and outward-orientation checks apply. A physical perforated panel retains its filled surface minus actual apertures; tracing aperture outlines with curves is not equivalent. When an accepted panel mesh already supplies the true holes, reuse its saved surface geometry within the authorized coordinate transform instead of recreating it from contours.
 ```
 
 Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-review.md](blender-review.md), and [manufactured-shapes.md](manufactured-shapes.md) for candidate, component and saved-file contracts.
