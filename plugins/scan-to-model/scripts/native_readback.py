@@ -76,7 +76,7 @@ def _scalar(value, bpy):
         return value.decode("ascii", errors="replace")
     if isinstance(value, bpy.types.ID):
         return {"name": value.name, "library": value.library.filepath if value.library else None}
-    if isinstance(value, dict):
+    if hasattr(value, "items"):
         return {str(key): _scalar(item, bpy) for key, item in value.items()}
     if isinstance(value, (list, tuple, set)):
         return [_scalar(item, bpy) for item in value]

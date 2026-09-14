@@ -25,6 +25,24 @@ LAUNCHER_SPEC.loader.exec_module(LAUNCHER_MODULE)
 sys.path.pop(0)
 
 
+class MappingLike:
+    """Small stand-in for Blender's mapping-like IDPropertyGroup."""
+
+    def __init__(self, values):
+        self.values = values
+
+    def items(self):
+        return self.values.items()
+
+    def __iter__(self):
+        return iter(self.values)
+
+
+class FakeBpy:
+    class types:
+        ID = type("ID", (), {})
+
+
 class NativeReadbackTests(unittest.TestCase):
     def test_blender_command_uses_factory_startup_and_two_threads(self):
         command = LAUNCHER_MODULE.blender_command(
@@ -66,6 +84,20 @@ class NativeReadbackTests(unittest.TestCase):
             model.write_bytes(b"fixture")
             with self.assertRaisesRegex(ValueError, "mismatch"):
                 MODULE.validate_model_hash(model, "0" * 64)
+
+    def test_scalar_preserves_nested_mapping_properties(self):
+        properties = MappingLike({
+            "path": "/tmp/candidate.blend",
+            "sha256": "abc123",
+            "attempt": 2,
+            "nested": MappingLike({"verified": True}),
+        })
+        self.assertEqual(MODULE._scalar(properties, FakeBpy), {
+            "path": "/tmp/candidate.blend",
+            "sha256": "abc123",
+            "attempt": 2,
+            "nested": {"verified": True},
+        })
 
     @unittest.skipUnless(os.environ.get("SCAN_TO_MODEL_BLENDER"), "set SCAN_TO_MODEL_BLENDER for Blender integration")
     def test_actual_blender_readback_includes_excluded_parented_curve_and_empty_mesh(self):
