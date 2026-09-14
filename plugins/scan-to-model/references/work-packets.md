@@ -44,6 +44,8 @@ Source identity includes the assembly side and face. Before concluding that a ne
 
 Before selecting same-kind objects, enforce the assigned floor, room and capture identity; report objects from a different identity as excluded rather than substituting them by appearance or name.
 
+For completion subtraction, match each fulfilled and remaining obligation to its explicit physical room and level and exact capture identity; do not subtract a same-named item from another level or capture. Separately verify authoring-record presence and native Blender-object presence: geometry JSON or detail rows are records until native-object presence is independently confirmed. Name resemblance is a discovery hint, not scope fulfillment.
+
 For source-readiness checks, perform the queue and ledger disposition lookup before opening predecessor reports or producers. An accepted identity check is a dependency to carry forward, not a new proposed gate; keep any separately pending metric, placement or contact scope explicit.
 ```
 
