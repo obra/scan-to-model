@@ -10,7 +10,7 @@ For each capture record its archive path/hash, capture date and condition, extra
 
 Use one row per room surface or connection: floor, each wall/opening, ceiling/soffit, adjacent room/landing, and visible service segment. Record supported/partial/conflicting/inaccessible/unobserved, dated sources, what was actually examined, remaining constraint, and next action. Maintain the room adjacency graph alongside the plan. A doorway seen from one room does not certify the adjoining room's depth or the inter-room transform.
 
-Coverage and PM joins use stable level, room, and register IDs. A proposed mapping carries the exact original obligation text; ID existence or substring matches do not establish that the mapped record has the same scope. A held item remains unexamined until a dated examination record says otherwise.
+Coverage and PM joins use stable level, room, and register IDs. A proposed mapping carries the exact original obligation text; ID existence or substring matches do not establish that the mapped record has the same scope. Held describes an unresolved obligation; examined, unexamined, or unknown must come from examination records rather than the held status.
 
 ## Owner observations
 
