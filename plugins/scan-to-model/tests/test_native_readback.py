@@ -85,10 +85,10 @@ class NativeReadbackTests(unittest.TestCase):
 
     def membership(self, model_sha):
         return {"room_id": "fixture-room", "model_sha256": model_sha,
-                "groups": {"architecture": {"target_names": ["Fixture mesh", "Fixture excluded mesh"]},
+                "groups": {"architecture": {"target_names": ["Fixture mesh", "Fixture beveled cube", "Fixture excluded mesh"]},
                             "services": {"target_names": ["Fixture curve"]},
                             "empty": {"target_names": ["Fixture empty mesh"]}},
-                "counts": {"total_native_targets": 4}}
+                "counts": {"total_native_targets": 5}}
 
     def write_membership(self, directory, data):
         path = directory / "membership.json"
@@ -236,7 +236,7 @@ raise SystemExit(99)
             result = subprocess.run([sys.executable, "-B", str(LAUNCHER), "--blender", str(blender), "--blend", str(blend), "--membership", str(membership), "--output", str(output)], env=launch_environment, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             readback = json.loads((output / "native-readback.json").read_text())
-            self.assertEqual(readback["target_count"], 4)
+            self.assertEqual(readback["target_count"], 5)
             rows = {row["name"]: row for row in readback["objects"]}
             self.assertEqual(rows["Fixture empty mesh"]["vertices_local_m"], [])
             self.assertEqual(rows["Fixture empty mesh"]["polygons"], [])
@@ -252,6 +252,14 @@ raise SystemExit(99)
             self.assertIn("Fixture excluded", rows["Fixture excluded mesh"]["collections"])
             self.assertGreater(len(rows["Fixture curve"]["vertices_world_m"]), 0)
             self.assertGreater(len(rows["Fixture curve"]["polygons"]), 0)
+            beveled = rows["Fixture beveled cube"]
+            self.assertEqual(beveled["guard"]["original_mesh_vertex_count"], 8)
+            self.assertEqual(beveled["guard"]["original_mesh_polygon_count"], 6)
+            self.assertGreater(beveled["guard"]["evaluated_mesh_vertex_count"], 8)
+            self.assertGreater(beveled["guard"]["evaluated_mesh_polygon_count"], 6)
+            self.assertEqual(beveled["modifiers"][0]["type"], "BEVEL")
+            self.assertIsNone(rows["Fixture curve"]["guard"]["original_mesh_vertex_count"])
+            self.assertIsNone(rows["Fixture curve"]["guard"]["original_mesh_polygon_count"])
             for row in rows.values():
                 self.assertTrue(row["guard"]["present_in_depsgraph"])
                 self.assertTrue(row["guard"]["is_evaluated"])

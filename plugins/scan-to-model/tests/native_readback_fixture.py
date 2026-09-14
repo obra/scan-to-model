@@ -32,6 +32,20 @@ def main():
     mesh.hide_viewport = True
     mesh.hide_render = True
 
+    cube_data = bpy.data.meshes.new("Fixture beveled cube data")
+    cube_data.from_pydata([
+        (-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
+    ], [], [
+        (0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4),
+        (1, 2, 6, 5), (2, 3, 7, 6), (4, 7, 3, 0),
+    ])
+    cube = bpy.data.objects.new("Fixture beveled cube", cube_data)
+    room.objects.link(cube)
+    bevel = cube.modifiers.new("Fixture bevel", "BEVEL")
+    bevel.width = 0.1
+    bevel.segments = 2
+
     curve_data = bpy.data.curves.new("Fixture curve data", "CURVE")
     curve_data.dimensions = "3D"
     curve_data.bevel_depth = 0.05
