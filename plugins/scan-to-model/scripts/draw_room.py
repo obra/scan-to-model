@@ -17,19 +17,6 @@ import numpy as np
 DEFAULT_LEGEND = 'Blue-gray: architecture   •   Ochre: services   •   Purple: contents   •   Dashed: finish footprint, including crops and open seams'
 
 
-def subtitle_lines(note, width=140):
-    """Split subtitle text into at most two complete character-preserving lines."""
-    if not isinstance(note, str):
-        raise ValueError('subtitle must be a string')
-    if len(note) <= width:
-        return [note]
-    midpoint = len(note) // 2
-    split = note.rfind(' ', 0, midpoint + 1)
-    if split <= 0:
-        split = midpoint
-    return [note[:split], note[split:]]
-
-
 def _subtitle_artist(fig, note, title_artist):
     """Add a subtitle using measured glyph bounds inside the existing header band."""
     fig.canvas.draw()
@@ -38,10 +25,8 @@ def _subtitle_artist(fig, note, title_artist):
     left, right = .055 * figure_width, .945 * figure_width
     lower = .86 * figure_height
     title_bbox = title_artist.get_window_extent(renderer)
-    if note == '':
-        return fig.text(.055, .918, note, fontsize=10, color='#475569')
     from matplotlib.font_manager import FontProperties
-    for fontsize in np.arange(10.0, 5.9, -.5):
+    for fontsize in np.arange(10.0, 7.9, -.5):
         prop = FontProperties(size=float(fontsize))
         lines, current = [], ''
         for character in note:
@@ -52,13 +37,20 @@ def _subtitle_artist(fig, note, title_artist):
             candidate = current + character
             width = renderer.get_text_width_height_descent(candidate, prop, ismath=False)[0]
             if width > right - left and current:
-                lines.append(current)
-                current = character
+                boundary = current.rfind(' ')
+                if boundary > 0:
+                    lines.append(current[:boundary])
+                    current = current[boundary:] + character
+                else:
+                    lines.append(current)
+                    current = character
             else:
                 current = candidate
         lines.append(current)
         if len(lines) > 2:
             continue
+        if len(lines) == 1 and fontsize == 10.0 and '\n' not in note:
+            return fig.text(.055, .918, note, fontsize=10, color='#475569')
         artist = fig.text(.055, .918, '\n'.join(lines), fontsize=float(fontsize),
                            color='#475569', va='top')
         fig.canvas.draw()

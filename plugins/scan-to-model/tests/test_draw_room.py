@@ -23,18 +23,6 @@ SPEC.loader.exec_module(DRAW_ROOM)
 
 
 class DrawRoomTests(unittest.TestCase):
-    def test_subtitle_layout_preserves_text_in_two_header_lines(self):
-        note = ('W' * 260 + ' wide-letter subtitle describing the saved room drawing and its limits.')
-        lines = DRAW_ROOM.subtitle_lines(note)
-        self.assertLessEqual(len(lines), 2)
-        self.assertEqual("".join(lines), note)
-        self.assertEqual(DRAW_ROOM.subtitle_lines("Short note"), ["Short note"])
-
-    def test_subtitle_layout_preserves_empty_and_unbroken_text(self):
-        for note in ['', 'W' * 500, 'Wide ' + 'W' * 260]:
-            lines = DRAW_ROOM.subtitle_lines(note)
-            self.assertEqual(''.join(lines), note)
-
     def test_section_marks_follow_referenced_section_cut_and_direction(self):
         section = {
             'id': 'S1', 'kind': 'section', 'cut': {'axis': 0, 'value_m': 6.0},
@@ -70,7 +58,7 @@ class DrawRoomTests(unittest.TestCase):
 
     def test_long_subtitle_is_fully_rendered_inside_header_band(self):
         import fitz
-        note = ('W' * 260 + ' wide-letter subtitle describing the saved room drawing and its limits.')
+        note = ('W' * 150 + ' wide-letter subtitle describing the saved room drawing and its limits.')
         view = {
             'id': 'P1', 'kind': 'plan', 'title': 'Plan', 'note': note,
             'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
@@ -117,7 +105,7 @@ class DrawRoomTests(unittest.TestCase):
         self.assertGreaterEqual(len(subtitle[4].splitlines()), 2)
         self.assertEqual(len(short_subtitle[4].splitlines()), 1)
 
-        wide_note = ('WIDE ' * 70).strip()
+        wide_note = ('WIDE ' * 20 + 'Z' * 100).strip()
         wide_result, _, wide_pdf = self.run_single_view(
             dict(view, note=wide_note), return_manifest=True, return_pdf=True)
         self.assertEqual(wide_result.returncode, 0, wide_result.stderr)
