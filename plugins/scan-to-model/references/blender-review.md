@@ -84,6 +84,8 @@ command = blender_command(blender, blend, prepared["runtime_helper"], prepared["
 subprocess.run(command, cwd=prepared["output"], env=prepared["environment"], check=True)
 ```
 
+Custom workers must resolve their frozen membership and other inputs through the returned paths and environment. The helper copies the worker to `runtime-01/native_readback.py` and the launcher to `runtime-01/run_native_readback.py`; arbitrary scripts that depend on their original relative paths are not drop-in replacements.
+
 Create the unique retained runtime root and its directories before launch. Do not redirect `HOME` or `CODEX_HOME`. A background review uses this order; add the GUI display variables described below only for interactive review:
 
 ```sh
