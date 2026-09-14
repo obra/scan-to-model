@@ -23,6 +23,15 @@ SPEC.loader.exec_module(DRAW_ROOM)
 
 
 class DrawRoomTests(unittest.TestCase):
+    def test_subtitle_layout_preserves_text_in_two_header_lines(self):
+        note = ("This is a deliberately long subtitle describing the saved room drawing, "
+                "its source-qualified subjects, visible finish boundaries, and the limits "
+                "that remain around hidden contacts and survey accuracy.")
+        lines = DRAW_ROOM.subtitle_lines(note)
+        self.assertLessEqual(len(lines), 2)
+        self.assertEqual(" ".join(lines), note)
+        self.assertEqual(DRAW_ROOM.subtitle_lines("Short note"), ["Short note"])
+
     def test_section_marks_follow_referenced_section_cut_and_direction(self):
         section = {
             'id': 'S1', 'kind': 'section', 'cut': {'axis': 0, 'value_m': 6.0},
@@ -56,6 +65,44 @@ class DrawRoomTests(unittest.TestCase):
             DRAW_ROOM.validate_section_marks({'views': [section, dict(section, id='S1')],
                                               'section_marks': [valid]})
 
+    def test_long_subtitle_is_fully_rendered_inside_header_band(self):
+        import fitz
+        note = ("This is a deliberately long subtitle describing the saved room drawing, "
+                "its source-qualified subjects, visible finish boundaries, and the limits "
+                "that remain around hidden contacts and survey accuracy.")
+        view = {
+            'id': 'P1', 'kind': 'plan', 'title': 'Plan', 'note': note,
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, -1], 'bounds_frame': [-1, 3, -1, 3],
+            'axis_labels': ['horizontal', 'vertical'], 'cut': {'axis': 2, 'value_m': 0.5, 'keep_below': True},
+            'annotations': [],
+            'subjects': [{'object_id': 'fixture-mesh', 'style': 'architecture', 'face_indices': [0]}],
+        }
+        result, _, pdf_bytes = self.run_single_view(view, return_manifest=True, return_pdf=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        page = fitz.open(stream=pdf_bytes, filetype='pdf')[0]
+        blocks = [block for block in page.get_text('blocks') if block[4].strip()]
+        title = next(block for block in blocks if 'P1 | Fixture Room' in block[4])
+        subtitle = next(block for block in blocks if note.split(',')[0] in block[4])
+        self.assertIn(note, subtitle[4].replace('\n', ' '))
+        self.assertGreaterEqual(subtitle[0], 0)
+        self.assertLessEqual(subtitle[2], page.rect.width)
+        self.assertGreaterEqual(subtitle[1], title[3])
+        self.assertLessEqual(subtitle[3], page.rect.height)
+
+        short_view = dict(view, note='Short note')
+        short_result, _, short_pdf = self.run_single_view(short_view, return_manifest=True, return_pdf=True)
+        self.assertEqual(short_result.returncode, 0, short_result.stderr)
+        short_page = fitz.open(stream=short_pdf, filetype='pdf')[0]
+        short_blocks = [block for block in short_page.get_text('blocks') if block[4].strip()]
+        short_title = next(block for block in short_blocks if 'P1 | Fixture Room' in block[4])
+        short_subtitle = next(block for block in short_blocks if 'Short note' in block[4])
+        self.assertAlmostEqual(short_title[1], title[1], places=3)
+        self.assertAlmostEqual(short_subtitle[0], subtitle[0], places=3)
+        self.assertGreaterEqual(short_subtitle[1], short_title[3])
+        self.assertLess(short_subtitle[3], page.rect.height * 0.24)
+        self.assertLess(short_subtitle[3] - short_subtitle[1], subtitle[3] - subtitle[1])
+
     def test_shape_only_presentation_hides_coordinates_and_legend(self):
         figure, axis = plt.subplots()
         try:
@@ -79,7 +126,7 @@ class DrawRoomTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'legend mode'):
             DRAW_ROOM.legend_text({'id': 'bad', 'legend': 'none'})
 
-    def run_single_view(self, view, native_data=None, return_manifest=False):
+    def run_single_view(self, view, native_data=None, return_manifest=False, return_pdf=False):
         native_data = native_data or {
             'schema_version': 1,
             'status': 'ok',
@@ -126,8 +173,13 @@ class DrawRoomTests(unittest.TestCase):
                 '--output-stem', 'fixture-room',
                 '--output', str(root / 'output'),
             ], capture_output=True, text=True)
+            if return_pdf and result.returncode != 0:
+                return result, None, None
             if return_manifest and result.returncode == 0:
-                return result, json.loads((root / 'output' / 'drawing-manifest.json').read_text())
+                manifest = json.loads((root / 'output' / 'drawing-manifest.json').read_text())
+                if return_pdf:
+                    return result, manifest, (root / 'output' / 'fixture-room-geometry.pdf').read_bytes()
+                return result, manifest
             return result
 
     def test_declared_views_draw_selected_faces_and_write_review_outputs(self):

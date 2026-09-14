@@ -17,6 +17,26 @@ import numpy as np
 DEFAULT_LEGEND = 'Blue-gray: architecture   •   Ochre: services   •   Purple: contents   •   Dashed: finish footprint, including crops and open seams'
 
 
+def subtitle_lines(note, width=140):
+    """Wrap a subtitle into at most two lines while preserving its words."""
+    import textwrap
+    if not isinstance(note, str) or not note.strip():
+        raise ValueError('subtitle must be a non-empty string')
+    words = ' '.join(note.split())
+    lines = textwrap.wrap(words, width=width, break_long_words=True, break_on_hyphens=False)
+    if len(lines) <= 2:
+        return lines
+    midpoint = (len(words) + 1) // 2
+    split = words.rfind(' ', 0, midpoint)
+    if split <= 0:
+        split = words.find(' ', midpoint)
+    if split <= 0:
+        split = len(words) // 2
+    if split <= 0 or split >= len(words):
+        return [words]
+    return [words[:split], words[split + 1:]]
+
+
 def legend_text(view):
     legend = view.get('legend')
     if legend is None:
@@ -399,7 +419,7 @@ def main():
         fig = plt.figure(figsize=(420 / 25.4, 297 / 25.4), facecolor='white')
         fig.text(.055, .949, view['id'] + ' | ' + room_title + ' — ' + view['title'],
                  fontsize=19, weight='bold')
-        fig.text(.055, .918, view['note'], fontsize=10, color='#475569')
+        fig.text(.055, .918, '\n'.join(subtitle_lines(view['note'])), fontsize=10, color='#475569', va='top')
         ax = fig.add_axes([.12, .17, .76, .69])
         record = render(ax, view)
         assert record['drawn_faces'], view['id']
