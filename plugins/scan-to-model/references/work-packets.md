@@ -21,6 +21,8 @@ Stop/escalate when: <identity, scope, conflicting control, accepted-geometry, or
 
 The `Role` names the agent executing the work item, not the person or agent who authored the brief. Bind immutable inputs before work and write only to fresh allowed outputs. Report what was actually opened or measured, preserve rejected alternatives and unresolved limits, and distinguish a finished investigation from a finished project milestone. A reviewer must be able to follow each claim to the project records and source components. Use [project-records.md](project-records.md) as the record authority and [evidence-workflow.md](evidence-workflow.md) for provenance and uncertainty rules. A discovery job binds its starting index or input set and may return newly identified frame or source bindings; it does not require undiscovered frame IDs as prerequisites. Mark the packet planning-only when a required accepted scope or input is still missing.
 
+Before a source-readiness worker reads a predecessor producer, resolve the work item's stable candidate ID through the active routing queue and accepted ledger to the latest explicit root disposition. Carry identity, metric, placement and physical-contact status separately: an accepted source identity or qualified diagnostic does not make the other scopes accepted. Preserve that disposition in the handoff and do not propose an existing accepted identity gate as new work; only a genuinely different source or question reopens it.
+
 ## Planner or PM
 
 ```text
@@ -35,6 +37,8 @@ For a follow-up to a settled source investigation, preserve the settled status a
 
 ```text
 Inspect the named original photos or native frames and preserve their hashes and display/native mapping. For native capture frames, derive ordinals programmatically from the declared source inventory and record the index basis; for Polycam use `polycam.capture_inventory(root)["frame_ids"]`. Verify each immutable frame ID to native ordinal mapping. Keep contact-sheet/display positions separate, and never copy native ordinals from narrative or contact labels. Bind the exact reviewed selection record and serialized spec hashes; compare frame/source identity, orientation and polygon before running a measurement, then verify those same fields in the output. A revised preview does not authorize reusing an earlier mask whose serialized selection was not updated. Record visible physical facts, candidate identity, endpoint meaning, chronology and uncertainty separately. Return exact opened-source records, marked review artifacts and a finite result or no-result. Route native depth and surface support through the depth-inspect skill, and rigid correspondence questions through the scan-register skill. Escalate an ambiguous physical identity, conflicting fixed control or unsupported endpoint instead of inventing a match or placement.
+
+For source-readiness checks, perform the queue and ledger disposition lookup before opening predecessor reports or producers. An accepted identity check is a dependency to carry forward, not a new proposed gate; keep any separately pending metric, placement or contact scope explicit.
 ```
 
 Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md), and [source-observations.md](source-observations.md) for the source record and review contract. Route native depth and surface support to [depth-inspect](../skills/depth-inspect/SKILL.md), and rigid correspondence questions to [scan-register](../skills/scan-register/SKILL.md).
