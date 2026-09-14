@@ -1,6 +1,7 @@
 """Exercise staged native sample review using the existing per-patch fit switch."""
 
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -15,9 +16,49 @@ from PIL import Image
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'scripts' / 'surfaces.py'
 SCRATCH_ROOT = Path(os.environ.get('SCAN_TO_MODEL_TEST_SCRATCH', Path.cwd() / '.test-scratch' / 'surface-samples'))
+SURFACES_SPEC = importlib.util.spec_from_file_location('surfaces', SCRIPT)
+SURFACES = importlib.util.module_from_spec(SURFACES_SPEC)
+sys.path.insert(0, str(SCRIPT.parent))
+SURFACES_SPEC.loader.exec_module(SURFACES)
+sys.path.pop(0)
 
 
 class SurfaceSampleTests(unittest.TestCase):
+    def test_reports_rotated_plane_support_spans_and_centered_singular_values(self):
+        normal = np.array([0.31, -0.42, 0.85])
+        normal /= np.linalg.norm(normal)
+        axis = np.array([0.91, 0.18, -0.27])
+        axis -= normal * (axis @ normal)
+        axis /= np.linalg.norm(axis)
+        cross_axis = np.cross(normal, axis)
+
+        def support(width, depth):
+            coordinates = np.array([(x, y) for x in np.linspace(-width / 2, width / 2, 7)
+                                     for y in np.linspace(-depth / 2, depth / 2, 5)])
+            points = coordinates[:, 0, None] * axis + coordinates[:, 1, None] * cross_axis
+            points += normal * np.linspace(-0.001, 0.001, len(points))[:, None]
+            points = np.vstack((points, points[0] + normal * 0.08))
+            center, _, basis, keep, residual = SURFACES.fit_plane(points, 0.01)
+            spans, singular = SURFACES.retained_support_diagnostics(points, keep, basis)
+            return center, spans, singular, keep, residual
+
+        broad_center, broad_spans, broad_singular, broad_keep, broad_residual = support(1.2, 0.8)
+        narrow_center, narrow_spans, narrow_singular, narrow_keep, narrow_residual = support(0.3, 0.06)
+        np.testing.assert_allclose(broad_center, np.zeros(3), atol=0.01)
+        np.testing.assert_allclose(narrow_center, np.zeros(3), atol=0.01)
+        self.assertEqual(broad_keep.sum(), 35)
+        self.assertEqual(narrow_keep.sum(), 35)
+        np.testing.assert_allclose(broad_spans, [1.200002, 0.800001], atol=2e-5)
+        np.testing.assert_allclose(narrow_spans, [0.300007, 0.060001], atol=2e-5)
+        np.testing.assert_allclose(broad_singular, [2.366434, 1.673320, 0.0], atol=2e-5)
+        np.testing.assert_allclose(narrow_singular, [0.591618, 0.125500, 0.0], atol=2e-5)
+        self.assertGreater(np.min(broad_spans), np.max(narrow_spans))
+        self.assertGreater(broad_singular[1], narrow_singular[1])
+        self.assertTrue(np.all(broad_residual[broad_keep] <= 0.01))
+        self.assertTrue(np.all(narrow_residual[narrow_keep] <= 0.01))
+        self.assertGreater(broad_residual[~broad_keep][0], 0.01)
+        self.assertGreater(narrow_residual[~narrow_keep][0], 0.01)
+
     def test_reports_native_availability_and_marks_actual_eligible_centers(self):
         root = SCRATCH_ROOT / str(uuid.uuid4())
         capture = root / 'capture'
@@ -460,7 +501,12 @@ class SurfaceSampleTests(unittest.TestCase):
                     self.assertEqual(source['sha256'], source_hashes[Path(source['path'])])
                 self.assertEqual((root / 'samples' / row['figure']).read_bytes(),
                                  (root / 'fit' / outputs['fit'][name]['figure']).read_bytes())
-        self.assertEqual(outputs['fit']['wide']['plane']['inlier_count'], 33)
+        wide_plane = outputs['fit']['wide']['plane']
+        self.assertEqual(wide_plane['inlier_count'], 33)
+        self.assertEqual(len(wide_plane['retained_support_spans_m']), 2)
+        self.assertTrue(all(value > 0 for value in wide_plane['retained_support_spans_m']))
+        self.assertEqual(len(wide_plane['retained_centered_singular_values_m']), 3)
+        self.assertLess(wide_plane['retained_centered_singular_values_m'][2], 1e-12)
         self.assertIsNone(outputs['fit']['small']['plane'])
         self.assertNotEqual(outputs['fit']['small']['fit_status'], 'not fitted')
         self.assertEqual(source_hashes, {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in source_hashes})

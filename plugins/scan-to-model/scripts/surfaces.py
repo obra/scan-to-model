@@ -253,6 +253,15 @@ def fit_plane(points, rejection_m):
     return center, axes[-1], axes[:2], keep, residual
 
 
+def retained_support_diagnostics(points, keep, basis):
+    """Return retained support spans and centered singular values in metres."""
+    centered = points[keep] - points[keep].mean(axis=0)
+    projected = centered @ np.asarray(basis).T
+    spans = projected.max(axis=0) - projected.min(axis=0)
+    singular = np.linalg.svd(centered, full_matrices=False, compute_uv=False)
+    return spans, singular
+
+
 def stats(values):
     return {"median":float(np.median(values)), "p95":float(np.percentile(values,95)),
             "max":float(np.max(values))} if len(values) else None
@@ -365,11 +374,14 @@ def measured_patch(patch, defaults, parent, output, pixel_inspections=False):
         else:
             up = matrix[:3,:3]@np.array([0.,1.,0.])
             if normal@up<0:normal=-normal
+            support_spans, centered_singular = retained_support_diagnostics(transformed, keep, basis)
             row["plane"] = {"center_m":center.tolist(),"normal":normal.tolist(),"offset_m":float(center@normal),
                             "inlier_count":int(keep.sum()),"rejected_count":int((~keep).sum()),
                             "all_residual_m":stats(residual),"inlier_residual_m":stats(residual[keep]),
                             "tilt_from_capture_up_degrees":float(np.degrees(np.arccos(np.clip(abs(normal@up),0,1)))),
-                            "inlier_bounds_m":[transformed[keep].min(0).tolist(),transformed[keep].max(0).tolist()]}
+                            "inlier_bounds_m":[transformed[keep].min(0).tolist(),transformed[keep].max(0).tolist()],
+                            "retained_support_spans_m":support_spans.tolist(),
+                            "retained_centered_singular_values_m":centered_singular.tolist()}
             row["fit_status"] = "free plane; interpretation requires photo review"
             sample = dict(points=transformed[keep],center=center,normal=normal,basis=basis)
     elif patch.get("fit",True):
