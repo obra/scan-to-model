@@ -259,6 +259,8 @@ finally:
 
 Here `included_names` is the exact set of renderable descendants expected to be enabled and visible in the selected view layer after preserving any original `hide_render=True` state. `visible_get` is a viewport and view-layer check; it does not account for collection-level `hide_render` or prove final renderer output. Audit collection render flags separately and inspect the resulting render.
 
+When a producer adds a collection, reconcile its accepted room and level ownership against each saved view intent. Compare the before/after visible object sets: upstairs additions must be absent from lower-only views while retained upstairs and full-house views remain intact. Collection names are discovery hints, not authority; when a shared collection mixes levels, use scoped layer hides rather than excluding the whole collection. For Blender RNA wrappers, use equality for render selection as in the maintained helper, and assert the intended view layer is enabled before rendering.
+
 The synthetic fixture links one nested collection into source and disposable render scenes, applies fourteen visibility configurations to 384 descendants, checks the assigned flags and selected view-layer-visible set, and restores every original flag:
 
 ```text
