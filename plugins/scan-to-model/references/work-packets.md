@@ -60,6 +60,8 @@ For a room's native extraction or drawing, derive membership from accepted objec
 
 When a geometry or drawing producer adds a collection, reconcile its accepted room and level ownership against every relevant saved view intent and compare before/after visible sets. Verify upstairs additions stay out of lower-only views while retained upstairs and full-house views remain; collection names are discovery hints, not authority. If a collection mixes levels, use scoped layer hides instead of excluding it wholesale. Reuse the maintained helper's equality-based RNA selection and assert the intended view layer is enabled before rendering.
 
+Before handing a drawing contract to root, call the maintained `validate_view_frame` on every proposed view. Check the physical outside or inside viewpoint separately against accepted geometry; mathematical handedness does not establish the building side.
+
 For native extraction, preserve the exact producer bytes beside each attempt, whether it succeeds or fails. If correction is needed, use a fresh runtime directory and bind that process to its own frozen producer, inputs and outputs; if failed-producer bytes are unavailable, record that gap explicitly rather than claiming complete preservation.
 
 When reading native geometry from an editable mesh with modifiers, compare the reported original and evaluated topology counts and retain the modifier records; a count difference alone is not evidence of a stale model.
