@@ -18,23 +18,58 @@ DEFAULT_LEGEND = 'Blue-gray: architecture   •   Ochre: services   •   Purple
 
 
 def subtitle_lines(note, width=140):
-    """Wrap a subtitle into at most two lines while preserving its words."""
-    import textwrap
-    if not isinstance(note, str) or not note.strip():
-        raise ValueError('subtitle must be a non-empty string')
-    words = ' '.join(note.split())
-    lines = textwrap.wrap(words, width=width, break_long_words=True, break_on_hyphens=False)
-    if len(lines) <= 2:
-        return lines
-    midpoint = (len(words) + 1) // 2
-    split = words.rfind(' ', 0, midpoint)
+    """Split subtitle text into at most two complete character-preserving lines."""
+    if not isinstance(note, str):
+        raise ValueError('subtitle must be a string')
+    if len(note) <= width:
+        return [note]
+    midpoint = len(note) // 2
+    split = note.rfind(' ', 0, midpoint + 1)
     if split <= 0:
-        split = words.find(' ', midpoint)
-    if split <= 0:
-        split = len(words) // 2
-    if split <= 0 or split >= len(words):
-        return [words]
-    return [words[:split], words[split + 1:]]
+        split = midpoint
+    return [note[:split], note[split:]]
+
+
+def _subtitle_artist(fig, note, title_artist):
+    """Add a subtitle using measured glyph bounds inside the existing header band."""
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    figure_width, figure_height = fig.get_size_inches() * fig.dpi
+    left, right = .055 * figure_width, .945 * figure_width
+    lower = .86 * figure_height
+    title_bbox = title_artist.get_window_extent(renderer)
+    if note == '':
+        return fig.text(.055, .918, note, fontsize=10, color='#475569')
+    from matplotlib.font_manager import FontProperties
+    for fontsize in np.arange(10.0, 5.9, -.5):
+        prop = FontProperties(size=float(fontsize))
+        lines, current = [], ''
+        for character in note:
+            if character == '\n':
+                lines.append(current)
+                current = ''
+                continue
+            candidate = current + character
+            width = renderer.get_text_width_height_descent(candidate, prop, ismath=False)[0]
+            if width > right - left and current:
+                lines.append(current)
+                current = character
+            else:
+                current = candidate
+        lines.append(current)
+        if len(lines) > 2:
+            continue
+        artist = fig.text(.055, .918, '\n'.join(lines), fontsize=float(fontsize),
+                           color='#475569', va='top')
+        fig.canvas.draw()
+        bbox = artist.get_window_extent(fig.canvas.get_renderer())
+        if (bbox.x0 >= left - 1e-6 and bbox.x1 <= right + 1e-6
+                and bbox.y0 >= lower - 1e-6
+                and bbox.y1 <= title_bbox.y0 - 1e-6
+                and bbox.y1 <= figure_height + 1e-6):
+            return artist
+        artist.remove()
+    raise ValueError('subtitle does not fit the two-line header band at readable size')
 
 
 def legend_text(view):
@@ -417,9 +452,16 @@ def main():
     figures = []
     for view in specification['views']:
         fig = plt.figure(figsize=(420 / 25.4, 297 / 25.4), facecolor='white')
-        fig.text(.055, .949, view['id'] + ' | ' + room_title + ' — ' + view['title'],
-                 fontsize=19, weight='bold')
-        fig.text(.055, .918, '\n'.join(subtitle_lines(view['note'])), fontsize=10, color='#475569', va='top')
+        title_artist = fig.text(.055, .949, view['id'] + ' | ' + room_title + ' — ' + view['title'],
+                                fontsize=19, weight='bold')
+        fig.canvas.draw()
+        note_width = title_artist.figure.canvas.get_renderer().get_text_width_height_descent(
+            view['note'], title_artist.get_fontproperties(), ismath=False)[0]
+        figure_width = fig.get_size_inches()[0] * fig.dpi
+        if note_width <= .89 * figure_width and '\n' not in view['note']:
+            fig.text(.055, .918, view['note'], fontsize=10, color='#475569')
+        else:
+            _subtitle_artist(fig, view['note'], title_artist)
         ax = fig.add_axes([.12, .17, .76, .69])
         record = render(ax, view)
         assert record['drawn_faces'], view['id']
