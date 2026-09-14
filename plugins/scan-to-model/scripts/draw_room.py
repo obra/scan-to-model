@@ -244,6 +244,8 @@ def main():
     parser.add_argument('--title', required=True)
     parser.add_argument('--output-stem', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--skip-overview', action='store_true',
+                        help='Write geometry pages without rendering contact overview panels.')
     args = parser.parse_args()
     module = importlib.util.spec_from_file_location('drawing_math', args.math_helper)
     math = importlib.util.module_from_spec(module)
@@ -470,28 +472,29 @@ def main():
         for fig in figures:
             output.savefig(fig)
             plt.close(fig)
-    overview_pages = [specification['views'][start:start + 6]
-                      for start in range(0, len(specification['views']), 6)]
-    for page_number, page_views in enumerate(overview_pages, 1):
-        fig, axes = plt.subplots(2, 3, figsize=(16, 10), dpi=130)
-        page_label = '' if len(overview_pages) == 1 else \
-            f' — OVERVIEW {page_number}/{len(overview_pages)}'
-        fig.suptitle(room_title + ' — CURRENT MODEL' + page_label,
-                     fontsize=19, weight='bold')
-        for ax, view in zip(axes.ravel(), page_views):
-            render(ax, view, overview=True)
-            ax.set_title(view['title'], fontsize=11)
-        for ax in axes.ravel()[len(page_views):]:
-            ax.set_visible(False)
-        fig.tight_layout(rect=(.015, .03, .985, .93), h_pad=3.0, w_pad=2.0)
-        fig.text(.04, .018,
-                 'Dashed: finish footprint, including crops and open seams. '
-                 'Current-model documentation; hidden cores and exact contacts remain unestablished.',
-                 fontsize=10, color='#475569')
-        overview_name = (f'{output_stem}-overview.png' if len(overview_pages) == 1 else
-                         f'{output_stem}-overview-{page_number:02d}.png')
-        fig.savefig(args.output / overview_name)
-        plt.close(fig)
+    if not args.skip_overview:
+        overview_pages = [specification['views'][start:start + 6]
+                          for start in range(0, len(specification['views']), 6)]
+        for page_number, page_views in enumerate(overview_pages, 1):
+            fig, axes = plt.subplots(2, 3, figsize=(16, 10), dpi=130)
+            page_label = '' if len(overview_pages) == 1 else \
+                f' — OVERVIEW {page_number}/{len(overview_pages)}'
+            fig.suptitle(room_title + ' — CURRENT MODEL' + page_label,
+                         fontsize=19, weight='bold')
+            for ax, view in zip(axes.ravel(), page_views):
+                render(ax, view, overview=True)
+                ax.set_title(view['title'], fontsize=11)
+            for ax in axes.ravel()[len(page_views):]:
+                ax.set_visible(False)
+            fig.tight_layout(rect=(.015, .03, .985, .93), h_pad=3.0, w_pad=2.0)
+            fig.text(.04, .018,
+                     'Dashed: finish footprint, including crops and open seams. '
+                     'Current-model documentation; hidden cores and exact contacts remain unestablished.',
+                     fontsize=10, color='#475569')
+            overview_name = (f'{output_stem}-overview.png' if len(overview_pages) == 1 else
+                             f'{output_stem}-overview-{page_number:02d}.png')
+            fig.savefig(args.output / overview_name)
+            plt.close(fig)
     manifest['status'] = 'generated_pending_root_review'
     manifest['rendered_selections'] = records
     manifest['nondrawable_objects'] = [item for record in records

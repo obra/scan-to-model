@@ -138,7 +138,8 @@ class DrawRoomTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'legend mode'):
             DRAW_ROOM.legend_text({'id': 'bad', 'legend': 'none'})
 
-    def run_single_view(self, view, native_data=None, return_manifest=False, return_pdf=False):
+    def run_single_view(self, view, native_data=None, return_manifest=False, return_pdf=False,
+                        skip_overview=False, return_outputs=False):
         native_data = native_data or {
             'schema_version': 1,
             'status': 'ok',
@@ -176,7 +177,7 @@ class DrawRoomTests(unittest.TestCase):
             }
             views_path = root / 'views.json'
             views_path.write_text(json.dumps(specification, indent=2) + '\n')
-            result = subprocess.run([
+            command = [
                 sys.executable, '-B', str(PRODUCER),
                 '--native', str(native_path),
                 '--views', str(views_path),
@@ -184,11 +185,21 @@ class DrawRoomTests(unittest.TestCase):
                 '--title', 'Fixture Room',
                 '--output-stem', 'fixture-room',
                 '--output', str(root / 'output'),
-            ], capture_output=True, text=True)
+            ]
+            if skip_overview:
+                command.append('--skip-overview')
+            result = subprocess.run(command, capture_output=True, text=True)
             if return_pdf and result.returncode != 0:
                 return result, None, None
             if return_manifest and result.returncode == 0:
                 manifest = json.loads((root / 'output' / 'drawing-manifest.json').read_text())
+                outputs = {
+                    'geometry_pdf': (root / 'output' / 'fixture-room-geometry.pdf').is_file(),
+                    'detail_png': (root / 'output' / 'P1.png').is_file(),
+                    'overview_png': any((root / 'output').glob('*overview*.png')),
+                }
+                if return_outputs:
+                    return result, manifest, outputs
                 if return_pdf:
                     return result, manifest, (root / 'output' / 'fixture-room-geometry.pdf').read_bytes()
                 return result, manifest
@@ -285,6 +296,24 @@ class DrawRoomTests(unittest.TestCase):
             self.assertTrue((output / 'fixture-room-geometry.pdf').is_file())
             self.assertTrue((output / 'fixture-room-overview.png').is_file())
             self.assertTrue(all(path.stat().st_size > 0 for path in detail_images))
+
+    def test_skip_overview_writes_geometry_without_contact_panel(self):
+        view = {
+            'id': 'P1', 'kind': 'plan', 'title': 'Plan', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0],
+            'view_direction_frame': [0, 0, -1], 'bounds_frame': [-1, 3, -1, 3],
+            'axis_labels': ['horizontal', 'vertical'],
+            'cut': {'axis': 2, 'value_m': 0.5, 'keep_below': True},
+            'annotations': [],
+            'subjects': [{'object_id': 'fixture-mesh', 'style': 'architecture', 'face_indices': [0]}],
+        }
+        result, manifest, outputs = self.run_single_view(
+            view, return_manifest=True, return_outputs=True, skip_overview=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {'fixture-mesh': [0]})
+        self.assertTrue(outputs['geometry_pdf'])
+        self.assertTrue(outputs['detail_png'])
+        self.assertFalse(outputs['overview_png'])
 
     def test_subject_spatial_clip_is_scoped_to_one_subject(self):
         native_data = {
