@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +52,36 @@ class NativeReadbackTests(unittest.TestCase):
             "/opt/blender", "-b", "--factory-startup", "--disable-autoexec", "--threads", "2",
             "--python-exit-code", "1", "--python", "runtime.py", "scene.blend",
             "--python", "worker.py"])
+
+    def test_prepare_runtime_freezes_bootstrap_and_returns_isolated_environment(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            membership = root / "membership.json"
+            worker = root / "worker.py"
+            runtime_helper = root / "runtime.py"
+            launcher = root / "launcher.py"
+            membership.write_text("membership")
+            worker.write_text("worker")
+            runtime_helper.write_text("runtime")
+            launcher.write_text("launcher")
+            output = root / "readback"
+            with patch.dict(os.environ, {"SCAN_TO_MODEL_TEST_SENTINEL": "inherited"}):
+                prepared = LAUNCHER_MODULE.prepare_runtime(
+                    output, membership, source_launcher=launcher, worker=worker,
+                    runtime_helper=runtime_helper)
+            runtime = output / "runtime-01"
+            self.assertEqual(prepared["runtime"], runtime)
+            self.assertTrue((runtime / "tmp").is_dir())
+            self.assertEqual((runtime / "membership.json").read_text(), "membership")
+            self.assertEqual((runtime / "native_readback.py").read_text(), "worker")
+            self.assertEqual((runtime / "blender_runtime.py").read_text(), "runtime")
+            self.assertEqual((runtime / "run_native_readback.py").read_text(), "launcher")
+            self.assertEqual(prepared["environment"]["TMPDIR"], str(runtime / "tmp"))
+            self.assertEqual(prepared["environment"]["SCAN_TO_MODEL_TEST_SENTINEL"], "inherited")
+            self.assertEqual(set(prepared["environment_overrides"]), {
+                "SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT", "TMPDIR",
+                "SCAN_TO_MODEL_NATIVE_OUTPUT", "SCAN_TO_MODEL_NATIVE_MEMBERSHIP"})
+            self.assertEqual(prepared["environment_overrides"]["SCAN_TO_MODEL_NATIVE_OUTPUT"], str(output))
 
     def membership(self, model_sha):
         return {"room_id": "fixture-room", "model_sha256": model_sha,

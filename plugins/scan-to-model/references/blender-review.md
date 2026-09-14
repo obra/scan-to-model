@@ -73,6 +73,17 @@ Before promotion, reopen the final blend and trace each modeled physical placeme
 
 Some Blender builds do not honor `PYTHONDONTWRITEBYTECODE`. For every scripted review, freeze and hash `scripts/blender_runtime.py` alongside the helper and execute it as the first `--python` argument, before loading the blend or importing any helper modules. The bootstrap sets `sys.dont_write_bytecode` first, then requires a caller-created absolute `SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT`, verifies Blender's actual temporary directory is contained by its existing `tmp` directory, and sets the session's temporary-directory, save-version and autosave preferences. It does not create the root, launch Blender, save preferences or save the model.
 
+Python candidate builders and review launchers should call `prepare_runtime` from `scripts/run_native_readback.py` with their declared membership, frozen worker, bootstrap and launcher paths, then pass its returned `environment` to `subprocess.run` together with the existing `blender_command` helper. The function creates the fresh `runtime-01/tmp` tree, freezes those inputs and returns the controlled paths; do not hand-code a second runtime or `TMPDIR` setup. For example:
+
+```python
+from scripts.run_native_readback import blender_command, prepare_runtime
+
+prepared = prepare_runtime(output, membership, source_launcher=launcher,
+                           worker=worker, runtime_helper=runtime_helper)
+command = blender_command(blender, blend, prepared["runtime_helper"], prepared["worker"])
+subprocess.run(command, cwd=prepared["output"], env=prepared["environment"], check=True)
+```
+
 Create the unique retained runtime root and its directories before launch. Do not redirect `HOME` or `CODEX_HOME`. A background review uses this order; add the GUI display variables described below only for interactive review:
 
 ```sh

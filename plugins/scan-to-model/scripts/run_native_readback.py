@@ -25,6 +25,48 @@ def blender_command(blender, blend, runtime, worker):
             "--python", str(worker)]
 
 
+def prepare_runtime(output, membership_path, source_launcher=None, worker=WORKER,
+                    runtime_helper=RUNTIME_HELPER):
+    """Create the frozen Blender runtime and return its launch environment."""
+    output = Path(output).resolve()
+    membership_path = Path(membership_path).resolve(strict=True)
+    source_launcher = Path(source_launcher or __file__).resolve(strict=True)
+    worker = Path(worker).resolve(strict=True)
+    runtime_helper = Path(runtime_helper).resolve(strict=True)
+    if output.exists():
+        raise ValueError(f"output must be a new directory: {output}")
+    output.mkdir(parents=True)
+    runtime = output / "runtime-01"
+    temporary = runtime / "tmp"
+    runtime.mkdir()
+    temporary.mkdir()
+    frozen_membership = runtime / "membership.json"
+    frozen_worker = runtime / "native_readback.py"
+    frozen_runtime = runtime / "blender_runtime.py"
+    frozen_launcher = runtime / "run_native_readback.py"
+    shutil.copyfile(membership_path, frozen_membership)
+    shutil.copyfile(worker, frozen_worker)
+    shutil.copyfile(runtime_helper, frozen_runtime)
+    shutil.copyfile(source_launcher, frozen_launcher)
+    frozen = {"membership": digest(frozen_membership), "producer": digest(frozen_worker),
+              "runtime": digest(frozen_runtime), "launcher": digest(frozen_launcher)}
+    environment = os.environ.copy()
+    environment.update({
+        "SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT": str(runtime),
+        "TMPDIR": str(temporary),
+        "SCAN_TO_MODEL_NATIVE_OUTPUT": str(output),
+        "SCAN_TO_MODEL_NATIVE_MEMBERSHIP": str(frozen_membership),
+    })
+    controlled_environment = {key: environment[key] for key in (
+        "SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT", "TMPDIR", "SCAN_TO_MODEL_NATIVE_OUTPUT",
+        "SCAN_TO_MODEL_NATIVE_MEMBERSHIP")}
+    return {"output": output, "runtime": runtime, "temporary": temporary,
+            "membership": frozen_membership, "worker": frozen_worker,
+            "runtime_helper": frozen_runtime, "launcher": frozen_launcher,
+            "frozen": frozen, "environment": environment,
+            "environment_overrides": controlled_environment}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--blender", type=Path, required=True)
@@ -45,35 +87,17 @@ def main():
         raise ValueError(f"model SHA-256 mismatch: expected {membership['model_sha256']}, got {before_model}")
     if not RUNTIME_HELPER.is_file():
         raise ValueError(f"missing runtime helper: {RUNTIME_HELPER}")
-    output = args.output.resolve()
-    if output.exists():
-        raise ValueError(f"output must be a new directory: {output}")
-    output.mkdir(parents=True)
-    runtime = output / "runtime-01"
-    temporary = runtime / "tmp"
-    runtime.mkdir()
-    temporary.mkdir()
-    frozen_membership = runtime / "membership.json"
-    frozen_worker = runtime / "native_readback.py"
-    frozen_runtime = runtime / "blender_runtime.py"
-    frozen_launcher = runtime / "run_native_readback.py"
-    shutil.copyfile(membership_path, frozen_membership)
-    shutil.copyfile(WORKER, frozen_worker)
-    shutil.copyfile(RUNTIME_HELPER, frozen_runtime)
-    shutil.copyfile(source_launcher, frozen_launcher)
-    frozen = {"membership": digest(frozen_membership), "producer": digest(frozen_worker),
-              "runtime": digest(frozen_runtime), "launcher": digest(frozen_launcher)}
-    environment = os.environ.copy()
-    environment.update({
-        "SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT": str(runtime),
-        "TMPDIR": str(temporary),
-        "SCAN_TO_MODEL_NATIVE_OUTPUT": str(output),
-        "SCAN_TO_MODEL_NATIVE_MEMBERSHIP": str(frozen_membership),
-    })
+    prepared = prepare_runtime(args.output, membership_path, source_launcher=source_launcher)
+    output = prepared["output"]
+    runtime = prepared["runtime"]
+    frozen_membership = prepared["membership"]
+    frozen_worker = prepared["worker"]
+    frozen_runtime = prepared["runtime_helper"]
+    frozen_launcher = prepared["launcher"]
+    frozen = prepared["frozen"]
+    environment = prepared["environment"]
+    controlled_environment = prepared["environment_overrides"]
     command = blender_command(blender, blend, frozen_runtime, frozen_worker)
-    controlled_environment = {key: environment[key] for key in (
-        "SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT", "TMPDIR", "SCAN_TO_MODEL_NATIVE_OUTPUT",
-        "SCAN_TO_MODEL_NATIVE_MEMBERSHIP")}
     preflight = {"status": "frozen_before_process", "argv": command,
                  "environment_overrides": controlled_environment,
                  "inherited_environment_passed": True,
