@@ -20,6 +20,7 @@ from pixel_inspection import (
     coordinate_inspection_bytes, display_crop_pixel_edges, display_dimensions,
     display_pixel_center, format_number, native_pixel_center,
 )
+from image_metadata import read_exif_datetime_metadata
 
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
@@ -434,6 +435,7 @@ def generate_evidence(spec_path, output_dir, coordinate_inspections=False):
                     else f"(u,v) -> ({source['height']}-1-v,u)"
                 ),
             },
+            "embedded_exif_datetime": read_exif_datetime_metadata(source["bytes"]),
             "sheet": {"path": sheet_path, "sha256": _digest(sheet)},
         })
 

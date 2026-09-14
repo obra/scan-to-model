@@ -7,6 +7,7 @@ from io import BytesIO
 import json
 import os
 from pathlib import Path
+import struct
 import subprocess
 import sys
 import unittest
@@ -122,6 +123,33 @@ def embedded_bytes(root):
     return base64.b64decode(href.split(",", 1)[1])
 
 
+def jpeg_with_exif_dates(dates):
+    """Build a small JPEG whose date tags live in the EXIF sub-IFD."""
+    encoded = BytesIO()
+    Image.new("RGB", (3, 2), (19, 41, 73)).save(encoded, "JPEG")
+    jpeg = encoded.getvalue()
+    entries = []
+    values = b""
+    sub_ifd_offset = 26
+    value_offset = sub_ifd_offset + 2 + 12 * len(dates) + 4
+    for tag, value in dates.items():
+        raw = value.encode("ascii") + b"\0"
+        entries.append(struct.pack("<HHII", tag, 2, len(raw), value_offset + len(values)))
+        values += raw
+    sub_ifd = (
+        struct.pack("<H", len(entries))
+        + b"".join(entries)
+        + struct.pack("<I", 0)
+        + values
+    )
+    ifd0 = struct.pack("<H", 1) + struct.pack("<HHII", 34665, 4, 1, sub_ifd_offset)
+    ifd0 += struct.pack("<I", 0)
+    tiff = b"II*\0" + struct.pack("<I", 8) + ifd0 + sub_ifd
+    app1 = b"Exif\0\0" + tiff
+    segment = b"\xff\xe1" + struct.pack(">H", len(app1) + 2) + app1
+    return jpeg[:2] + segment + jpeg[2:]
+
+
 class ObservationSheetTests(unittest.TestCase):
     def generate(self, spec_path, output, **options):
         from observations import generate_evidence
@@ -153,6 +181,33 @@ class ObservationSheetTests(unittest.TestCase):
             sheet = root / "evidence" / source["sheet"]["path"]
             self.assertEqual(embedded_bytes(svg_root(sheet)), source_bytes[source["id"]])
             self.assertEqual(source["sheet"]["sha256"], hashlib.sha256(sheet.read_bytes()).hexdigest())
+
+    def test_exposes_embedded_exif_dates_without_changing_input_claims(self):
+        root = make_workspace()
+        dates = {
+            36867: "2026:09:14 12:34:56",
+            36868: "2026:09:14 12:35:56",
+            306: "2026:09:14 12:36:56",
+            36881: "+01:30",
+        }
+        exif_path = root / "images/exif.jpg"
+        exif_path.write_bytes(jpeg_with_exif_dates(dates))
+        data = valid_spec(root)
+        data["sources"][0]["path"] = "images/exif.jpg"
+        data["sources"][0]["sha256"] = hashlib.sha256(exif_path.read_bytes()).hexdigest()
+        record = self.generate(write_spec(root, data), root / "evidence")
+        source = record["sources"][0]
+        self.assertEqual(source["embedded_exif_datetime"], {
+            "original": {"local_clock": dates[36867], "offset": dates[36881]},
+            "digitized": {"local_clock": dates[36868], "offset": None},
+            "modified": {"local_clock": dates[306], "offset": None},
+        })
+        self.assertEqual(record["input"]["sources"][0]["metadata"], data["sources"][0]["metadata"])
+
+    def test_missing_exif_dates_are_empty(self):
+        root = make_workspace()
+        record = self.generate(write_spec(root, valid_spec(root)), root / "evidence")
+        self.assertEqual(record["sources"][0]["embedded_exif_datetime"], {})
 
     def test_maps_native_centers_to_raw_and_clockwise_display_coordinates(self):
         root = make_workspace()
