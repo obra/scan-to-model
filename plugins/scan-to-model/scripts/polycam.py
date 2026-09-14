@@ -67,6 +67,38 @@ def validate_camera(camera):
     camera_matrix(camera)
 
 
+def pixel_ray(camera, pixel, orientation='raw'):
+    """Return the unit world-space ray through an RGB pixel.
+
+    ``pixel`` is an ``(u, v)`` subpixel coordinate in the selected image
+    orientation.  The returned origin is the calibrated camera origin in
+    capture-world metres; no depth or confidence image is consulted.
+    """
+    validate_camera(camera)
+    if orientation not in ('raw', 'upright90cw'):
+        raise ValueError("orientation must be 'raw' or 'upright90cw'")
+    try:
+        pixel = np.asarray(pixel, dtype=float)
+    except (TypeError, ValueError) as error:
+        raise ValueError('Pixel must be a finite 2-D coordinate') from error
+    if pixel.shape != (2,) or not np.isfinite(pixel).all():
+        raise ValueError('Pixel must be a finite 2-D coordinate')
+    u, v = pixel
+    width, height = camera['width'], camera['height']
+    image_width, image_height = ((width, height) if orientation == 'raw'
+                                 else (height, width))
+    if not (0 <= u < image_width and 0 <= v < image_height):
+        raise ValueError('Pixel is outside the camera image')
+    if orientation == 'upright90cw':
+        u, v = v, height - 1 - u
+    local = np.array([(u - camera['cx']) / camera['fx'],
+                      -(v - camera['cy']) / camera['fy'], -1.0])
+    transform = camera_matrix(camera)
+    direction = transform[:3, :3] @ local
+    direction /= np.linalg.norm(direction)
+    return transform[:3, 3].copy(), direction
+
+
 def validate_depth(depth, confidence, camera):
     if depth.ndim != 2 or not depth.size or depth.dtype != np.uint16:
         raise ValueError('Depth must be a nonempty uint16 2-D array')

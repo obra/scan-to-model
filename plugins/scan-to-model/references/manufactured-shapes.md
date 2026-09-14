@@ -8,6 +8,13 @@ Regular shape does not establish nominal stock dimensions, installation plumb, h
 
 ## Numeric contract
 
+For an RGB feature without a depth sample, `scripts/polycam.py` exports
+`pixel_ray(camera, pixel, orientation='raw')`. It returns the calibrated unit
+ray in capture-world metres and supports the raw image or a 90-degree
+clockwise upright image. An RGB ray may intersect an independently supported
+surface plane, but that intersection is an inferred surface observation and
+must remain separate from direct depth support.
+
 `scripts/manufactured.py` exports `fit_rectangles(spec)` and accepts `--spec INPUT.json --output OUTPUT.json`. It fits only 2D rectangles and writes a candidate report; it does not edit Blender scenes.
 
 - `frame_id` identifies the input 2D coordinate system; `units` names its existing units, including `uncalibrated`. No unit conversion or scale inference occurs. Project image/depth controls into an explicitly justified component plane before fitting; this is not perspective rectification.

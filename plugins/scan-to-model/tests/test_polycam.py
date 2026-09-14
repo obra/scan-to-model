@@ -21,8 +21,8 @@ import numpy as np
 from PIL import Image, __version__ as pillow_version
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from polycam import (clip_camera_segment, digest, project_points, read_frame,
-                     unproject, validate_depth)
+from polycam import (clip_camera_segment, digest, pixel_ray, project_points,
+                     read_frame, unproject, validate_depth)
 
 
 def write_png(path, values, bit_depth, color_type):
@@ -119,6 +119,77 @@ class PolycamTests(unittest.TestCase):
         np.testing.assert_allclose(pixels, expected_pixels, atol=1e-12)
         np.testing.assert_allclose(depths, -camera_points[:, 2], atol=1e-12)
         np.testing.assert_array_equal(front, [True, True, True])
+
+    def test_pixel_ray_returns_analytic_world_ray_without_depth(self):
+        angle = np.deg2rad(27)
+        rotation = np.array([[np.cos(angle), 0, np.sin(angle)],
+                             [0, 1, 0],
+                             [-np.sin(angle), 0, np.cos(angle)]])
+        camera = {'width': 640, 'height': 480, 'fx': 500, 'fy': 510,
+                  'cx': 311, 'cy': 229,
+                  't_00': rotation[0, 0], 't_01': rotation[0, 1],
+                  't_02': rotation[0, 2], 't_03': 2,
+                  't_10': rotation[1, 0], 't_11': rotation[1, 1],
+                  't_12': rotation[1, 2], 't_13': -1,
+                  't_20': rotation[2, 0], 't_21': rotation[2, 1],
+                  't_22': rotation[2, 2], 't_23': 4}
+        origin, direction = pixel_ray(camera, (411, 329))
+        np.testing.assert_allclose(origin, [2, -1, 4], atol=1e-12)
+        expected = rotation @ np.array([100 / 500, -100 / 510, -1.0])
+        expected /= np.linalg.norm(expected)
+        np.testing.assert_allclose(direction, expected, atol=1e-12)
+        self.assertAlmostEqual(np.linalg.norm(direction), 1.0, places=12)
+
+    def test_pixel_ray_raw_and_upright_90cw_are_equivalent(self):
+        _, camera = frame_fixture(self.root)
+        raw_pixel = (1.25, 2.5)
+        upright_pixel = (camera['height'] - 1 - raw_pixel[1], raw_pixel[0])
+        raw_origin, raw_direction = pixel_ray(camera, raw_pixel, orientation='raw')
+        upright_origin, upright_direction = pixel_ray(
+            camera, upright_pixel, orientation='upright90cw')
+        np.testing.assert_allclose(upright_origin, raw_origin, atol=1e-12)
+        np.testing.assert_allclose(upright_direction, raw_direction, atol=1e-12)
+
+    def test_pixel_ray_intersects_projected_point_round_trip(self):
+        _, camera = frame_fixture(self.root)
+        point = np.array([2.5, 2.25, 1.0])
+        pixel, _, front = project_points(point[None], camera)
+        self.assertTrue(front[0])
+        origin, direction = pixel_ray(camera, pixel[0])
+        distance = np.dot(point - origin, direction)
+        np.testing.assert_allclose(origin + distance * direction, point, atol=1e-12)
+
+    def test_pixel_ray_does_not_require_depth_files(self):
+        camera = {'width': 4, 'height': 3, 'fx': 4, 'fy': 3, 'cx': 2, 'cy': 1,
+                  't_00': 1, 't_01': 0, 't_02': 0, 't_03': 0,
+                  't_10': 0, 't_11': 1, 't_12': 0, 't_13': 0,
+                  't_20': 0, 't_21': 0, 't_22': 1, 't_23': 0}
+        origin, direction = pixel_ray(camera, (2, 1))
+        np.testing.assert_allclose(origin, [0, 0, 0])
+        np.testing.assert_allclose(direction, [0, 0, -1])
+
+    def test_pixel_ray_rejects_invalid_coordinates_and_orientation(self):
+        _, camera = frame_fixture(self.root)
+        for pixel in ((-0.1, 1), (camera['width'], 1), (1, -0.1),
+                      (1, camera['height']), (float('nan'), 1), (1, float('inf'))):
+            with self.subTest(pixel=pixel), self.assertRaises(ValueError):
+                pixel_ray(camera, pixel)
+        for orientation in ('upright', 'Upright90CW', '', None):
+            with self.subTest(orientation=orientation), self.assertRaises(ValueError):
+                pixel_ray(camera, (1, 1), orientation=orientation)
+
+    def test_pixel_ray_uses_upright_image_dimensions_for_non_square_bounds(self):
+        camera = {'width': 1024, 'height': 768, 'fx': 900, 'fy': 900,
+                  'cx': 512, 'cy': 384,
+                  't_00': 1, 't_01': 0, 't_02': 0, 't_03': 2,
+                  't_10': 0, 't_11': 1, 't_12': 0, 't_13': 3,
+                  't_20': 0, 't_21': 0, 't_22': 1, 't_23': 4}
+        origin, direction = pixel_ray(camera, (620, 1008),
+                                      orientation='upright90cw')
+        self.assertEqual(origin.tolist(), [2.0, 3.0, 4.0])
+        self.assertTrue(np.isfinite(direction).all())
+        with self.assertRaises(ValueError):
+            pixel_ray(camera, (800, 200), orientation='upright90cw')
 
     def test_project_points_marks_camera_plane_and_behind_without_infinities(self):
         _, camera = frame_fixture(self.root)
