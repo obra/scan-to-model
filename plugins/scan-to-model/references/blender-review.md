@@ -123,6 +123,8 @@ For small room-sheet drawings, use the pure helpers in `scripts/drawing.py` afte
 
 For a complete declared room sheet, use `scripts/draw_room.py` with explicit native, view-specification, math-helper, title, output-stem and output paths; it preserves the same predeclared selections while writing detail sheets, a paginated overview and a PDF.
 
+For a replacement or refresh of a delivered drawing packet, resolve the current navigation record and root review first, then use the latest per-view specifications and membership for the affected views. Bind the latest assembled PDF and preserve subsequent unaffected pages and addenda. An older accepted geometry/runtime drawing is historical source evidence, not authority for the current delivered packet.
+
 For a `coplanar_boundary` subject, `boundary_tolerance_m` is an optional, source-justified numeric allowance for matching corresponding edge endpoints; it defaults to `1e-7` m. `boundary_line_tolerance_m` separately limits the supporting-line distance and defaults to the endpoint tolerance. The shared-plane allowance remains `1e-6` m. These settings address representation precision, not a physical gap or an accuracy measurement. `coplanar_boundary_records` retains each segment's original input-piece owner ID so the producer can report `drawn_faces` from the boundary output.
 
 A view-level `spatial_clips` list applies to every subject in that view. A subject may add its own `spatial_clips` list for a local source crop without clipping neighboring subjects. Composed drawings retain source crop provenance; when an object has multiple source declarations, attach a crop only when every declaration agrees, and resolve conflicting declarations explicitly.
