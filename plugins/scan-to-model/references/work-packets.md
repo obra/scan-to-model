@@ -55,6 +55,8 @@ Inspect the current model or project alignment manifest before declaring a sourc
 
 Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md), and [source-observations.md](source-observations.md) for the source record and review contract. Route native depth and surface support to [depth-inspect](../skills/depth-inspect/SKILL.md), and rigid correspondence questions to [scan-register](../skills/scan-register/SKILL.md).
 
+For raw Polycam camera centers, use `polycam.camera_matrix(camera)[:3, 3]` or the origin returned by `polycam.pixel_ray`; these poses are camera-to-world, so inverting them produces the wrong center. Compare camera positions only within the same tracking segment and frame convention unless a reviewed intersegment relation exists.
+
 When projecting reviewed world points, use `polycam.project_points` to obtain native RGB pixels and positive camera-axis depths, then convert those native pixels with the existing `display_pixel_center` helper for presentation. First round-trip saved depth-grid points against the actual RGB/depth resolution ratio and check native/display known corners; only then interpret cross-view errors. Do not apply upright rotation inside the projection helper.
 
 ## Geometry builder
