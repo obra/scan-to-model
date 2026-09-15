@@ -65,6 +65,8 @@ For raw Polycam camera centers, use `polycam.camera_matrix(camera)[:3, 3]` or th
 
 When projecting reviewed world points, use `polycam.project_points` to obtain native RGB pixels and positive camera-axis depths, then convert those native pixels with the existing `display_pixel_center` helper for presentation. First round-trip saved depth-grid points against the actual RGB/depth resolution ratio and check native/display known corners; only then interpret cross-view errors. Do not apply upright rotation inside the projection helper.
 
+Observation marks in `observations` (`marks.coordinates`) and native depth arrays from `surfaces.py` are native RGB/depth pixels as declared by the serialized spec. Pass native RGB pixels to `polycam.pixel_ray` with `orientation='raw'`; use `upright90cw` only with actual display coordinates, and never rotate a native coordinate twice. For source/model buffer checks, apply the declared `raw_to_display_matrix` before comparing against native local buffers; never invert quantized world points to manufacture an exact local fingerprint.
+
 ## Geometry builder
 
 ```text
