@@ -28,6 +28,10 @@ For a PDF photograph, preserve the document hash, page numbering, image object/r
 
 When preserving PDF drawing commands, distinguish the encoded stream bytes stored in the document (compressed when applicable), their original decoded bytes, parsed semantic operations and any parser-normalized serialization. Read and preserve original bytes before accessing mutable parser operations: deserialization or later serialization can normalize whitespace without changing the drawing. Hash and label each representation independently, and compare the purported original against a fresh read of the document stream. A correct placement matrix does not prove exact command-text preservation.
 
+Keep page-left/right, upright pixels, geographic direction, project axes and legacy object names separate. Assign report groups to physical regions using bound compass/site evidence and identifiable landmarks; page direction and group counts do not locate components.
+
+Compare a newly supplied view with the accepted image before declaring its coverage redundant: it may expose a different face of the same assembly without improving placement or thickness. A complete visible manufactured pane can support rectangular shape correction while reveal depth remains unknown; preserve its raw controls and dimensional limits. A curtain or crop boundary cannot supply an unseen pane edge.
+
 ## Observation record
 
 Each observation needs the following information, whether stored in JSON or another existing project format:

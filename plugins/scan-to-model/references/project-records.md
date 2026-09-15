@@ -1,6 +1,6 @@
 # Project records and handoff
 
-Maintain small human-readable Markdown/JSON files in the project. Reuse existing records rather than introducing a second source of truth. A project can choose its exact filenames. Save references to actual source components and tool outputs, not just prose claims.
+Maintain small human-readable Markdown/JSON files in the project. Reuse existing records rather than introducing a second source of truth. A project can choose its exact filenames. Save references to actual source components and tool outputs, not just prose claims. Group updates at the closeout of a coherent model increment; link shared retained evidence and receipts instead of copying them into every successor. Record invalidated dependencies and execution stops immediately. Use the current handoff to resume the active package rather than repeating the full register reconciliation.
 
 ## Source ledger
 
@@ -35,6 +35,8 @@ Generate requests only after checking supplied evidence. For each missing fact, 
 ## Bounded completion
 
 Finish one room/connection increment with its ceilings and connections, source-backed geometry, uncertainty, saved-file review and a concrete remaining list. Do not call the building complete because the intake pipeline ran or a plausible render exists. A review candidate may be complete as a deliverable while its geometry is still provisional; name both facts plainly.
+
+For a settled investigation, attach new relevant evidence to its existing disposition. Change that disposition only when the evidence changes the decision; a workflow status guard is not a reason to reopen it. If the project uses structured package actions, reconcile only the affected actions to the latest accepted disposition and use `scripts/plan_actions.py` when synchronizing the corresponding planning view. Matching records prove consistency, not physical readiness.
 
 ## Selected artifact bindings
 

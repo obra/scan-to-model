@@ -13,6 +13,16 @@ Intake preserves the original archive in `sources/`, extracts it under `derived/
 
 Native depth must be a 16-bit grayscale PNG (IHDR bit depth 16, color type 0), with unsigned millimetre samples. The reader verifies this source format and exposes the decoded values as `uint16`, preserving zero and the full sample range regardless of Pillow's integer storage mode. It does not rescale or clamp values, accept other image formats, or rewrite source files. The array API still requires nonempty 2-D `uint16` depth and matching 2-D `uint8` confidence.
 
+## Retained frames and coordinate helpers
+
+Derive native ordinals from `polycam.capture_inventory(root)["frame_ids"]`, and verify the exact capture/frame pair before combining frame sets. Keep zero-based native ordinals separate from contact-sheet positions. For exact frame retention, run `python3 scripts/retain_frames.py --capture <capture> --frame-id <id> --orientation upright90cw --output <fresh-output>`. Repeat `--frame-id` for multiple frames and `--record <path>` for exact selection/spec bytes. Reuse an existing matching retention receipt when no inputs changed.
+
+The runner retains original RGB/camera bytes and source manifest when present, lossless display PNGs, hashes, dimensions and pixel mapping in `frame-retention.json`. Its `records[].original_record.sha256` hashes the actual record bytes, separately from any `model_sha256`. Keep the receipt and sibling `.<output-name>.frame-retention-runtime` with the output; the runner freezes the producer/helpers before processing.
+
+For raw camera centers use `polycam.camera_matrix(camera)[:3, 3]` or the origin from `polycam.pixel_ray`: these poses are camera-to-world. Compare centers only in the same tracking segment/frame unless a reviewed intersegment relation exists. `polycam.project_points` returns native RGB pixels and positive camera-axis depths; convert for display with `display_pixel_center` or the higher-level projection helpers described below. Validate a new coordinate path with depth-grid round trips at the actual RGB/depth resolution ratio and native/display known corners before interpreting errors.
+
+Observation `marks.coordinates` and surface native arrays use their declared native conventions. Pass native RGB pixels to `polycam.pixel_ray` with `orientation='raw'`; `upright90cw` accepts actual display coordinates. Never rotate native coordinates twice. For source/model buffer checks map raw source coordinates through the declared `raw_to_display_matrix` before comparing with native local buffers; do not invert quantized world points to fabricate an exact local fingerprint.
+
 ## Surface measurement
 
 ```sh

@@ -15,7 +15,11 @@ Exclusions: <explicitly excluded deliverables or external assets>
 Decision rule: <what remains provisional, held or unknown, and who resolves conflicts>
 ```
 
-Keep investigation completion separate from physical completion. A bounded source review can finish with an unresolved identity or measurement while another supported region continues. Record the exact next decision, evidence or review needed rather than converting a partial result into project completion.
+Translate the goal into physical outcomes using the existing project packages. A room boundary includes its supported adjacent surfaces and interfaces; individual measurements and tool runs are dependencies of that outcome. Prefer a coherent structural increment over a series of small detached surface drafts. Reuse the current checkpoint and accepted work instead of restarting the coverage or ID accounting.
+
+Keep investigation completion separate from physical completion. A bounded source review can finish with an unresolved identity or measurement while another supported region continues. Record the exact next decision, evidence or review needed rather than converting a partial result into project completion. When the required runtime is paused, finish the useful offline implementation batch and stop at its explicit integration/review boundary; resumption requires the user's runtime restriction to change.
+
+Closeout reports distinguish integrated geometry, prepared geometry, completed source investigations and remaining physical limits. Routine records and affected drawing updates belong to the coherent delivery boundary. Tool work is justified by the modeling operation it enables or repairs.
 
 ## Current project goal example
 
