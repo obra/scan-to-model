@@ -29,6 +29,8 @@ Before a source-readiness worker reads a predecessor producer, resolve the work 
 
 ```text
 Choose one bounded next increment from the project's coverage atlas and register. Prioritize coordinate ties, levels and envelope; then major surfaces and connections; then fixed assemblies and contents; then fine details. Stable regions may advance independently. Name the exact source and expected decision, retain the parent milestone separately, and state a finite success condition and stop condition. Return a small machine-readable or Markdown work brief with inputs, allowed output paths, dependencies, next gate and unresolved obligations. Do not count indexed, reviewed, or partially reconciled work as accepted geometry without the project's acceptance record. After an exhausted bounded attempt, repeat only for a genuinely different source or question.
+
+First reconcile structured package actions to the latest accepted source dispositions, then run `scripts/plan_actions.py` to keep machine and human plan actions aligned; matching actions alone do not establish physical readiness.
 ```
 
 Use [scan-to-model](../skills/scan-to-model/SKILL.md) for routing and [project-records.md](project-records.md) for coverage, handoff and bounded completion.
