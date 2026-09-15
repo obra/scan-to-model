@@ -40,6 +40,9 @@ class GeometryTests(unittest.TestCase):
         result = aabb_separation((1, 2, 3), (1, 4, 3), (2, 3, 4), (3, 4, 5))
         self.assertEqual(result["axis_gaps"], (1.0, 0.0, 1.0))
         self.assertAlmostEqual(result["distance"], sqrt(2.0))
+        point_result = aabb_separation((1, 2, 3), (1, 2, 3), (2, 2, 4), (3, 4, 5))
+        self.assertEqual(point_result["axis_gaps"], (1.0, 0.0, 1.0))
+        self.assertAlmostEqual(point_result["distance"], sqrt(2.0))
 
     def test_aabb_separation_rejects_nonfinite_and_reversed_bounds(self):
         from geometry import aabb_separation
