@@ -76,6 +76,8 @@ When reading native geometry from an editable mesh with modifiers, compare the r
 
 For geometry producers, declare the source and destination coordinate frames and apply the source-to-model transform exactly once before deriving extents, voids, or attached parts. When a reviewed plan supplies explicit vertices and faces, consume those arrays verbatim and validate the resulting mesh against the plan. Appearance parameters are not geometry: resolve shader inputs, UV mapping, and created datablock names in the saved candidate and record those resolved values in the receipt.
 
+Compute any reported reprojection from the actual geometry through the maintained projection helper; copying input pixels is not reprojection evidence. Parse or read back saved geometry exports and compare both their vertices and face winding against the reviewed plan before accepting them.
+
 Reuse `geometry.panel_quad` for regular planar faces so its finite and increasing bounds and outward-orientation checks apply. A physical perforated panel retains its filled surface minus actual apertures; tracing aperture outlines with curves is not equivalent. When an accepted panel mesh already supplies the true holes, reuse its saved surface geometry within the authorized coordinate transform instead of recreating it from contours.
 ```
 
