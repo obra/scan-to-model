@@ -20,12 +20,14 @@ class PreviewGeometryTests(unittest.TestCase):
                       't_10': 0, 't_11': 1, 't_12': 0, 't_13': 0,
                       't_20': 0, 't_21': 0, 't_22': 1, 't_23': 0}
             (root / 'camera.json').write_text(json.dumps(camera))
-            Image.new('RGB', (8, 6), 'white').save(root / 'photo.jpg')
+            photo = Image.new('RGB', (8, 6), 'white')
+            photo.putpixel((0, 0), (12, 34, 56))
+            photo.save(root / 'photo.png')
             spec = {'vertices': [[-1, -1, -3], [1, -1, -3], [0, 1, -3],
                                   [0, 0, 2], [1, 0, 2], [0, 1, 2]],
                     'faces': [[0, 1, 2], [3, 4, 5]],
-                    'frames': [{'id': 'view', 'camera': 'camera.json', 'rgb': 'photo.jpg',
-                                'raw_to_model4x4': np.eye(4).tolist(), 'orientation': 'raw'}]}
+                    'frames': [{'id': 'view', 'camera': 'camera.json', 'rgb': 'photo.png',
+                                'raw_to_model4x4': np.eye(4).tolist(), 'orientation': 'upright90cw'}]}
             spec_path = root / 'spec.json'; spec_path.write_text(json.dumps(spec))
             output = root / 'output'
             generate(spec_path, output)
@@ -36,6 +38,9 @@ class PreviewGeometryTests(unittest.TestCase):
             self.assertEqual(sum(line.startswith('v ') for line in obj_lines), 6)
             self.assertIn('f 1 2 3', obj_lines)
             self.assertIn('f 4 5 6', obj_lines)
+            with Image.open(output / 'view.png') as overlay:
+                self.assertEqual(overlay.getpixel((5, 0)), (12, 34, 56))
+                self.assertEqual(overlay.size, (6, 8 + 24))
 
     def test_rejects_existing_output(self):
         with tempfile.TemporaryDirectory() as temporary:

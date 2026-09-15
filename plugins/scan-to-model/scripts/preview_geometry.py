@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from polycam import project_model_points
 
@@ -75,6 +75,12 @@ def generate(spec_path, output):
         camera = json.loads(camera_path.read_text())
         with Image.open(rgb_path) as image:
             image = image.convert('RGB')
+            if image.size != (camera['width'], camera['height']):
+                raise ValueError('RGB dimensions must match camera calibration')
+            if orientation == 'upright90cw':
+                image = image.transpose(Image.Transpose.ROTATE_270)
+            elif orientation != 'raw':
+                raise ValueError("orientation must be 'raw' or 'upright90cw'")
             draw = ImageDraw.Draw(image)
             projected, depths, front = project_model_points(vertices, camera,
                                                              frame['raw_to_model4x4'], orientation)
@@ -92,6 +98,10 @@ def generate(spec_path, output):
                 face_results.append({'index': index, 'label': labels[index], 'color': colors[index], 'status': 'drawn', 'segments': segments,
                                      'pixels': projected[face].tolist(), 'depths': depths[face].tolist()})
             image_name = f"{frame['id']}.png"
+            image = ImageOps.expand(image, border=(0, 0, 0, 24), fill=(255, 255, 255))
+            ImageDraw.Draw(image).text((4, image.height - 20),
+                                       'PROVISIONAL WIRES; OCCLUDED/HIDDEN GEOMETRY NOT SHOWN',
+                                       fill=(80, 20, 20))
             image.save(output / image_name)
         result['frames'].append({'id': frame['id'], 'camera': str(camera_path), 'rgb': str(rgb_path),
                                  'camera_sha256': _hash(camera_path), 'rgb_sha256': _hash(rgb_path),
