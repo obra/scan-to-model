@@ -96,6 +96,25 @@ def main():
              'modifiers': [(modifier.name, modifier.type, modifier.width, modifier.segments)
                            for modifier in obj.modifiers]}
 
+    shared = obj.copy()
+    shared.name = 'Shared mesh target'
+    shared.data = obj.data
+    obj.users_collection[0].objects.link(shared)
+    shared_state = {'name': shared.name, 'parent': shared.parent,
+                    'matrix_world': Matrix(shared.matrix_world), 'hide_render': shared.hide_render,
+                    'display_type': shared.display_type, 'materials': list(shared.data.materials),
+                    'modifiers': [(modifier.name, modifier.type, modifier.width, modifier.segments)
+                                  for modifier in shared.modifiers]}
+    try:
+        replace_world_mesh(obj, original_vertices, original_faces)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('shared mesh datablock was accepted')
+    assert_mesh_unchanged(obj, original_vertices, original_faces, state)
+    assert_mesh_unchanged(shared, original_vertices, original_faces, shared_state)
+    bpy.data.objects.remove(shared, do_unlink=True)
+
     for invalid_vertices, invalid_faces in (
             ([(0, 0, 0), (1, 0, 0), (float('nan'), 1, 0)], original_faces),
             (original_vertices, [[0, 1, 9], [0, 2, 3]])):
@@ -106,6 +125,18 @@ def main():
         else:
             raise AssertionError('invalid world mesh input was accepted')
         assert_mesh_unchanged(obj, original_vertices, original_faces, state)
+
+    finite_matrix = Matrix(obj.matrix_world)
+    obj.matrix_world[0][0] = float('nan')
+    try:
+        replace_world_mesh(obj, original_vertices, original_faces)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('nonfinite world transform was accepted')
+    finally:
+        obj.matrix_world = finite_matrix
+    assert_mesh_unchanged(obj, original_vertices, original_faces, state)
 
     replacement_vertices = [Vector((3.1, -0.4, 1.7)), Vector((3.8, -0.4, 1.7)),
                             Vector((3.8, 0.2, 1.7)), Vector((3.1, 0.2, 1.7)),

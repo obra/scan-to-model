@@ -33,12 +33,19 @@ def replace_world_mesh(obj, vertices, faces):
     """Replace editable mesh geometry from world-space vertices and ordered faces."""
     if obj.type != 'MESH':
         raise ValueError('target object must be a mesh')
+    if obj.data.users != 1:
+        raise ValueError('target mesh datablock must have exactly one user')
     points, polygons = _validated_geometry(vertices, faces)
+    if any(not math.isfinite(float(obj.matrix_world[row][column]))
+           for row in range(4) for column in range(4)):
+        raise ValueError('target object world transform must be finite')
     try:
         inverse = obj.matrix_world.inverted()
     except (ValueError, RuntimeError):
         raise ValueError('target object world transform must be invertible') from None
     local = [tuple(inverse @ Vector(point)) for point in points]
+    if any(not math.isfinite(value) for point in local for value in point):
+        raise ValueError('converted local vertices must be finite')
     mesh = obj.data
     mesh.clear_geometry()
     mesh.from_pydata(local, [], polygons)
