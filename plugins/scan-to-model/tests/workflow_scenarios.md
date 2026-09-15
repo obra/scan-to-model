@@ -1,6 +1,6 @@
 # Reconstruction workflow decision scenarios
 
-These are behavioral checks for the core workflow and worker/reviewer briefs, not string assertions. Give an independent agent the scenarios and the plugin instructions at the revision under test, without the assessment section. Ask for concrete dispatches, review decisions and stopping conditions. Keep outputs outside the plugin's private-data-free source tree. Compare decisions rather than matching wording.
+These are behavioral checks for the core workflow and worker/reviewer briefs, not string assertions. Give an independent agent only the Scenarios section and the plugin instructions at the revision under test; exclude both Assessment and Validation record. Ask for concrete dispatches, review decisions and stopping conditions. Keep outputs outside the plugin's private-data-free source tree. Compare decisions rather than matching wording.
 
 ## Scenarios
 
@@ -28,3 +28,9 @@ A previously parked stair investigation now has an unobstructed photo showing th
 - D: Allow a bounded investigation tied to the new contact evidence and a small tested exporter fix tied to the blocked view. Apply the fix to the actual candidate and retain physical acceptance checks. Efficiency rules must not ban necessary retries, useful tooling or independently supported work.
 
 For wording changes, use multiple fresh-context runs of the same scenarios before and after editing. Record observed decisions and any failures, not an invented numerical guarantee of future efficiency. A passing planning exercise is narrower evidence than successful long-running production.
+
+## Validation record
+
+On 2026-09-15, five fresh-context `gpt-5.6-luna` medium runs per variant read the two core skill entrypoints, the worker/reviewer briefs and scenarios A-D, without this assessment or prior run results. Baseline `3207842` produced seven concurrent dispatches in all five runs: four reviews, two new builds and the historical lane. All five already parked the unchanged doorway and declined redundant delivery renders.
+
+The first instruction revision stopped new builds in four runs, but only one selected a single candidate for acceptance; the others treated a review backlog as outside the geometry work limit. Explicitly including review, correction and delivery in the active increment resolved that ambiguity in the final five runs: each selected one candidate and kept the others queued. All five held source-conflicting final sheets, reused valid delivery checks, deferred the unneeded dashboard and allowed bounded new-evidence/tool-fix work. This tests proposed decisions under the supplied pressures, not actual long-running throughput or guaranteed compliance.

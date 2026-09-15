@@ -17,6 +17,8 @@ Decision rule: <what remains provisional, held or unknown, and who resolves conf
 
 Keep investigation completion separate from physical completion. A bounded source review can finish with an unresolved identity or measurement while another supported region continues. Record the exact next decision, evidence or review needed rather than converting a partial result into project completion.
 
+An ongoing goal does not require keeping every worker busy or reopening exhausted investigations. Apply the acceptance-capacity, retry and tool-work rules in [work-packets.md](work-packets.md) at each continuation. Finish the active increment, then choose another supported outcome. If no independent authorized work can advance, report the exact missing evidence or decision rather than generating more diagnostics or declaring the project complete. Summarize delivered geometry, completed investigations and documentation separately in the existing project records.
+
 ## Current project goal example
 
 > Complete the existing house-mapping plan, excluding movie work and externally owned backups.

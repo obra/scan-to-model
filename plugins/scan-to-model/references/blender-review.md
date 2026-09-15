@@ -4,6 +4,12 @@ Before reviewing a manufactured component, distinguish immutable photo/depth con
 
 Show the constrained component clearly by default and label any raw trace overlay as evidence. Verify right angles and opposite-edge relationships on the saved mesh, including recessed/inset profiles and dependent holes or adjoining faces. A rectangular diagram alone does not establish rectangular Blender geometry; a corrected panel can still leave a mismatched opening around it.
 
+## Review physical relationships before presentation
+
+Before polishing the affected room or assembly, compare its saved-model extent, relative position, orientation and visible contacts with useful source views and owner corrections. Use a source-matched overview and a top/section or local detail where needed. For example, a worktop that stops after one cabinet bay when the photo shows several, or a fixture placed beside rather than behind its basin, is a physical conflict even when every object and source hash is correct. An approximate dimension label does not resolve a visible contradiction.
+
+Correct and review supported conflicts before accepting affected final drawings or presentation. Missing metric evidence remains an explicit limit, not permission to invent a contact. Existing historical or diagnostic sheets can remain labeled with their model identity and unresolved conflict, but do not count as a completed physical review. Reuse accepted checks of unrelated, unchanged geometry; apply the bounded review and revalidation rules in [work-packets.md](work-packets.md) rather than launching another general room audit.
+
 ## Contract scripted presentations before rendering
 
 Choose the presentation mode before authoring a route. A `first-person-walkthrough` follows a saved sequence of floor-relative viewpoints within an explicit human eye-height range. It includes interior routes, upward views of ceilings and fixtures, content-bearing rooms, and exterior views when those are required. A `cutaway-orbit` may use elevated cameras or deliberately hidden architecture to explain a model, but it is a different deliverable and cannot stand in for a walkthrough. Join discontinuous architectural shots with cuts; crossfades can make opaque walls look translucent by superimposing separate viewpoints.

@@ -2,6 +2,15 @@
 
 Use this reference to give a bounded worker or reviewer enough context to produce a reusable project record. It is a prompt pattern, not a queue format or executor. Keep the job-specific room, source, model, paths and decisions in the private project. Pair it with [goals.md](goals.md) when the work item belongs to a larger completion goal.
 
+## Outcome-first execution
+
+- Finish an existing candidate's acceptance and delivery before growing the geometry queue. Default to one active geometry increment, including review, correction and delivery, plus one independent source/records lane. From a backlog, select one candidate to finish; leave the others queued rather than sending the entire batch for review. Additional parallel work needs named independent acceptance owners with demonstrated capacity, not just available builders or reviewers. The coordinator remains a bottleneck when every result still requires its judgment.
+- Bound each attempt by a named source selection, candidate or decision and a finite stop condition. A no-result is a valid investigation outcome, not physical completion. Park the item with its exact missing fact and continue supported independent work. Before reopening, name new evidence, a corrected invalid method or a materially different question, and explain how it could change the decision. More samples of the same occluded edge, a renamed packet or a fresh reviewer alone do not qualify.
+- Give a worker a complete brief and return contract, then review the returned result. Batch findings into one actionable review. Further cycles address named defects or changed evidence, not repeated status requests; escalate a repeated unresolved identity or scope decision instead of sending the same work around again. Necessary failed checks still block acceptance.
+- Review physical meaning before presentation polish. Compare the affected assembly's extent, placement and contacts with available source views and owner corrections; hashes and rendered coverage cannot establish those relationships. Hold affected final sheets when a visible source conflict remains. Clearly labeled diagnostic or historical sheets may be retained without counting as final acceptance.
+- Reuse valid checks bound to immutable inputs. A changed model, producer, relevant runtime or failed check justifies targeted revalidation; copying byte-identical artifacts to a verified destination does not by itself require rendering again. Preserve source bindings, saved-file checks, failures and delivery verification, but update the existing authoritative records together once at the end of the increment. Do not add a second queue or a review of a review receipt without a concrete unmet requirement.
+- Tool or instruction work must name the present obstacle, the smallest useful correction and the deliverable it enables. Test the correction and use it on that deliverable before treating it as useful progress. Defer speculative dashboards, generic frameworks and polishing that do not improve the current outcome; a short existing procedure can be cheaper than new automation.
+
 ## Shared brief
 
 ```text
@@ -15,8 +24,10 @@ Inputs: <absolute or project-relative paths, source IDs, model/transform IDs, an
 Allowed outputs: <fresh output directory and the exact records/artifacts it may contain>
 Scope: <one room, connection, source route, or review contract>
 Required return: <source observations, measurements, candidate diff, review receipt, or a stated no-result>
+Acceptance check: <the physical relationship or evidence contract the reviewer must verify>
 Next gate: <the concrete evidence or review required before the next stage>
-Stop/escalate when: <identity, scope, conflicting control, accepted-geometry, or validation condition that needs an operator>
+Attempt bound / stop: <finite source selection or candidate check; no-result and escalation conditions>
+Reopen reason, if any: <changed evidence, corrected method or different question and its expected decision impact>
 ```
 
 The `Role` names the agent executing the work item, not the person or agent who authored the brief. Bind immutable inputs before work and write only to fresh allowed outputs. Report what was actually opened or measured, preserve rejected alternatives and unresolved limits, and distinguish a finished investigation from a finished project milestone. A reviewer must be able to follow each claim to the project records and source components. Use [project-records.md](project-records.md) as the record authority and [evidence-workflow.md](evidence-workflow.md) for provenance and uncertainty rules. A discovery job binds its starting index or input set and may return newly identified frame or source bindings; it does not require undiscovered frame IDs as prerequisites. Mark the packet planning-only when a required accepted scope or input is still missing.
@@ -24,7 +35,7 @@ The `Role` names the agent executing the work item, not the person or agent who 
 ## Planner or PM
 
 ```text
-Choose one bounded next increment from the project's coverage atlas and register. Prioritize coordinate ties, levels and envelope; then major surfaces and connections; then fixed assemblies and contents; then fine details. Stable regions may advance independently. Name the exact source and expected decision, retain the parent milestone separately, and state a finite success condition and stop condition. Return a small machine-readable or Markdown work brief with inputs, allowed output paths, dependencies, next gate and unresolved obligations. Do not count indexed, reviewed, or partially reconciled work as accepted geometry without the project's acceptance record. After an exhausted bounded attempt, repeat only for a genuinely different source or question.
+Choose one bounded next increment from the project's coverage atlas and register, finishing an existing candidate before dispatching more geometry. Prioritize coordinate ties, levels and envelope; then major surfaces and connections; then fixed assemblies and contents; then fine details. Stable regions may advance independently within available acceptance capacity. Name the exact source and expected decision, retain the parent milestone separately, and state a finite success condition and stop condition. Return a small machine-readable or Markdown work brief with inputs, allowed output paths, dependencies, next gate and unresolved obligations. Report delivered geometry, completed investigations, delivered documentation and remaining blockers separately; do not count worker activity or receipts as physical completion. Apply the outcome-first execution rules to retries, handoffs and tool work.
 ```
 
 Use [scan-to-model](../skills/scan-to-model/SKILL.md) for routing and [project-records.md](project-records.md) for coverage, handoff and bounded completion.
@@ -40,7 +51,7 @@ Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md
 ## Geometry builder
 
 ```text
-Build only the named candidate increment in a fresh candidate/output path. Preserve unrelated architecture, current finishes, contents, historical construction and observed services as separate categories. Bind source records and accepted transforms before using coordinates; keep diagnostic or provisional results out of physical contacts. Return the candidate hash, changed object IDs, input bindings, unresolved dimensions, inventory comparison and reviewed renders. Escalate any proposed change to accepted geometry, transform scope or physical identity that lacks the required independent record.
+Build only the named candidate increment in a fresh candidate/output path. Preserve unrelated architecture, current finishes, contents, historical construction and observed services as separate categories. Bind source records and accepted transforms before using coordinates; keep diagnostic or provisional results out of physical contacts. Check the assembly's visible extent, placement and contacts against sources before detailed drawings. Return the candidate hash, changed object IDs, input bindings, unresolved dimensions, inventory comparison and reviewed renders, or stop with the exact unmet evidence gate. Escalate any proposed change to accepted geometry, transform scope or physical identity that lacks the required independent record.
 
 For a room's native extraction or drawing, derive membership from accepted object/feature records and semantic room tags; inspect shared collections as well as room collections, then compare the live membership with the declared set so collection layout cannot silently drop artwork or other contents.
 
@@ -53,10 +64,12 @@ Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-revi
 
 ```text
 Review the supplied candidate or evidence packet against its declared scope and immutable input hashes. Preserve the evidence packet itself, including failed attempts, their exact producer bytes when available, and retained inputs. Use a fresh review output directory; retain command, runtime, failure and receipt details. Archived producers may write beside their scripts, so inspect write behavior before rerunning and use frozen input copies or an explicit fresh output path. Check source identity, accepted versus diagnostic roles, preservation of unrelated content, model membership and visual evidence. Return pass, bounded pass, or fail with exact findings and the next gate. Do not repair the candidate, promote geometry, or treat a valid tool receipt as proof of depicted pixels or physical acceptance.
+
+Check the declared physical relationships before reviewing presentation polish. A narrow documentation scope or approximate label cannot excuse a known source conflict in affected final sheets. Return the concrete findings together; on a corrected return, recheck those findings and affected preservation contracts rather than restarting unrelated accepted work. Reuse immutable-bound evidence unless a changed input or discovered failure invalidates it.
 ```
 
 Use [blender-review.md](blender-review.md) for saved-scene and presentation review. For scripted presentations, validate the contract and hash-bound sample receipt with `scripts/presentation.py`, then inspect the actual sample images.
 
 ## Reusable-tool learning loop
 
-When a recurring mechanical operation is demonstrated, capture it as a tested script or fixture. Capture stable interpretation rules as a skill or reference. Capture repeated worker/reviewer boundaries as this prompt pattern. Keep publishing authorization project-owned, and keep private scans, models, addresses and owner observations out of the plugin.
+Use the outcome-first tool rule before extracting a recurring operation. When it helps the current deliverable, capture mechanics as a tested script or fixture, stable interpretation rules as a skill or reference, and repeated worker/reviewer boundaries as this prompt pattern. Verify the improvement on the blocked task, not just on its fixture. Keep publishing authorization project-owned, and keep private scans, models, addresses and owner observations out of the plugin.
