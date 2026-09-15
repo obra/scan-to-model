@@ -357,6 +357,28 @@ class DrawRoomTests(unittest.TestCase):
             DRAW_ROOM.validate_saved_section_polygon(
                 np.array([[0, 0, 0], [2, 0, 0], [2, 2, 0.01], [0, 2, 0]], float))
 
+    def test_triangle_section_uses_mesh_global_indices_on_a_later_face(self):
+        native_data = {
+            'schema_version': 1, 'status': 'ok', 'all_visible_guard': True,
+            'model_sha256': 'model-fixture-sha', 'objects': [{
+                'name': 'two-face-mesh',
+                'vertices_world_m': [[-2, 0, 0], [-1, 0, 0], [-2, 0, 1],
+                                     [0, 0, 0], [2, 0, 0], [0, 2, 0]],
+                'polygons': [[0, 1, 2], [3, 4, 5]],
+                'loop_triangles': [{'polygon_index': 1, 'vertex_indices': [3, 4, 5]}],
+            }]}
+        view = {
+            'id': 'P1', 'kind': 'section', 'title': 'Later face', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 0, 1], 'view_direction_frame': [0, 1, 0],
+            'bounds_frame': [-1, 3, -1, 1], 'axis_labels': ['X', 'Z'],
+            'cut': {'axis': 1, 'value_m': 1}, 'annotations': [],
+            'subjects': [{'object_id': 'two-face-mesh', 'style': 'architecture', 'face_indices': [1]}],
+        }
+        result, manifest, _ = self.run_single_view(
+            view, native_data=native_data, return_manifest=True, return_outputs=True, skip_overview=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {'two-face-mesh': [1]})
+
     def test_default_native_mode_still_requires_visibility_guard(self):
         native_data = {
             'schema_version': 1, 'status': 'saved-polygon', 'model_sha256': 'model-fixture-sha',
@@ -374,6 +396,14 @@ class DrawRoomTests(unittest.TestCase):
         result = self.run_single_view(view, native_data=native_data)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('all_visible_guard', result.stderr)
+
+    def test_saved_section_rejects_a_self_crossing_star(self):
+        points = np.array([
+            [np.cos(angle), np.sin(angle), 0.0]
+            for angle in (0, 4 * np.pi / 5, 8 * np.pi / 5, 2 * np.pi / 5, 6 * np.pi / 5)
+        ])
+        with self.assertRaisesRegex(ValueError, 'convex'):
+            DRAW_ROOM.validate_saved_section_polygon(points)
 
     def test_subject_spatial_clip_is_scoped_to_one_subject(self):
         native_data = {

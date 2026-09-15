@@ -193,24 +193,27 @@ def validate_saved_section_polygon(polygon, tolerance=1e-6):
     tangent /= np.linalg.norm(tangent)
     side = np.cross(normal, tangent)
     projected = np.column_stack(((points - origin) @ tangent, (points - origin) @ side))
-    turns = []
     for index in range(len(projected)):
-        current = projected[index]
-        following = projected[(index + 1) % len(projected)]
-        next_following = projected[(index + 2) % len(projected)]
-        edge_a, edge_b = following - current, next_following - following
-        turn = edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0]
-        if abs(turn) > tolerance:
-            turns.append(turn)
-    if not turns or any(turn * turns[0] < -tolerance for turn in turns):
-        raise ValueError('saved section polygon must be convex')
+        start = projected[index]
+        end = projected[(index + 1) % len(projected)]
+        edge = end - start
+        edge_length = np.linalg.norm(edge)
+        if edge_length <= tolerance:
+            raise ValueError('saved section polygon must be convex')
+        distances = np.array([
+            (edge[0] * (point[1] - start[1]) - edge[1] * (point[0] - start[0])) / edge_length
+            for point_index, point in enumerate(projected)
+            if point_index not in (index, (index + 1) % len(projected))
+        ])
+        if np.any(distances > tolerance) and np.any(distances < -tolerance):
+            raise ValueError('saved section polygon must be convex')
     return points
 
 
-def section_pieces(polygon, triangles, saved_polygons=False):
+def section_pieces(polygon, triangle_pieces, saved_polygons=False):
     """Return section pieces without fabricating triangles for unsupported faces."""
-    if triangles:
-        return [polygon[np.asarray(triangle, int)] for triangle in triangles]
+    if triangle_pieces:
+        return triangle_pieces
     if not saved_polygons:
         raise ValueError('section face has no saved loop triangles')
     validate_saved_section_polygon(polygon)
@@ -395,8 +398,10 @@ def main():
                     cut = view['cut']
                     coplanar = np.max(np.abs(polygon[:, cut['axis']] - cut['value_m'])) <= math.EPS
                     if not coplanar:
+                        triangle_pieces = [points[vertex_indices] for vertex_indices in
+                                           triangles_by_polygon[name].get(index, [])]
                         pieces_to_cut = section_pieces(
-                            polygon, triangles_by_polygon[name].get(index, []), args.saved_polygons)
+                            polygon, triangle_pieces, args.saved_polygons)
                 drawn = False
                 for face in pieces_to_cut:
                     for crop in (view.get('spatial_clips', []) +
