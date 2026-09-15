@@ -271,7 +271,8 @@ def project_points(points, camera):
         raise ValueError('Points must be a finite Nx3 array')
     validate_camera(camera)
     transform = camera_matrix(camera)
-    camera_points = (points - transform[:3, 3]) @ transform[:3, :3]
+    camera_points = np.linalg.solve(transform[:3, :3],
+                                    (points - transform[:3, 3]).T).T
     depths = -camera_points[:, 2]
     front_mask = depths > 0
     pixels = np.full((len(points), 2), np.nan, dtype=float)

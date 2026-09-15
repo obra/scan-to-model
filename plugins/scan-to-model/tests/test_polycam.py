@@ -120,6 +120,33 @@ class PolycamTests(unittest.TestCase):
         np.testing.assert_allclose(depths, -camera_points[:, 2], atol=1e-12)
         np.testing.assert_array_equal(front, [True, True, True])
 
+    def test_project_points_inverts_rounded_camera_rotation(self):
+        angle = np.deg2rad(23)
+        rotation = np.array([[np.cos(angle), 0, np.sin(angle)],
+                             [0, 1, 0],
+                             [-np.sin(angle), 0, np.cos(angle)]])
+        rotation = np.round(rotation, decimals=6)
+        camera = {'width': 640, 'height': 480, 'fx': 500, 'fy': 510,
+                  'cx': 311, 'cy': 229}
+        transform = np.eye(4)
+        transform[:3, :3] = rotation
+        transform[:3, 3] = [2, -1, 4]
+        for i in range(3):
+            for j in range(4):
+                camera[f't_{i}{j}'] = transform[i, j]
+        camera_points = np.array([[-.7, .4, -2], [.2, -.3, -3], [1, .8, -1.5]])
+        world = camera_points @ rotation.T + transform[:3, 3]
+        old_camera_points = (world - transform[:3, 3]) @ rotation
+        old_pixels = np.column_stack((500 * old_camera_points[:, 0] / -old_camera_points[:, 2] + 311,
+                                      229 - 510 * old_camera_points[:, 1] / -old_camera_points[:, 2]))
+        expected_pixels = np.column_stack((500 * camera_points[:, 0] / -camera_points[:, 2] + 311,
+                                            229 - 510 * camera_points[:, 1] / -camera_points[:, 2]))
+        self.assertGreater(np.max(np.abs(old_pixels - expected_pixels)), 1e-5)
+        pixels, depths, front = project_points(world, camera)
+        np.testing.assert_allclose(pixels, expected_pixels, atol=1e-9, rtol=0)
+        np.testing.assert_allclose(depths, -camera_points[:, 2], atol=1e-9, rtol=0)
+        np.testing.assert_array_equal(front, [True, True, True])
+
     def test_pixel_ray_returns_analytic_world_ray_without_depth(self):
         angle = np.deg2rad(27)
         rotation = np.array([[np.cos(angle), 0, np.sin(angle)],
