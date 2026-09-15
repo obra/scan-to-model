@@ -90,6 +90,34 @@ def panel_quad(tangent, normal, plane_constant, u_bounds, z_bounds, depth=0.0):
     }
 
 
+def aperture_lining(tangent, normal, plane_constant, u_bounds, z_bounds, depth):
+    """Return two recessed jambs and a recessed head around an aperture."""
+    tangent, normal = _basis(tangent, normal)
+    u0, u1 = _bounds(u_bounds, "u_bounds")
+    z0, z1 = _bounds(z_bounds, "z_bounds")
+    depth = float(depth)
+    if not isfinite(depth) or depth <= 0.0:
+        raise ValueError("depth must be positive and finite")
+    vertices = [
+        plane_point(tangent, normal, plane_constant, u0, z0),
+        plane_point(tangent, normal, plane_constant, u0, z1),
+        plane_point(tangent, normal, plane_constant, u1, z1),
+        plane_point(tangent, normal, plane_constant, u1, z0),
+        plane_point(tangent, normal, plane_constant, u0, z0, -depth),
+        plane_point(tangent, normal, plane_constant, u0, z1, -depth),
+        plane_point(tangent, normal, plane_constant, u1, z1, -depth),
+        plane_point(tangent, normal, plane_constant, u1, z0, -depth),
+    ]
+    return {
+        "vertices": vertices,
+        "faces": [[0, 1, 5, 4], [3, 7, 6, 2], [1, 2, 6, 5]],
+        "face_labels": ["low_u_jamb", "high_u_jamb", "head"],
+        "u_bounds": (u0, u1),
+        "z_bounds": (z0, z1),
+        "depth": depth,
+    }
+
+
 def solid_bar(tangent, normal, plane_constant, u_bounds, z_bounds, depth):
     """Return a positive-volume rectangular bar extruded outward from a plane."""
     u0, u1 = _bounds(u_bounds, "u_bounds")

@@ -5,11 +5,41 @@ from itertools import combinations
 from math import inf, sqrt
 from pathlib import Path
 import sys
+import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 
 class GeometryTests(unittest.TestCase):
+    def test_aperture_lining_has_recessed_jambs_and_head_with_shared_vertices(self):
+        from geometry import aperture_lining
+
+        shape = aperture_lining(
+            tangent=(0.6, 0.8), normal=(-0.8, 0.6), plane_constant=2.0,
+            u_bounds=(1.0, 3.0), z_bounds=(4.0, 6.0), depth=0.25,
+        )
+        self.assertEqual(len(shape['vertices']), 8)
+        self.assertEqual(shape['faces'], [[0, 1, 5, 4], [3, 7, 6, 2], [1, 2, 6, 5]])
+        self.assertEqual(shape['face_labels'], ['low_u_jamb', 'high_u_jamb', 'head'])
+        tangent = np.array((0.6, 0.8, 0.0)); normal = np.array((-0.8, 0.6, 0.0))
+        front = np.array(shape['vertices'][:4]); back = np.array(shape['vertices'][4:])
+        np.testing.assert_allclose(back - front, np.tile(-0.25 * normal, (4, 1)))
+        np.testing.assert_allclose(np.min(np.array(shape['vertices'])[:, 2]), 4.0)
+        np.testing.assert_allclose(np.max(np.array(shape['vertices'])[:, 2]), 6.0)
+        for face, expected in zip(shape['faces'], (tangent, -tangent, np.array((0., 0., -1.)))):
+            points = np.array([shape['vertices'][i] for i in face])
+            actual = np.cross(points[1] - points[0], points[2] - points[0])
+            self.assertGreater(np.dot(actual, expected), 0.0)
+
+    def test_aperture_lining_rejects_invalid_depth_and_bounds(self):
+        from geometry import aperture_lining
+
+        args = ((1., 0.), (0., 1.), 0., (0., 1.), (0., 1.))
+        for depth in (0., -1., float('inf'), float('nan')):
+            with self.assertRaises(ValueError):
+                aperture_lining(*args, depth=depth)
+        with self.assertRaises(ValueError):
+            aperture_lining(*args[:3], (1., 0.), (0., 1.), depth=.1)
     def test_aabb_separation_returns_zero_for_touching_or_overlapping_boxes(self):
         from geometry import aabb_separation
 
