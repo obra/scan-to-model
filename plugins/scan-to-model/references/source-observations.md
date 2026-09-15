@@ -98,11 +98,13 @@ Deliver the source manifest, observation/feature-relation records, annotated sou
 The bundled renderer accepts local JPEG and PNG paths and writes only to a new output directory:
 
 ```sh
-python -B "$PLUGIN/scripts/observations.py" \
+python -B "$PLUGIN/scripts/run_observations.py" \
   --spec /path/to/review/observations.json \
   --output /path/to/review/annotated-source-evidence \
   --coordinate-inspections
 ```
+
+Use `run_observations.py` for replayable runs: it freezes `observations.py` and its local pixel and metadata helpers before execution and writes `run-receipt.json` beside the generated evidence. Call `observations.py` directly when developing or exercising the renderer without a frozen execution record.
 
 ```json
 {

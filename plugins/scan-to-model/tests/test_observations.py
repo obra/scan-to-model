@@ -896,6 +896,32 @@ class ObservationSheetTests(unittest.TestCase):
         )
         self.assertNotEqual(refused.returncode, 0)
 
+    def test_runner_freezes_imported_helpers_records_receipt_and_refuses_overwrite(self):
+        root = make_workspace()
+        spec_path = write_spec(root, valid_spec(root))
+        output = root / "wrapped-output"
+        runner = Path(__file__).resolve().parents[1] / "scripts" / "run_observations.py"
+        completed = subprocess.run(
+            [sys.executable, str(runner), "--spec", str(spec_path), "--output", str(output),
+             "--coordinate-inspections"],
+            check=False, capture_output=True, text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertTrue((output / "evidence.json").is_file())
+        receipt = json.loads((output / "run-receipt.json").read_text())
+        self.assertEqual(receipt["status"], "pass")
+        for name, binding in receipt["helpers"].items():
+            frozen = Path(binding["path"])
+            self.assertTrue(frozen.is_file())
+            self.assertEqual(hashlib.sha256(frozen.read_bytes()).hexdigest(), binding["sha256"])
+            self.assertEqual(frozen.read_bytes(), (runner.parent / name).read_bytes())
+        refused = subprocess.run(
+            [sys.executable, str(runner), "--spec", str(spec_path), "--output", str(output)],
+            check=False, capture_output=True, text=True,
+        )
+        self.assertNotEqual(refused.returncode, 0)
+        self.assertEqual(json.loads((output / "run-receipt.json").read_text()), receipt)
+
 
 if __name__ == "__main__":
     unittest.main()
