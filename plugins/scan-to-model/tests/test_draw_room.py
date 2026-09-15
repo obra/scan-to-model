@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import importlib.util
+import numpy as np
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
@@ -148,7 +149,7 @@ class DrawRoomTests(unittest.TestCase):
             DRAW_ROOM.legend_text({'id': 'bad', 'legend': 'none'})
 
     def run_single_view(self, view, native_data=None, return_manifest=False, return_pdf=False,
-                        skip_overview=False, return_outputs=False):
+                        skip_overview=False, return_outputs=False, saved_polygons=False):
         native_data = native_data or {
             'schema_version': 1,
             'status': 'ok',
@@ -197,6 +198,8 @@ class DrawRoomTests(unittest.TestCase):
             ]
             if skip_overview:
                 command.append('--skip-overview')
+            if saved_polygons:
+                command.append('--saved-polygons')
             result = subprocess.run(command, capture_output=True, text=True)
             if return_pdf and result.returncode != 0:
                 return result, None, None
@@ -323,6 +326,54 @@ class DrawRoomTests(unittest.TestCase):
         self.assertTrue(outputs['geometry_pdf'])
         self.assertTrue(outputs['detail_png'])
         self.assertFalse(outputs['overview_png'])
+
+    def test_saved_polygon_section_renders_without_native_guard_or_triangles(self):
+        native_data = {
+            'schema_version': 1, 'status': 'saved-polygon', 'model_sha256': 'model-fixture-sha',
+            'objects': [{'name': 'saved-quad',
+                         'vertices_world_m': [[0, 0, 0], [2, 0, 0], [2, 2, 0], [0, 2, 0]],
+                         'polygons': [[0, 1, 2, 3]]}],
+        }
+        view = {
+            'id': 'P1', 'kind': 'section', 'title': 'Saved polygon section', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 0, 1], 'view_direction_frame': [0, 1, 0],
+            'bounds_frame': [-1, 3, -1, 1], 'axis_labels': ['X', 'Z'],
+            'cut': {'axis': 1, 'value_m': 1}, 'annotations': [],
+            'subjects': [{'object_id': 'saved-quad', 'style': 'architecture', 'face_indices': [0]}],
+        }
+        result, manifest, outputs = self.run_single_view(
+            view, native_data=native_data, return_manifest=True, return_outputs=True,
+            skip_overview=True, saved_polygons=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(manifest['native_input_mode'], 'saved-polygons')
+        self.assertEqual(manifest['rendered_selections'][0]['drawn_faces'], {'saved-quad': [0]})
+        self.assertTrue(outputs['detail_png'])
+
+    def test_saved_polygon_section_rejects_concave_or_nonplanar_fallback(self):
+        with self.assertRaisesRegex(ValueError, 'convex'):
+            DRAW_ROOM.validate_saved_section_polygon(
+                np.array([[0, 0, 0], [2, 0, 0], [2, 2, 0], [1, 1, 0], [0, 2, 0]], float))
+        with self.assertRaisesRegex(ValueError, 'planar'):
+            DRAW_ROOM.validate_saved_section_polygon(
+                np.array([[0, 0, 0], [2, 0, 0], [2, 2, 0.01], [0, 2, 0]], float))
+
+    def test_default_native_mode_still_requires_visibility_guard(self):
+        native_data = {
+            'schema_version': 1, 'status': 'saved-polygon', 'model_sha256': 'model-fixture-sha',
+            'objects': [{'name': 'saved-quad',
+                         'vertices_world_m': [[0, 0, 0], [2, 0, 0], [2, 2, 0], [0, 2, 0]],
+                         'polygons': [[0, 1, 2, 3]]}],
+        }
+        view = {
+            'id': 'P1', 'kind': 'plan', 'title': 'Plan', 'note': 'fixture',
+            'right_frame': [1, 0, 0], 'up_frame': [0, 1, 0], 'view_direction_frame': [0, 0, -1],
+            'bounds_frame': [-1, 3, -1, 3], 'axis_labels': ['X', 'Y'],
+            'cut': {'axis': 2, 'value_m': 0, 'keep_below': True}, 'annotations': [],
+            'subjects': [{'object_id': 'saved-quad', 'style': 'architecture', 'face_indices': [0]}],
+        }
+        result = self.run_single_view(view, native_data=native_data)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('all_visible_guard', result.stderr)
 
     def test_subject_spatial_clip_is_scoped_to_one_subject(self):
         native_data = {

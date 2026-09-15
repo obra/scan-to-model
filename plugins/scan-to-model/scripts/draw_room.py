@@ -170,6 +170,53 @@ def validate_section_marks(specification):
             raise ValueError(f"section mark {mark_id} arrow must follow section {section_id} view direction")
 
 
+def validate_saved_section_polygon(polygon, tolerance=1e-6):
+    """Require a finite, non-degenerate, convex planar polygon for direct cutting."""
+    points = np.asarray(polygon, float)
+    if points.ndim != 2 or points.shape[1] != 3 or len(points) < 3 or not np.isfinite(points).all():
+        raise ValueError('saved section polygon must be finite 3-D points')
+    origin = points[0]
+    normal = None
+    for index in range(1, len(points) - 1):
+        candidate = np.cross(points[index] - origin, points[index + 1] - origin)
+        length = np.linalg.norm(candidate)
+        if length > tolerance:
+            normal = candidate / length
+            break
+    if normal is None:
+        raise ValueError('saved section polygon must be planar and non-degenerate')
+    if np.max(np.abs((points - origin) @ normal)) > tolerance:
+        raise ValueError('saved section polygon must be planar')
+    tangent = points[1] - origin
+    if np.linalg.norm(tangent) <= tolerance:
+        raise ValueError('saved section polygon must be convex')
+    tangent /= np.linalg.norm(tangent)
+    side = np.cross(normal, tangent)
+    projected = np.column_stack(((points - origin) @ tangent, (points - origin) @ side))
+    turns = []
+    for index in range(len(projected)):
+        current = projected[index]
+        following = projected[(index + 1) % len(projected)]
+        next_following = projected[(index + 2) % len(projected)]
+        edge_a, edge_b = following - current, next_following - following
+        turn = edge_a[0] * edge_b[1] - edge_a[1] * edge_b[0]
+        if abs(turn) > tolerance:
+            turns.append(turn)
+    if not turns or any(turn * turns[0] < -tolerance for turn in turns):
+        raise ValueError('saved section polygon must be convex')
+    return points
+
+
+def section_pieces(polygon, triangles, saved_polygons=False):
+    """Return section pieces without fabricating triangles for unsupported faces."""
+    if triangles:
+        return [polygon[np.asarray(triangle, int)] for triangle in triangles]
+    if not saved_polygons:
+        raise ValueError('section face has no saved loop triangles')
+    validate_saved_section_polygon(polygon)
+    return [polygon]
+
+
 def select_views(specification, requested_ids=None):
     """Return requested views in specification order after validating their IDs."""
     views = specification['views']
@@ -267,6 +314,8 @@ def main():
                         help='Render one declared view; repeat to select multiple views.')
     parser.add_argument('--skip-overview', action='store_true',
                         help='Write geometry pages without rendering contact overview panels.')
+    parser.add_argument('--saved-polygons', action='store_true',
+                        help='Use explicit saved polygon geometry when triangle records are absent.')
     args = parser.parse_args()
     module = importlib.util.spec_from_file_location('drawing_math', args.math_helper)
     math = importlib.util.module_from_spec(module)
@@ -278,7 +327,8 @@ def main():
     args.output.mkdir(exist_ok=False)
     assert native['model_sha256'] == specification['model_sha256']
     assert digest(args.native) == specification['native_sha256']
-    assert native['all_visible_guard']
+    if not args.saved_polygons:
+        assert native['all_visible_guard']
     objects = {row['name']: row for row in native['objects']}
     basis = np.asarray(specification['frame_axes_world'], float)
     assert np.allclose(basis @ basis.T, np.eye(3), atol=1e-7)
@@ -287,7 +337,7 @@ def main():
     triangles_by_polygon = {}
     for name, row in objects.items():
         per_polygon = {}
-        for triangle in row['loop_triangles']:
+        for triangle in row.get('loop_triangles', []):
             per_polygon.setdefault(triangle['polygon_index'], []).append(
                 np.asarray(triangle['vertex_indices'], int))
         triangles_by_polygon[name] = per_polygon
@@ -295,6 +345,7 @@ def main():
     records = []
     manifest = {'status': 'declared_before_drawing', 'native_path': str(args.native),
                 'native_sha256': digest(args.native), 'model_sha256': native['model_sha256'],
+                'native_input_mode': 'saved-polygons' if args.saved_polygons else 'evaluated-native',
                 'view_specification': specification, 'views_sha256': digest(args.views),
                 'math_helper_sha256': digest(args.math_helper),
                 'producer_sha256': digest(__file__), 'no_model_edit': True,
@@ -344,9 +395,8 @@ def main():
                     cut = view['cut']
                     coplanar = np.max(np.abs(polygon[:, cut['axis']] - cut['value_m'])) <= math.EPS
                     if not coplanar:
-                        pieces_to_cut = [points[vertex_indices]
-                                         for vertex_indices in triangles_by_polygon[name].get(index, [])]
-                        assert pieces_to_cut, (name, index)
+                        pieces_to_cut = section_pieces(
+                            polygon, triangles_by_polygon[name].get(index, []), args.saved_polygons)
                 drawn = False
                 for face in pieces_to_cut:
                     for crop in (view.get('spatial_clips', []) +
