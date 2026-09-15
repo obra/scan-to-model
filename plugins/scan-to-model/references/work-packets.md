@@ -49,6 +49,8 @@ Before selecting same-kind objects or subtracting completed obligations, match e
 Distinguish the original source-control record from the actual rendered manufactured mesh. Analytical source provenance, or unknown reveal depth, does not by itself exclude shape correction of a complete visible manufactured pane when rectangularity is established; preserve raw controls and dimensional limits. A curtain or crop boundary is not a physical pane boundary and cannot be completed into a rectangle from the crop alone.
 
 For source-readiness checks, perform the queue and ledger disposition lookup before opening predecessor reports or producers. An accepted identity check is a dependency to carry forward, not a new proposed gate; keep any separately pending metric, placement or contact scope explicit.
+
+Inspect the current model or project alignment manifest before declaring a source unplaced. Distinguish a defined seed or source coordinate convention from independently validated metric registration; when an authoritative convention applies to the exact source scope, reuse it once for qualified candidates without inventing another fit gate, preserving its datum and accuracy limits. A matrix merely present or applied does not establish acceptance or extend scope.
 ```
 
 Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md), and [source-observations.md](source-observations.md) for the source record and review contract. Route native depth and surface support to [depth-inspect](../skills/depth-inspect/SKILL.md), and rigid correspondence questions to [scan-register](../skills/scan-register/SKILL.md).
