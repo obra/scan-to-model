@@ -10,7 +10,7 @@ For each capture record its archive path/hash, capture date and condition, extra
 
 Use one row per room surface or connection: floor, each wall/opening, ceiling/soffit, adjacent room/landing, and visible service segment. Record supported/partial/conflicting/inaccessible/unobserved, dated sources, what was actually examined, remaining constraint, and next action. Maintain the room adjacency graph alongside the plan. A doorway seen from one room does not certify the adjoining room's depth or the inter-room transform.
 
-Coverage and PM joins use stable level, room, and register IDs. A proposed mapping carries the exact original obligation text; ID existence or substring matches do not establish that the mapped record has the same scope. Held describes an unresolved obligation; examined, unexamined, or unknown must come from examination records rather than the held status.
+Coverage and PM joins use stable level, room, and register IDs. Resolve each feature's room membership from its explicit saved `feature_id`/`room_id` and the accepted-ledger annotation; approval of a multi-room component does not make every feature shared. Label saved-snapshot membership separately from current native presence, and retain later holds. A proposed mapping carries the exact original obligation text; ID existence or substring matches do not establish that the mapped record has the same scope. Held describes an unresolved obligation; examined, unexamined, or unknown must come from examination records rather than the held status.
 
 ## Owner observations
 
@@ -18,7 +18,7 @@ Record the owner's statement, date and affected element. Preserve the distinctio
 
 ## Source observations
 
-For photograph-first construction inventories, read [source-observations.md](source-observations.md). Store source-native annotations and visible/uncertain facts independently of physical-feature identity and candidate-specific placement. Preserve original bytes and explicit display/PDF extraction mappings so evidence remains usable when model geometry changes.
+For photograph-first construction inventories, read [source-observations.md](source-observations.md). Store source-native annotations and visible/uncertain facts independently of physical-feature identity and candidate-specific placement. Hash or rotation checks and reviewed PDF source pages do not prove full-resolution photograph inspection; record intake, PDF review, full-photo examination and native-frame review as separate stages. Preserve original bytes and explicit display/PDF extraction mappings so evidence remains usable when model geometry changes.
 
 ## Registration ledger
 
