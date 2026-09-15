@@ -100,7 +100,7 @@ def generate(spec_path, output):
             image_name = f"{frame['id']}.png"
             image = ImageOps.expand(image, border=(0, 0, 0, 24), fill=(255, 255, 255))
             ImageDraw.Draw(image).text((4, image.height - 20),
-                                       'PROVISIONAL WIRES; OCCLUDED/HIDDEN GEOMETRY NOT SHOWN',
+                                       'PROVISIONAL WIRES; INCLUDES OCCLUDED GEOMETRY',
                                        fill=(80, 20, 20))
             image.save(output / image_name)
         result['frames'].append({'id': frame['id'], 'camera': str(camera_path), 'rgb': str(rgb_path),
