@@ -21,8 +21,9 @@ import numpy as np
 from PIL import Image, __version__ as pillow_version
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from polycam import (clip_camera_segment, digest, pixel_ray, project_points,
-                     read_frame, unproject, validate_depth)
+from polycam import (clip_camera_segment, digest, pixel_ray,
+                     project_display_points, project_points, read_frame,
+                     unproject, validate_depth)
 
 
 def write_png(path, values, bit_depth, color_type):
@@ -119,6 +120,30 @@ class PolycamTests(unittest.TestCase):
         np.testing.assert_allclose(pixels, expected_pixels, atol=1e-12)
         np.testing.assert_allclose(depths, -camera_points[:, 2], atol=1e-12)
         np.testing.assert_array_equal(front, [True, True, True])
+
+    def test_project_display_points_round_trips_raw_and_upright_non_square(self):
+        _, camera = frame_fixture(self.root)
+        raw_pixels = np.array([[1.25, 2.5], [4.5, 1.25]])
+        points = []
+        for pixel in raw_pixels:
+            origin, direction = pixel_ray(camera, pixel, orientation='raw')
+            points.append(origin + 3.0 * direction)
+        points = np.asarray(points)
+        expected_upright = np.column_stack((camera['height'] - 1 - raw_pixels[:, 1],
+                                            raw_pixels[:, 0]))
+        raw, raw_depths, raw_front = project_display_points(points, camera, 'raw')
+        upright, upright_depths, upright_front = project_display_points(
+            points, camera, 'upright90cw')
+        np.testing.assert_allclose(raw, raw_pixels, atol=1e-12)
+        np.testing.assert_allclose(upright, expected_upright, atol=1e-12)
+        np.testing.assert_allclose(upright_depths, raw_depths, atol=1e-12)
+        np.testing.assert_array_equal(raw_front, [True, True])
+        np.testing.assert_array_equal(upright_front, [True, True])
+
+    def test_project_display_points_rejects_unknown_orientation(self):
+        _, camera = frame_fixture(self.root)
+        with self.assertRaises(ValueError):
+            project_display_points(np.array([[0., 0., -1.]]), camera, 'rotated')
 
     def test_project_points_inverts_rounded_camera_rotation(self):
         angle = np.deg2rad(23)

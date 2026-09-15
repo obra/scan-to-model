@@ -284,3 +284,16 @@ def project_points(points, camera):
                              - camera['fy'] * camera_points[front_mask, 1]
                              / depths[front_mask])
     return pixels, positive_depths, front_mask
+
+
+def project_display_points(points, camera, orientation='raw'):
+    """Project world points to pixels in the selected RGB display orientation."""
+    if orientation not in ('raw', 'upright90cw'):
+        raise ValueError("orientation must be 'raw' or 'upright90cw'")
+    pixels, depths, front_mask = project_points(points, camera)
+    if orientation == 'upright90cw':
+        display_pixels = pixels.copy()
+        display_pixels[:, 0] = camera['height'] - 1 - pixels[:, 1]
+        display_pixels[:, 1] = pixels[:, 0]
+        pixels = display_pixels
+    return pixels, depths, front_mask
