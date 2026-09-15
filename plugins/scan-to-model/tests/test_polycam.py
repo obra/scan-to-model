@@ -22,7 +22,7 @@ from PIL import Image, __version__ as pillow_version
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from polycam import (clip_camera_segment, digest, pixel_ray,
-                     project_display_points, project_points, read_frame,
+                     project_display_points, project_model_points, project_points, read_frame,
                      unproject, validate_depth)
 
 
@@ -144,6 +144,32 @@ class PolycamTests(unittest.TestCase):
         _, camera = frame_fixture(self.root)
         with self.assertRaises(ValueError):
             project_display_points(np.array([[0., 0., -1.]]), camera, 'rotated')
+
+    def test_project_model_points_inverts_raw_to_model_once_for_both_orientations(self):
+        _, camera = frame_fixture(self.root)
+        raw_to_model = np.array([[0., -1., 0., 10.],
+                                 [1., 0., 0., -2.],
+                                 [0., 0., 1., 5.],
+                                 [0., 0., 0., 1.]])
+        raw = np.array([[.2, -.3, -2.], [-.4, .5, -3.], [1., .2, 6.]])
+        model = (raw @ raw_to_model[:3, :3].T) + raw_to_model[:3, 3]
+        for orientation in ('raw', 'upright90cw'):
+            expected = project_display_points(raw, camera, orientation)
+            actual = project_model_points(model, camera, raw_to_model, orientation)
+            np.testing.assert_allclose(actual[0], expected[0], equal_nan=True)
+            np.testing.assert_allclose(actual[1], expected[1], equal_nan=True)
+            np.testing.assert_array_equal(actual[2], expected[2])
+
+    def test_project_model_points_rejects_invalid_raw_to_model(self):
+        _, camera = frame_fixture(self.root)
+        points = np.array([[2., 3., 2.]])
+        matrices = (np.eye(3), np.full((4, 4), np.nan),
+                    np.diag([1., 1., 0., 1.]),
+                    np.array([[1., 0., 0., 0.], [0., 1., 0., 0.],
+                              [0., 0., 1., 0.], [0., 0., 0., 2.]]))
+        for matrix in matrices:
+            with self.assertRaisesRegex(ValueError, 'raw_to_model'):
+                project_model_points(points, camera, matrix)
 
     def test_project_points_inverts_rounded_camera_rotation(self):
         angle = np.deg2rad(23)

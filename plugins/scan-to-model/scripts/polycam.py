@@ -297,3 +297,21 @@ def project_display_points(points, camera, orientation='raw'):
         display_pixels[:, 1] = pixels[:, 0]
         pixels = display_pixels
     return pixels, depths, front_mask
+
+
+def project_model_points(points, camera, raw_to_model, orientation='raw'):
+    """Project model-space points through an accepted raw-to-model affine map."""
+    try:
+        raw_to_model = np.asarray(raw_to_model, dtype=float)
+    except (TypeError, ValueError) as error:
+        raise ValueError('raw_to_model must be a finite 4x4 affine matrix') from error
+    if (raw_to_model.shape != (4, 4)
+            or not np.isfinite(raw_to_model).all()
+            or not np.allclose(raw_to_model[3], [0., 0., 0., 1.], atol=1e-12, rtol=0)):
+        raise ValueError('raw_to_model must be a finite 4x4 affine matrix')
+    linear = raw_to_model[:3, :3]
+    if np.isclose(np.linalg.det(linear), 0., atol=1e-15, rtol=0):
+        raise ValueError('raw_to_model must be nonsingular')
+    points = np.asarray(points, dtype=float)
+    raw_points = np.linalg.solve(linear, (points - raw_to_model[:3, 3]).T).T
+    return project_display_points(raw_points, camera, orientation)
