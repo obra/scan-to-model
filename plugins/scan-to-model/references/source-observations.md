@@ -104,7 +104,7 @@ python -B "$PLUGIN/scripts/run_observations.py" \
   --coordinate-inspections
 ```
 
-Use `run_observations.py` for replayable runs: it freezes `observations.py` and its local pixel and metadata helpers before execution and writes `run-receipt.json` beside the generated evidence. Call `observations.py` directly when developing or exercising the renderer without a frozen execution record.
+Use `run_observations.py` for replayable runs: it freezes `observations.py` and its local pixel and metadata helpers before execution and writes `run-receipt.json` beside the generated evidence. Retain the receipt's sibling runtime directory with the output packet; output-only copies are incomplete. Call `observations.py` directly when developing or exercising the renderer without a frozen execution record.
 
 ```json
 {
