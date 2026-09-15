@@ -899,6 +899,7 @@ class ObservationSheetTests(unittest.TestCase):
     def test_runner_freezes_imported_helpers_records_receipt_and_refuses_overwrite(self):
         root = make_workspace()
         spec_path = write_spec(root, valid_spec(root))
+        original_spec_bytes = spec_path.read_bytes()
         output = root / "wrapped-output"
         runner = Path(__file__).resolve().parents[1] / "scripts" / "run_observations.py"
         completed = subprocess.run(
@@ -910,11 +911,26 @@ class ObservationSheetTests(unittest.TestCase):
         self.assertTrue((output / "evidence.json").is_file())
         receipt = json.loads((output / "run-receipt.json").read_text())
         self.assertEqual(receipt["status"], "pass")
+        frozen_spec = Path(receipt["frozen_spec"]["path"])
+        self.assertEqual(frozen_spec.read_bytes(), original_spec_bytes)
+        self.assertEqual(
+            hashlib.sha256(frozen_spec.read_bytes()).hexdigest(),
+            receipt["frozen_spec"]["sha256"],
+        )
+        preflight = json.loads((frozen_spec.parent / "preflight.json").read_text())
+        self.assertEqual(preflight["frozen_spec"], receipt["frozen_spec"])
         for name, binding in receipt["helpers"].items():
             frozen = Path(binding["path"])
             self.assertTrue(frozen.is_file())
             self.assertEqual(hashlib.sha256(frozen.read_bytes()).hexdigest(), binding["sha256"])
             self.assertEqual(frozen.read_bytes(), (runner.parent / name).read_bytes())
+        mutated = json.loads(original_spec_bytes)
+        mutated["observations"][0]["label"] = "changed after execution"
+        spec_path.write_text(json.dumps(mutated, indent=2) + "\n")
+        evidence = json.loads((output / "evidence.json").read_text())
+        self.assertEqual(evidence["input"], json.loads(original_spec_bytes))
+        self.assertEqual(evidence["annotations"][0]["source_id"], "photo.raw")
+        self.assertEqual(evidence["sources"][0]["id"], "photo.raw")
         refused = subprocess.run(
             [sys.executable, str(runner), "--spec", str(spec_path), "--output", str(output)],
             check=False, capture_output=True, text=True,

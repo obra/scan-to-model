@@ -36,6 +36,9 @@ def main():
     if runtime.exists():
         raise ValueError(f"runtime must be a new directory: {runtime}")
     runtime.mkdir(parents=True)
+    frozen_spec = runtime / "original-spec.json"
+    shutil.copyfile(spec_path, frozen_spec)
+    frozen_spec_binding = {"path": str(frozen_spec), "sha256": digest(frozen_spec)}
 
     helpers = {}
     for name in HELPER_NAMES:
@@ -62,6 +65,7 @@ def main():
         "cwd": str(output.parent),
         "python": sys.executable,
         "spec": {"path": str(spec_path), "sha256": digest(spec_path)},
+        "frozen_spec": frozen_spec_binding,
         "helpers": helpers,
         "launcher": launcher_binding,
         "source_launcher": {"path": str(source_launcher), "sha256": digest(source_launcher)},
@@ -81,6 +85,7 @@ def main():
         "cwd": str(output.parent),
         "python": sys.executable,
         "spec": preflight["spec"],
+        "frozen_spec": frozen_spec_binding,
         "helpers": helpers,
         "launcher": launcher_binding,
         "source_launcher": {
