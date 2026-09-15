@@ -18,7 +18,7 @@ Record the owner's statement, date and affected element. Preserve the distinctio
 
 ## Source observations
 
-For photograph-first construction inventories, read [source-observations.md](source-observations.md). Store source-native annotations and visible/uncertain facts independently of physical-feature identity and candidate-specific placement. Hash or rotation checks and reviewed PDF source pages do not prove full-resolution photograph inspection; record intake, PDF review, full-photo examination and native-frame review as separate stages. Preserve original bytes and explicit display/PDF extraction mappings so evidence remains usable when model geometry changes.
+For photograph-first construction inventories, read [source-observations.md](source-observations.md). Store source-native annotations and visible/uncertain facts independently of physical-feature identity and candidate-specific placement. Hash or rotation checks and reviewed PDF source pages do not prove full-resolution photograph inspection; record intake, source-page review, full-resolution RGB examination, and depth measurement as separate stages. Preserve original bytes and explicit display/PDF extraction mappings so evidence remains usable when model geometry changes.
 
 ## Registration ledger
 
