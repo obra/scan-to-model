@@ -46,6 +46,8 @@ Source identity includes the assembly side and face. Before concluding that a ne
 
 Before selecting same-kind objects or subtracting completed obligations, match each item to its explicit physical room, level and capture identity; report different identities as excluded and do not substitute same-named items from another level or capture. Separately verify authoring-record presence and native Blender-object presence: geometry JSON or detail rows are records until native presence is independently confirmed. Name resemblance is a discovery hint, not scope fulfillment.
 
+Distinguish the original source-control record from the actual rendered manufactured mesh. Analytical source provenance, or unknown reveal depth, does not by itself exclude shape correction of a complete visible manufactured pane when rectangularity is established; preserve raw controls and dimensional limits. A curtain or crop boundary is not a physical pane boundary and cannot be completed into a rectangle from the crop alone.
+
 For source-readiness checks, perform the queue and ledger disposition lookup before opening predecessor reports or producers. An accepted identity check is a dependency to carry forward, not a new proposed gate; keep any separately pending metric, placement or contact scope explicit.
 ```
 
