@@ -73,6 +73,19 @@ class PlanActionsTests(unittest.TestCase):
             validated = self.run_plan_actions(backlog, work_packages)
             self.assertEqual(validated.returncode, 0, validated.stderr)
 
+    def test_sync_existing_multiline_eof_action_preserves_missing_final_newline(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            backlog, work_packages = self.write_inputs(
+                root, {"A": "First line\nSecond line"},
+                "## A: Alpha\n\n**Next action:** Old first\nOld second")
+            result = self.run_plan_actions(backlog, work_packages, "--sync")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(work_packages.read_bytes(),
+                             b"## A: Alpha\n\n**Next action:** First line\nSecond line")
+            validated = self.run_plan_actions(backlog, work_packages)
+            self.assertEqual(validated.returncode, 0, validated.stderr)
+
     def test_validate_rejects_missing_or_duplicate_headings_and_action_slots(self):
         cases = [
             ("missing package heading", "## A: Alpha\n\n**Next action:** Do A\n",

@@ -105,17 +105,20 @@ def _render_action(section, action):
     index = section["action_index"]
     original = lines[index]
     body = original.rstrip("\r\n")
-    ending = original[len(body):]
-    if not ending:
-        ending = "\n" if "\n" in "".join(lines[index:section["action_end"] + 1]) else ""
+    separator = original[len(body):]
+    final_line = lines[section["action_end"] - 1]
+    final_body = final_line.rstrip("\r\n")
+    final_ending = final_line[len(final_body):]
     prefix = ACTION_RE.match(body).group("prefix")
     values = action.splitlines() or [""]
-    continuation_ending = ending or ("\n" if len(values) > 1 else "")
+    continuation_ending = separator or ("\n" if len(values) > 1 else "")
     rendered = []
     for value_index, value in enumerate(values):
         content = prefix + (" " + value if value else "") if value_index == 0 else value
-        if value_index < len(values) - 1 or ending:
+        if value_index < len(values) - 1:
             content += continuation_ending
+        elif final_ending:
+            content += final_ending
         rendered.append(content)
     return rendered
 
