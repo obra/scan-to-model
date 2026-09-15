@@ -32,6 +32,33 @@ def _bounds(bounds, name):
     return values
 
 
+def _aabb_vector(values, name):
+    try:
+        values = tuple(float(value) for value in values)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{name} must contain three finite values") from error
+    if len(values) != 3 or not all(isfinite(value) for value in values):
+        raise ValueError(f"{name} must contain three finite values")
+    return values
+
+
+def aabb_separation(min_a, max_a, min_b, max_b):
+    """Return symmetric per-axis and Euclidean separation for two AABBs."""
+    min_a = _aabb_vector(min_a, "min_a")
+    max_a = _aabb_vector(max_a, "max_a")
+    min_b = _aabb_vector(min_b, "min_b")
+    max_b = _aabb_vector(max_b, "max_b")
+    if any(lower > upper for lower, upper in zip(min_a, max_a)):
+        raise ValueError("min_a must not exceed max_a")
+    if any(lower > upper for lower, upper in zip(min_b, max_b)):
+        raise ValueError("min_b must not exceed max_b")
+    axis_gaps = tuple(
+        max(min_a[axis] - max_b[axis], min_b[axis] - max_a[axis], 0.0)
+        for axis in range(3)
+    )
+    return {"axis_gaps": axis_gaps, "distance": hypot(*axis_gaps)}
+
+
 def plane_point(tangent, normal, plane_constant, u, z, depth=0.0):
     """Map local tangent/Z/depth coordinates onto an outward-facing plane."""
     tangent, normal = _basis(tangent, normal)

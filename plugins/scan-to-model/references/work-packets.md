@@ -74,7 +74,7 @@ For native extraction, preserve the exact producer bytes beside each attempt, wh
 
 When reading native geometry from an editable mesh with modifiers, compare the reported original and evaluated topology counts and retain the modifier records; a count difference alone is not evidence of a stale model.
 
-Source-authoring geometry may serve as qualified base geometry only after exact current coordinate and polygon buffer matching plus frame, parent, constraint and modifier checks. Keep evaluated shape and view visibility separate; names, bounds or hashes alone do not establish geometry, and an unevaluated `matrix_world` may be a stale pose even for an unparented object. Preserve the original authoring bytes and the producer and result records before execution.
+Source-authoring geometry may serve as qualified base geometry only after exact current coordinate and polygon buffer matching plus frame, parent, constraint and modifier checks. Keep evaluated shape and view visibility separate; names, bounds or hashes alone do not establish geometry, and an unevaluated `matrix_world` may be a stale pose even for an unparented object. Freeze the original authoring and producer bytes before execution, then retain the inputs and results.
 
 For geometry producers, declare the source and destination coordinate frames and apply the source-to-model transform exactly once before deriving extents, voids, or attached parts. When a reviewed plan supplies explicit vertices and faces, consume those arrays verbatim and validate the resulting mesh against the plan. Appearance parameters are not geometry: resolve shader inputs, UV mapping, and created datablock names in the saved candidate and record those resolved values in the receipt.
 
