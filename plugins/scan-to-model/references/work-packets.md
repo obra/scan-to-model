@@ -92,3 +92,4 @@ Use [blender-review.md](blender-review.md) for saved-scene and presentation revi
 ## Reusable-tool learning loop
 
 When a recurring mechanical operation is demonstrated, capture it as a tested script or fixture. Capture stable interpretation rules as a skill or reference. Capture repeated worker/reviewer boundaries as this prompt pattern. Keep publishing authorization project-owned, and keep private scans, models, addresses and owner observations out of the plugin.
+For explicit world-space mesh replacement in Blender, use the maintained [`blender_mesh.py`](../scripts/blender_mesh.py) helper and its fixture rather than reimplementing transform or face-order handling.
