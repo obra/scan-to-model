@@ -170,6 +170,27 @@ def validate_section_marks(specification):
             raise ValueError(f"section mark {mark_id} arrow must follow section {section_id} view direction")
 
 
+def select_views(specification, requested_ids=None):
+    """Return requested views in specification order after validating their IDs."""
+    views = specification['views']
+    if requested_ids is None:
+        return views
+    seen = set()
+    duplicates = []
+    for view_id in requested_ids:
+        if view_id in seen and view_id not in duplicates:
+            duplicates.append(view_id)
+        seen.add(view_id)
+    if duplicates:
+        raise ValueError('duplicate view ID(s): ' + ', '.join(duplicates))
+    known_ids = {view['id'] for view in views}
+    unknown = [view_id for view_id in requested_ids if view_id not in known_ids]
+    if unknown:
+        raise ValueError('unknown view ID(s): ' + ', '.join(unknown))
+    requested = set(requested_ids)
+    return [view for view in views if view['id'] in requested]
+
+
 def segment_length_inside_bounds(segment, bounds):
     """Return the positive length of a 2-D segment inside rectangular bounds."""
     start, end = np.asarray(segment[0], float), np.asarray(segment[1], float)
@@ -242,6 +263,8 @@ def main():
     parser.add_argument('--title', required=True)
     parser.add_argument('--output-stem', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--view-id', action='append', default=None,
+                        help='Render one declared view; repeat to select multiple views.')
     parser.add_argument('--skip-overview', action='store_true',
                         help='Write geometry pages without rendering contact overview panels.')
     args = parser.parse_args()
@@ -251,6 +274,7 @@ def main():
     native = json.loads(args.native.read_text())
     specification = json.loads(args.views.read_text())
     validate_section_marks(specification)
+    views = select_views(specification, args.view_id)
     args.output.mkdir(exist_ok=False)
     assert native['model_sha256'] == specification['model_sha256']
     assert digest(args.native) == specification['native_sha256']
@@ -442,7 +466,7 @@ def main():
     room_title = args.title
     output_stem = args.output_stem
     figures = []
-    for view in specification['views']:
+    for view in views:
         fig = plt.figure(figsize=(420 / 25.4, 297 / 25.4), facecolor='white')
         title_artist = fig.text(.055, .949, view['id'] + ' | ' + room_title + ' — ' + view['title'],
                                 fontsize=19, weight='bold')
@@ -471,8 +495,8 @@ def main():
             output.savefig(fig)
             plt.close(fig)
     if not args.skip_overview:
-        overview_pages = [specification['views'][start:start + 6]
-                          for start in range(0, len(specification['views']), 6)]
+        overview_pages = [views[start:start + 6]
+                          for start in range(0, len(views), 6)]
         for page_number, page_views in enumerate(overview_pages, 1):
             fig, axes = plt.subplots(2, 3, figsize=(16, 10), dpi=130)
             page_label = '' if len(overview_pages) == 1 else \

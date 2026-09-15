@@ -23,6 +23,15 @@ SPEC.loader.exec_module(DRAW_ROOM)
 
 
 class DrawRoomTests(unittest.TestCase):
+    def test_selected_view_ids_preserve_specification_order_and_reject_invalid_ids(self):
+        specification = {'views': [{'id': 'P1'}, {'id': 'S1'}, {'id': 'E1'}]}
+        selected = DRAW_ROOM.select_views(specification, ['E1', 'P1'])
+        self.assertEqual([view['id'] for view in selected], ['P1', 'E1'])
+        with self.assertRaisesRegex(ValueError, 'unknown view ID.*missing'):
+            DRAW_ROOM.select_views(specification, ['missing'])
+        with self.assertRaisesRegex(ValueError, 'duplicate view ID.*P1'):
+            DRAW_ROOM.select_views(specification, ['P1', 'P1'])
+
     def test_section_marks_follow_referenced_section_cut_and_direction(self):
         section = {
             'id': 'S1', 'kind': 'section', 'cut': {'axis': 0, 'value_m': 6.0},
