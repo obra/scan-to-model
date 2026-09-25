@@ -66,8 +66,7 @@ new ResizeObserver(resize).observe(viewport);
 
 function updateVisibility() {
   for (const mesh of meshes) mesh.visible = visibleInView(mesh.userData, floor.value, roof.checked);
-  $('#status').textContent = $('#diagnostic').checked ? 'Amber view · all geometry tentative' :
-    'Source-guided appearance';
+  $('#status').textContent = $('#diagnostic').checked ? 'Amber geometry view' : 'Model appearance';
 }
 
 function setMode(next, requestPointer = false) {
@@ -175,6 +174,7 @@ async function load() {
     document.title = metadata.title;
     document.querySelector('.brand span').textContent = metadata.title;
     document.querySelector('.badge').textContent = `Geometry: ${metadata.geometry_status}`;
+    document.querySelector('#limits').textContent = `${metadata.metric_status}. Free flight has no wall collisions.`;
     document.querySelector('#native-link').hidden = !metadata.native_available;
     document.querySelector('#tour-link').hidden = !metadata.stills_available;
     for (const level of metadata.levels) floor.add(new Option(level, level));

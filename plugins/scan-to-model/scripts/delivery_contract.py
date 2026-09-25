@@ -49,6 +49,7 @@ def register(rows, label):
 
 def validate(job):
     require(job.get("schema_version") == 1, "delivery schema_version must be 1")
+    require(job.get("units") == "m", "delivery coordinates and depths must use metres")
     require(isinstance(job.get("title"), str) and job["title"].strip(), "title is required")
     requested = job.get("deliverables", [])
     require(isinstance(requested, list) and requested and len(set(requested)) == len(requested)

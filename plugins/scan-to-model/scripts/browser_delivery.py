@@ -52,6 +52,7 @@ class Browser:
             except RuntimeError:
                 # Navigation destroys the preceding execution context.
                 pass
+            require(not self.errors, "browser errors: " + json.dumps(self.errors))
             time.sleep(.1)
         raise ValueError("browser did not satisfy readiness check: " + expression)
 
@@ -161,12 +162,18 @@ def exercise(browser, copied, captures):
 def check_browser(output, executable=None):
     executable = executable or next((shutil.which(name) for name in ["google-chrome", "chromium", "chromium-browser"] if shutil.which(name)), None)
     require(executable is not None, "Chrome/Chromium is required for offline browser verification")
+    executable = shutil.which(str(executable))
+    require(executable is not None, "browser executable not found")
     captures = Path(output) / "browser-check"
+    attempt = 1
+    while captures.exists():
+        attempt += 1
+        captures = Path(output) / ("browser-check-" + str(attempt))
     captures.mkdir(exist_ok=False)
     with tempfile.TemporaryDirectory(prefix="scan-to-model-browser-") as temporary:
         root = Path(temporary)
         copied = root / "delivery"
-        shutil.copytree(output, copied, ignore=shutil.ignore_patterns("browser-check", "node_modules"))
+        shutil.copytree(output, copied, ignore=shutil.ignore_patterns("browser-check*", "node_modules"))
         profile = root / "profile"
         command = [str(executable), "--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader",
                    "--enable-unsafe-swiftshader", "--remote-debugging-port=0", "--user-data-dir=" + str(profile), "about:blank"]
@@ -186,7 +193,9 @@ def check_browser(output, executable=None):
                 socket = websocket.create_connection(page["webSocketDebuggerUrl"], suppress_origin=True, timeout=60)
                 result = exercise(Browser(socket), copied, captures)
                 result.update(bundle_sha256=digest(Path(output) / "viewer.bundle.js"),
-                              screenshots={file.name: digest(file) for file in captures.glob("*.png")})
+                              browser_executable=str(executable), browser_sha256=digest(executable),
+                              browser_version=subprocess.check_output([executable, "--version"], text=True).strip(),
+                              screenshots={file.relative_to(output).as_posix(): digest(file) for file in captures.glob("*.png")})
                 return result
             finally:
                 if socket:

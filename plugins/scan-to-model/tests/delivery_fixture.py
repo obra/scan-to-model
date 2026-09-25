@@ -131,7 +131,7 @@ def main():
              {"id": "washroom", "title": "Washroom", "camera": "Washroom camera", "required_objects": ["floor-b", "mirror"]}]
     if args.case == "blocked":
         views.append({"id": "doorway", "camera": "Doorway camera", "required_objects": ["floor-b"]})
-    job = {"schema_version": 1, "title": "Synthetic two-room house", "model": "input.blend", "model_sha256": sha(root / "input.blend"),
+    job = {"schema_version": 1, "units": "m", "title": "Synthetic two-room house", "model": "input.blend", "model_sha256": sha(root / "input.blend"),
            "deliverables": ["native", "glb", "stills", "viewer", "sources"],
            "intent": {"basis": "Exercise rendered delivery using invented, public test data", "interpolation_authorized": True,
                       "geometry_status": "tentative", "metric_status": "Synthetic fixture, not a surveyed house"},

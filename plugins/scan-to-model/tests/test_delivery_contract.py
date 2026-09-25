@@ -13,7 +13,7 @@ from delivery_runtime import freeze_helpers
 
 
 def job():
-    return {"schema_version": 1, "title": "Synthetic room", "deliverables": ["native"],
+    return {"schema_version": 1, "units": "m", "title": "Synthetic room", "deliverables": ["native"],
             "intent": {"interpolation_authorized": True, "basis": "Make a rendered approximation",
                        "geometry_status": "tentative", "metric_status": "synthetic dimensions"},
             "objects": [{"id": "floor", "name": "Floor", "room": "room", "level": "lower", "role": "floor"}],
@@ -21,6 +21,13 @@ def job():
 
 
 class DeliveryContractTests(unittest.TestCase):
+    def test_units_must_be_explicit_metres(self):
+        data = job()
+        for units in [None, "cm", "feet"]:
+            data["units"] = units
+            with self.assertRaises(ValueError):
+                validate(data)
+
     def test_geometry_only_request_does_not_require_presentation(self):
         data = job()
         data["intent"]["interpolation_authorized"] = False

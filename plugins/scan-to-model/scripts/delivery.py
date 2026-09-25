@@ -240,6 +240,9 @@ def finish(args):
                               if path.is_file() and path.name != "final-review-template.json"},
                 "status": "needs_final_review"}
     write_json(output / "delivery.json", manifest)
+    state = read(root / "state.json")
+    state.update(appearance="reviewed", views="preview reviewed", delivery="packaged; final review is recorded in delivery.json")
+    write_json(root / "state.json", state)
     return {"status": manifest["status"], "output": str(output), "objects": len(job["objects"]), "stills": len(coverage)}
 
 
@@ -251,6 +254,13 @@ def verify(args):
         require(file.is_relative_to(output) and digest(file) == sha, f"delivered artifact changed: {relative}")
     review = read(args.review)
     validate_review(review, manifest["model_sha256"], manifest["views"])
+    if manifest["status"] == "verified":
+        require(digest(output / "delivery-checks.json") == manifest["verification_sha256"], "verification record changed")
+        previous = read(output / "delivery-checks.json")
+        if previous["final_visual_review"] == review and not args.browser:
+            for relative, sha in previous.get("browser", {}).get("screenshots", {}).items():
+                require(digest(output / relative) == sha, "verified browser screenshot changed")
+            return {"status": "verified", "output": str(output), "reused_unchanged_checks": True}
     checks = {"artifact_hashes_match": True, "final_visual_review": review}
     if "viewer" in manifest["requested_deliverables"]:
         from browser_delivery import check_browser

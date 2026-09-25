@@ -14,6 +14,7 @@ SCRIPTS = Path(__file__).resolve().parent
 
 
 def freeze_helpers(store, files):
+    require(len({Path(file).name for file in files}) == len(files), "helper names must be unique")
     files = {Path(file).name: Path(file) for file in files}
     hashes = {name: digest(file) for name, file in sorted(files.items())}
     identity = hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()

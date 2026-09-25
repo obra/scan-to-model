@@ -61,6 +61,9 @@ def verify_state(before):
 
 def context(job):
     scene = bpy.data.scenes[job["scene"]] if job.get("scene") else bpy.context.scene
+    require(job["units"] == "m" and abs(scene.unit_settings.scale_length - 1) < 1e-8,
+            "delivery requires one native world unit per metre; resolve units in the authoring candidate")
+    require(not bpy.data.libraries, "make linked data local in the authoring candidate before portable delivery")
     if bpy.context.window:
         bpy.context.window.scene = scene
         if job.get("view_layer"):
@@ -75,11 +78,19 @@ def context(job):
     graph = bpy.context.evaluated_depsgraph_get()
     members = {obj.original.name for obj in graph.objects}
     require(expected <= members, "declared objects are excluded from the chosen evaluated view layer")
+    renderable = set()
+
+    def collect(collection):
+        if not collection.hide_render:
+            renderable.update(obj.name for obj in collection.objects)
+            for child in collection.children:
+                collect(child)
+
+    collect(scene.collection)
     for name in expected:
         obj = scene.objects[name]
         require(not obj.hide_render, f"declared object is hidden for rendering: {name}")
-        parent = next((collection for collection in obj.users_collection if not collection.hide_render), None)
-        require(parent is not None, f"declared object has no renderable collection: {name}")
+        require(name in renderable, f"declared object has no renderable collection ancestry: {name}")
     return scene, layer, graph
 
 
@@ -113,15 +124,17 @@ def inspect(job):
     return {"objects": objects, "views": views, "scene": scene.name, "view_layer": layer.name}
 
 
-def source_images():
+def source_images(*, pack=False):
     result = {}
     for image in bpy.data.images:
         if image.type in {"RENDER_RESULT", "COMPOSITING"}:
             continue
-        if not image.packed_file:
+        require(image.source in {"FILE", "GENERATED"}, f"delivery requires a single-file image: {image.name}")
+        if pack and not image.packed_file:
             image.pack()
-        require(image.packed_file is not None, f"image could not be packed: {image.name}")
-        image.use_fake_user = True
+        require(image.packed_file is not None, f"image is not packed: {image.name}")
+        if pack:
+            image.use_fake_user = True
         result[image.name] = hashlib.sha256(bytes(image.packed_file.data)).hexdigest()
     return result
 
@@ -147,7 +160,9 @@ def linear_color(color):
 def apply(job, appearance, output):
     context(job)
     before = native_state()
-    original_images = source_images()
+    original_images = source_images(pack=True)
+    require(not bpy.utils.blend_paths(absolute=True, packed=False),
+            "unpacked native dependencies remain; resolve fonts, caches or other external data before delivery")
     image = load_image(appearance["atlas"]["path"], "STM atlas " + appearance["atlas"]["sha256"][:16]) if appearance["atlas"] else None
     materials = {}
     for ident, record in appearance["materials"].items():
@@ -236,14 +251,18 @@ def apply(job, appearance, output):
 def readback(job, appearance, native):
     verify_state(native["original_state"])
     require(source_images() == native["images"], "saved packed image bytes differ")
+    require(not bpy.utils.blend_paths(absolute=True, packed=False), "saved native file has external dependencies")
     objects = {row["id"]: bpy.data.objects[row["name"]] for row in job["objects"]}
     for row in native["assignments"]:
         obj = objects[row["object"]]
         for polygon in obj.data.polygons:
             require(obj.data.materials[polygon.material_index].name == row["material"], "saved material assignment differs")
         material = bpy.data.materials[row["material"]]
+        shader = material.node_tree.nodes.get("Principled BSDF")
+        output = next((node for node in material.node_tree.nodes if node.type == "OUTPUT_MATERIAL" and node.is_active_output), None)
+        require(output is not None and len(output.inputs["Surface"].links) == 1 and
+                output.inputs["Surface"].links[0].from_node == shader, "assigned shader is not connected to the active surface")
         if row["method"] in {"photo-projection", "repeated-photo"}:
-            shader = material.node_tree.nodes.get("Principled BSDF")
             links = list(shader.inputs["Base Color"].links)
             require(len(links) == 1 and links[0].from_node.type == "TEX_IMAGE", "atlas is not connected to active base color")
             require(hashlib.sha256(bytes(links[0].from_node.image.packed_file.data)).hexdigest() == appearance["atlas"]["sha256"],

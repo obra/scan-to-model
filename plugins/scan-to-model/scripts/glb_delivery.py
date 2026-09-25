@@ -52,7 +52,7 @@ def check_glb(path, scene, job, appearance):
         values = tuple(map(int, triangle))
         return min(values, values[1:] + values[:1], values[2:] + values[:2])
 
-    found, used_materials = {}, set()
+    found, object_materials = {}, {}
 
     def visit(index, parent):
         node = gltf["nodes"][index]
@@ -72,7 +72,7 @@ def check_glb(path, scene, job, appearance):
             for key, value in expected[ident].get("properties", {}).items():
                 require(extras.get(key) == value, f"GLB source property differs: {ident}.{key}")
             primitives = gltf["meshes"][node["mesh"]]["primitives"]
-            used_materials.update(primitive["material"] for primitive in primitives if "material" in primitive)
+            object_materials[ident] = primitives
             native = np.asarray(expected[ident]["vertices"])[:, [0, 2, 1]] * [1, 1, -1]
             tree = cKDTree(native)
             native_labels = tree.query(native)[1]
@@ -104,13 +104,17 @@ def check_glb(path, scene, job, appearance):
         images.append(hashlib.sha256(data).hexdigest())
     if appearance["atlas"]:
         expected_sha = appearance["atlas"]["sha256"]
-        bound = set()
-        for index in used_materials:
-            material = gltf["materials"][index]
-            texture = material.get("pbrMetallicRoughness", {}).get("baseColorTexture")
-            if texture:
-                bound.add(images[gltf["textures"][texture["index"]]["source"]])
-        require(expected_sha in bound, "atlas is not bound to an exported surface material")
+        for ident, primitives in object_materials.items():
+            assigned = appearance["materials"].get(records[ident].get("material"), {})
+            if assigned.get("method") not in {"photo-projection", "repeated-photo"}:
+                continue
+            for primitive in primitives:
+                material = gltf["materials"][primitive["material"]] if "material" in primitive else {}
+                texture = material.get("pbrMetallicRoughness", {}).get("baseColorTexture")
+                require(texture is not None and images[gltf["textures"][texture["index"]]["source"]] == expected_sha,
+                        f"atlas is not bound to an exported photo surface: {ident}")
+                require("TEXCOORD_" + str(texture.get("texCoord", 0)) in primitive["attributes"],
+                        f"exported photo surface has no texture coordinates: {ident}")
     return {"passed": True, "model_sha256": hashlib.sha256(payload).hexdigest(), "object_count": len(found),
             "max_vertex_error_m": max(found.values()), "embedded_image_hashes": images,
             "external_resources": False, "scope": "Export fidelity; not survey accuracy"}
