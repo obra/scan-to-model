@@ -3,7 +3,7 @@ name: source-observe
 description: Use when cataloging or annotating visible construction in photographs or scan RGB, especially before registration or while the base model may be replaced.
 ---
 
-Build a bounded, source-linked inventory that remains useful without a house coordinate system. Read [source-observations.md](../../references/source-observations.md) for the observation, identity, endpoint and placement records.
+Build a bounded, source-linked inventory that remains useful without a house coordinate system. Read [source-observations.md](../../references/source-observations.md) for the observation, identity, endpoint and placement records. Apply [model selection](../../references/work-packets.md#model-selection), including actual image capability for visual review.
 
 1. Select a coherent photographic scope and inspect the original images. Preserve source bytes, extraction provenance and the mapping between displayed and native pixels.
 

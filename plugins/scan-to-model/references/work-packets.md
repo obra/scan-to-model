@@ -11,6 +11,17 @@ Use this reference to give a bounded worker or reviewer enough context to produc
 - Reuse valid checks bound to immutable inputs. A changed model, producer, relevant runtime or failed check justifies targeted revalidation; copying byte-identical artifacts to a verified destination does not by itself require rendering again. Preserve source bindings, saved-file checks, failures and delivery verification, but update the existing authoritative records together once at the end of the increment. Do not add a second queue or a review of a review receipt without a concrete unmet requirement.
 - Tool or instruction work must name the present obstacle, the smallest useful correction and the deliverable it enables. Test the correction and use it on that deliverable before treating it as useful progress. Defer speculative dashboards, generic frameworks and polishing that do not improve the current outcome; a short existing procedure can be cheaper than new automation.
 
+## Model selection
+
+Use the fastest, lightest available model that can meet the task's acceptance check. Check the runtime's actual choices and required image, tool and context capabilities; use observed quality and latency where available, not a permanently prescribed model name. Honor an explicit owner choice. Coordinator or reviewer status alone does not require the strongest model.
+
+- Run existing scripts directly for deterministic inventory, hashes, conversions and checks. Do not spawn a worker just to launch a script; choose a model only for the judgment the tool cannot supply.
+- Use a small model for bounded text, record and implementation work with clear inputs and a checkable return. For image interpretation, choose a model that can actually inspect the supplied images; a text-only worker cannot certify pixels from labels or receipts.
+- Start with a lighter capable model for clear visual checks. Use a stronger reasoning model for unresolved physical identity, conflicting controls or cross-region decisions when the lighter model fails the check or the known complexity requires it. Supply the concrete conflict and prior result. Missing evidence remains missing regardless of model strength; do not repeat unchanged attempts or manufacture certainty.
+- Keep tiny tasks in the current agent when dispatch costs more than it saves. If this runtime cannot switch models or delegate, do the authorized work with available capabilities and state a material limitation; never claim a model switch that did not happen.
+
+When delegating, include the required capability, bounded return and quality check in the existing brief. Verify that return before relying on it, escalate only the unresolved part, and use a lighter model again for subsequent routine work. Model selection needs no separate ledger or supervisory loop.
+
 ## Shared brief
 
 ```text
@@ -51,7 +62,7 @@ Use [source-observe](../skills/source-observe/SKILL.md), [formats.md](formats.md
 ## Geometry builder
 
 ```text
-Build only the named candidate increment in a fresh candidate/output path. Preserve unrelated architecture, current finishes, contents, historical construction and observed services as separate categories. Bind source records and accepted transforms before using coordinates; keep diagnostic or provisional results out of physical contacts. Check the assembly's visible extent, placement and contacts against sources before detailed drawings. Return the candidate hash, changed object IDs, input bindings, unresolved dimensions, inventory comparison and reviewed renders, or stop with the exact unmet evidence gate. Escalate any proposed change to accepted geometry, transform scope or physical identity that lacks the required independent record.
+Build only the named candidate increment in a fresh candidate/output path. Preserve unrelated architecture, current finishes, contents, historical construction and observed services as separate categories. Bind source records and accepted transforms before claiming measured placement or physical contacts. Carry existing interpolation permission into the brief: authorized inferred surfaces and joins may complete an approximation, with affected objects marked tentative and their basis and unresolved dimensions recorded. They do not establish accepted transforms or measured contacts. Check the assembly's visible extent, placement and contacts against sources before detailed drawings. Return the candidate hash, changed object IDs, input bindings, unresolved dimensions, inventory comparison and reviewed renders. Stop only the portion that requires an unmet evidence gate; continue work covered by the owner's authorization. Escalate a proposed change to accepted geometry, transform scope or physical identity that lacks the required independent record.
 
 For a room's native extraction or drawing, derive membership from accepted object/feature records and semantic room tags; inspect shared collections as well as room collections, then compare the live membership with the declared set so collection layout cannot silently drop artwork or other contents.
 

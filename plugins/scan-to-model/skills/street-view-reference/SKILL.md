@@ -3,7 +3,7 @@ name: street-view-reference
 description: Collect and verify Google Street View exterior references for a building reconstruction, preserving panorama identity, imagery dates, attribution and viewpoint separately from calibrated scan evidence.
 ---
 
-Use Street View to supplement facade, roofline, opening and trim appearance. Inspect the project's existing exterior sources first, then obtain a bounded set of useful views through the available browser or an already configured official API. Use the property location authorized for the task; private scan uploads are unnecessary for this workflow.
+Use Street View to supplement facade, roofline, opening and trim appearance. Inspect the project's existing exterior sources first, then obtain a bounded set of useful views through the available browser or an already configured official API. Use the property location authorized for the task; private scan uploads are unnecessary for this workflow. Apply [model selection](../../references/work-packets.md#model-selection), including actual image and browser capability for this work.
 
 ### Identify the building and capture state
 
