@@ -3,7 +3,7 @@ name: scan-to-model
 description: Coordinate evidence based reconstruction from scans, photos, plans, and measurements into a reviewable Blender architectural model, with photographic appearance, renders and portable browser delivery when requested.
 ---
 
-Use this skill for an end to end scan to model task. Keep source intake, depth inspection, surface measurement, registration, modeling, and visual review as separate evidence records. Preserve original source files, bind claims to their hashes and identify every claim as observed, measured, inferred, owner supplied, historical, or unknown. Use existing tools for mechanical work and [choose the fastest, lightest capable model](../../references/work-packets.md#model-selection) for each bounded task.
+Use this skill for an end to end scan to model task. Keep source intake, depth inspection, surface measurement, registration, modeling, and visual review as separate evidence records. Preserve original source files, link claims to source IDs and identify every claim as observed, measured, inferred, owner supplied, historical, or unknown. Use existing tools for mechanical work and [choose the fastest, lightest capable model](../../references/work-packets.md#model-selection) for each bounded task.
 
 Read [evidence-workflow.md](../../references/evidence-workflow.md) for shared provenance, uncertainty, coverage, and modeling rules. Route archive work to `scan-ingest`, photograph-first construction inventories to `source-observe`, supplemental exterior panoramas to `street-view-reference`, native depth questions to `depth-inspect`, rigid alignment to `scan-register`, and Blender edits/review to `blender-reconstruct`.
 

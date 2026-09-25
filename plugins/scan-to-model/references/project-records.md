@@ -4,9 +4,7 @@ Maintain small human-readable Markdown/JSON files in the project. Reuse existing
 
 ## Source manifest
 
-An existing source ledger serves this purpose; do not create another register. Preserve original source files, while allowing manifest additions and corrections with Git history or a short dated correction. Hash sources at intake and verify the inputs used for a measurement or review; do not rehash unrelated archives each turn. Changed bytes are a new source version: retain earlier result bindings and recheck affected claims. Recovering the exact earlier bytes from an archive preserves a valid result once that input binding is verified; a changed path alone does not require refitting or rendering. A corrected date or label does not by itself invalidate a geometric fit, but revisit conclusions that depended on that metadata. This is provenance for useful evidence, not a log of every agent action or an approval gate.
-
-For each capture record its archive path/hash, capture date and condition, extracted root, image/depth/confidence/camera counts, available variants, calibration/units, audit results, and source-frame index. Separate intake, full-photo examination, depth measurement, registration, modeling and saved-file review status. Capture dates may come from owner context rather than the export's internal timestamp.
+Keep originals unchanged and add new sources with new IDs. Use the existing intake manifest as the source list, retaining locations, capture dates and conditions, variants, calibration and frame indexes. Link observations, measurements and model elements to the source IDs and frames or pixels used. Reuse the metadata already produced at intake.
 
 ## Coverage atlas
 

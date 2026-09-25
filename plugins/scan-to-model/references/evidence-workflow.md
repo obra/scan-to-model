@@ -1,6 +1,6 @@
 # Evidence workflow
 
-Preserve original source bytes and keep a small, editable source manifest; see [project-records.md](project-records.md#source-manifest). Its purpose is to trace a claim to the exact input and identify what needs rechecking when an input changes. Derived points, planes, transforms and objects reference their source archive/capture, frame or photo, hash, native pixel/coordinate where available, variant and provenance class. Reuse source records instead of copying a full ledger into every artifact. A hash establishes file identity, not physical truth.
+Preserve originals and add new sources with new IDs. Link each model claim to its supporting capture, frame or photo, pixel selection and variant through the project's [source manifest](project-records.md#source-manifest). Label claims as observed, measured, inferred, owner supplied, historical or unknown.
 
 The coverage atlas tracks rooms, surfaces, and connections as supported, partial, conflicting, inaccessible, or unobserved. Shot lists point to actual source photos; retire requests once evidence exists. A ruler is optional independent control. For execution and delegation, use the [model selection guidance](work-packets.md#model-selection).
 
