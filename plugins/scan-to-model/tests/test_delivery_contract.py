@@ -34,6 +34,31 @@ class DeliveryContractTests(unittest.TestCase):
         self.assertEqual(validate(data)["deliverables"], ["native"])
         self.assertEqual(data["views"], [])
 
+    def test_full_model_cannot_omit_architecture_to_pass_delivery(self):
+        data = job()
+        data["excluded_objects"] = [{"name": "Wall", "reason": "Overlapping trim blocks mesh checks"}]
+        for scope in [None, "full-model"]:
+            with self.subTest(scope=scope):
+                if scope:
+                    data["intent"]["model_scope"] = scope
+                with self.assertRaises(ValueError):
+                    validate(data)
+
+    def test_requested_selection_declares_its_exclusions(self):
+        data = job()
+        data["intent"].update(model_scope="selected-objects", basis="The owner requested only the floor study")
+        data["excluded_objects"] = [{"name": "Wall", "reason": "Outside the requested floor study"}]
+        validate(data)
+        data["excluded_objects"][0]["name"] = "Floor"
+        with self.assertRaises(ValueError):
+            validate(data)
+
+    def test_unknown_model_scope_is_rejected(self):
+        data = job()
+        data["intent"]["model_scope"] = "whatever-passes"
+        with self.assertRaises(ValueError):
+            validate(data)
+
     def test_unknown_sources_and_unauthorized_inference_are_rejected(self):
         data = job()
         data["materials"] = [{"id": "paint", "method": "inferred", "color": [200, 200, 200], "basis": "unknown paint"}]

@@ -59,6 +59,8 @@ def validate(job):
     require(isinstance(intent.get("basis"), str) and intent["basis"].strip(), "record the user's requested outcome")
     require(intent.get("geometry_status") in {"tentative", "accepted"}, "record geometry status")
     require(isinstance(intent.get("metric_status"), str) and intent["metric_status"].strip(), "record metric limits")
+    model_scope = intent.get("model_scope", "full-model")
+    require(model_scope in {"full-model", "selected-objects"}, "invalid model scope")
     objects = register(job.get("objects", []), "object")
     require(objects, "declare the complete drawable object scope")
     names = [row.get("name") for row in objects.values()]
@@ -142,6 +144,7 @@ def validate(job):
             require(fill.get("ceiling_objects") and set(fill["ceiling_objects"]) <= objects.keys(), "unknown fill ceiling")
     excluded = job.get("excluded_objects", [])
     require(isinstance(excluded, list) and all(row.get("name") and row.get("reason") for row in excluded), "name and explain excluded objects")
+    require(not excluded or model_scope == "selected-objects", "full-model delivery cannot exclude drawable objects")
     excluded_names = [row["name"] for row in excluded]
     require(len(set(excluded_names)) == len(excluded_names) and not (set(excluded_names) & set(names)), "duplicate or conflicting excluded objects")
     return job

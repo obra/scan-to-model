@@ -1,6 +1,6 @@
 {
   "name": "scan-to-model",
-  "version": "0.1.0+codex.20260925193638",
+  "version": "0.1.0+codex.20260925214306",
   "description": "Preserve scan evidence, validate depth and alignment, and build reviewable Blender models with requested photographic appearance and portable delivery.",
   "author": {
     "name": "Jesse"

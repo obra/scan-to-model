@@ -66,7 +66,7 @@ Prepare and finish require fresh output directories. Successful native phases an
 
 ## Delivery job
 
-Paths resolve relative to the job file. Every model/source file has a SHA-256 beside its path. Declare complete object membership, not name-prefix guesses. Each object needs stable `id`, exact Blender `name`, `room`, `level` and `role`. Roles `roof` and `ceiling` control roof visibility; other roles follow the declared level. Excluded drawables need exact names and reasons in `excluded_objects`. Geometry, finish choices, sources and cameras remain project-owned.
+Paths resolve relative to the job file. Every model/source file has a SHA-256 beside its path. Declare complete object membership, not name-prefix guesses. Each object needs stable `id`, exact Blender `name`, `room`, `level` and `role`. Roles `roof` and `ceiling` control roof visibility; other roles follow the declared level. `intent.model_scope` defaults to `full-model`, which rejects any `excluded_objects`. Use `selected-objects` only for a user-requested subset, recording that request in `intent.basis` and exact excluded names and reasons in `excluded_objects`. A failed mesh or camera check does not authorize a smaller scope. Geometry, finish choices, sources and cameras remain project-owned.
 
 This example shows the required shape. Replace names/hashes and expand `objects` to the actual complete scene.
 
@@ -81,6 +81,7 @@ This example shows the required shape. Replace names/hashes and expand `objects`
   "intent": {
     "basis": "The owner requested a rendered house with tentative interpolation",
     "interpolation_authorized": true,
+    "model_scope": "full-model",
     "geometry_status": "tentative",
     "metric_status": "Dimensions remain approximate pending independent checks"
   },
@@ -120,6 +121,8 @@ Each `photo-projection` source needs `image`, `depth`, `confidence`, their `_sha
 Material `depth_tolerance_m` defaults to 0.1 and must reflect a justified project tolerance. Incidence and saturation filtering supplement depth/confidence/masks. Depth agreement cannot identify every foreground object or reflection; inspect source identity and mask those cases. Unsupported texels use inferred base color. Face records retain direct-photo coverage and source contributions; repeated samples report no direct coverage of the modeled surface.
 
 A `repeated-photo` material declares `sample: {"source": "SOURCE_ID", "quad": [[x0,y0],[x1,y1],[x2,y2],[x3,y3]]}`: an ordered convex quadrilateral in original image pixels. Its `mapping` gives world-space `origin`, orthonormal `u`/`v` directions and two positive `size_m` dimensions. Sharing this frame across objects preserves grain scale/alignment. Mirrored repetition reduces edge seams; continuation remains inferred. Optional `detail_contrast` (0–1) reduces broad captured illumination around the reviewed color for either photographic method; it does not recover calibrated albedo.
+
+Choose a patch belonging entirely to one physical finish, excluding trim, furniture, openings and reflections. Save and inspect the rectified sample before baking, then review the mapped surface against its source for color, grain scale and direction. Repeating an entire room photograph across a floor is not a usable floor texture. Use a reviewed matched color when no clean material patch is available; keep the appearance limitation explicit.
 
 Photo baking supports planar mesh faces without modifiers. Atlas density is planned before sampling, reducing from `density` texels/metre only as far as `minimum_density` to fit `max_size`. Insufficient capacity stops the task. Handle nonplanar geometry deliberately or use another material method; delivery does not re-mesh it.
 
