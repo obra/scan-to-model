@@ -1,4 +1,4 @@
-"""Preserve a Polycam ZIP and create a validated, traceable capture."""
+"""Inspect an extracted Polycam capture or preserve and inspect a ZIP."""
 
 import argparse
 import hashlib
@@ -149,18 +149,55 @@ def _sheets(rows, output, step, capture):
         canvas.save(output / f'{start // 80 + 1:02d}.jpg')
 
 
+def _write_records(documents, report, rows):
+    documents.mkdir(parents=True, exist_ok=True)
+    (documents / 'index.json').write_text(json.dumps(rows, indent=2) + '\n')
+    (documents / 'inventory.json').write_text(json.dumps(report, indent=2) + '\n')
+
+
+def _ingest_directory(root, capture, documents, capture_id):
+    root = reject_symlinks(root)
+    if capture.is_relative_to(root) or documents.is_relative_to(root):
+        raise ValueError('Generated intake output must be outside the source directory')
+    _tree(root)
+    inventory, rows = _audit(root, root)
+    report = {
+        'capture_id': capture_id, 'source': str(root), 'source_kind': 'directory',
+        'capture_root': str(root), 'frames': len(rows), 'valid_frames': len(rows), 'errors': [],
+        'component_counts': inventory['component_counts'], 'variants': inventory['variants'],
+        'variant_validation': 'All present depth and pose combinations validated for every frame',
+        'contact_sheet_rotation': '90 degrees clockwise from native RGB',
+    }
+    if capture.exists() or documents.exists():
+        _tree(capture)
+        for name, expected in [('inventory.json', report), ('index.json', rows)]:
+            path = documents / name
+            if not path.is_file() or json.loads(path.read_text()) != expected:
+                raise ValueError('Capture ID already has different intake records; use a new ID')
+    _sheets(rows, capture / 'all', 1, root)
+    _sheets(rows, capture / 'overview', 20, root)
+    _write_records(documents, report, rows)
+    return report
+
+
 def ingest(archive, project, capture_id=None):
     archive = Path(archive)
     project = reject_symlinks(project)
-    checksum = digest(archive)
-    capture_id = capture_id or archive.stem.lower().replace(' ', '-') + '-' + checksum[:8]
+    directory = archive.is_dir()
+    checksum = None if directory else digest(archive)
+    if not capture_id:
+        capture_id = (archive.name if directory else archive.stem).lower().replace(' ', '-')
+        if checksum:
+            capture_id += '-' + checksum[:8]
     if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', capture_id) or capture_id in ('.', '..'):
         raise ValueError('Invalid capture ID')
-    source = reject_symlinks(project / 'sources' / archive.name)
     capture = reject_symlinks(project / 'derived' / 'scan-to-model' / 'captures' / capture_id)
     documents = reject_symlinks(project / 'docs' / 'scan-to-model' / 'captures' / capture_id)
     if documents.exists():
         _tree(documents)
+    if directory:
+        return _ingest_directory(archive, capture, documents, capture_id)
+    source = reject_symlinks(project / 'sources' / archive.name)
     with zipfile.ZipFile(archive) as incoming:
         _members(incoming)
     source.parent.mkdir(parents=True, exist_ok=True)
@@ -230,15 +267,13 @@ def ingest(archive, project, capture_id=None):
         'variant_validation': 'All present depth and pose combinations validated for every frame',
         'contact_sheet_rotation': '90 degrees clockwise from native RGB',
     }
-    documents.mkdir(parents=True, exist_ok=True)
-    (documents / 'index.json').write_text(json.dumps(rows, indent=2) + '\n')
-    (documents / 'inventory.json').write_text(json.dumps(report, indent=2) + '\n')
+    _write_records(documents, report, rows)
     return {**report, 'capture_root': str(root)}
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('archive', type=Path)
+    parser.add_argument('archive', type=Path, help='Polycam ZIP or extracted directory containing keyframes/')
     parser.add_argument('--project', required=True, type=Path)
     parser.add_argument('--capture-id')
     arguments = parser.parse_args()

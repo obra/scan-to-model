@@ -6,10 +6,14 @@ Use a Python 3.11+ environment with the packages in `requirements.txt`. In these
 
 ```sh
 python -B "$PLUGIN/scripts/ingest.py" /path/to/capture.zip --project "$PROJECT" --capture-id survey-one
+# For an already extracted capture, pass its directory instead of a ZIP.
+python -B "$PLUGIN/scripts/ingest.py" "$CAPTURE" --project "$PROJECT" --capture-id survey-two
 python -B "$PLUGIN/scripts/reference.py" "$CAPTURE" "$PROJECT/derived/reference-one.npz" --frame-step 20 --pixel-step 4 --depth-variant raw --pose-variant raw
 ```
 
 Intake preserves the original archive in `sources/`, extracts it under `derived/scan-to-model/captures/`, and writes a frame index and inventory under `docs/scan-to-model/captures/`. Read the returned `capture_root`: exports may contain an enclosing folder. References are sampled, not a full surface reconstruction. Clean depth and corrected poses require explicit selection and actual corresponding source files.
+
+Directory intake reads the directory containing `keyframes/` in place. It writes contact sheets under `derived/scan-to-model/captures/` and the same frame index and inventory under `docs/scan-to-model/captures/`; generated outputs must be outside the source directory. Its inventory records `source_kind: directory` and the absolute source root; component hashes are in the frame index, with no archive hash. Repeating the same intake rechecks those components. New or different source data needs a new capture ID.
 
 Native depth must be a 16-bit grayscale PNG (IHDR bit depth 16, color type 0), with unsigned millimetre samples. The reader verifies this source format and exposes the decoded values as `uint16`, preserving zero and the full sample range regardless of Pillow's integer storage mode. It does not rescale or clamp values, accept other image formats, or rewrite source files. The array API still requires nonempty 2-D `uint16` depth and matching 2-D `uint8` confidence.
 
