@@ -35,6 +35,16 @@ class MeshQualityTests(unittest.TestCase):
         self.assertIn("degenerate_face", kinds)
         self.assertIn("inconsistent_winding_or_nonmanifold", kinds)
 
+    def test_opposed_contact_is_reviewable_without_automatic_geometry_rejection(self):
+        first, second = quad("surface"), quad("contact")
+        second["faces"] = [list(reversed(face)) for face in second["faces"]]
+        for triangle in second["triangles"]:
+            triangle["vertices"].reverse()
+        result = review_meshes([first, second])
+        self.assertTrue(result["passed"])
+        self.assertEqual(len(result["contacts_for_review"]), 1)
+        self.assertAlmostEqual(result["contacts_for_review"][0]["area_m2"], 4)
+
 
 if __name__ == "__main__":
     unittest.main()

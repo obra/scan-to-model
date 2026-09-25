@@ -13,8 +13,11 @@ METHODS = {"matched-color", "photo-projection", "repeated-photo", "inferred"}
 
 
 def digest(path):
+    result = hashlib.sha256()
     with Path(path).open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+        for block in iter(lambda: stream.read(1024*1024), b""):
+            result.update(block)
+    return result.hexdigest()
 
 
 def write_json(path, value):
@@ -63,6 +66,7 @@ def validate(job):
     sources = register(job.get("sources", []), "source")
     materials = register(job.get("materials", []), "material")
     views = register(job.get("views", []), "view")
+    require("exterior" not in views, "view id exterior is reserved for the complete-model overview")
     require(views or not (set(requested) & {"stills", "viewer"}), "stills/viewer require named views")
     for row in objects.values():
         require(row.get("material") is None or row["material"] in materials, "unknown object material")
@@ -122,6 +126,23 @@ def validate(job):
     require(0 < texture.get("minimum_density", 16) <= texture.get("density", 128), "invalid texture density")
     if job.get("lighting"):
         require(intent["interpolation_authorized"], "presentation lighting requires authorized inference")
+        world = job["lighting"].get("world")
+        if world:
+            require(((0 <= numbers(world.get("color"), (3,), "world color")) &
+                    (numbers(world.get("color"), (3,), "world color") <= 1)).all(), "world color must be 0..1")
+            require(world.get("strength", -1) >= 0, "invalid world strength")
+        fills = register(job["lighting"].get("fills", []), "fill")
+        for fill in fills.values():
+            numbers(fill.get("xy"), (2,), "fill position")
+            numbers([fill.get("floor_z"), fill.get("size"), fill.get("energy"), fill.get("clearance", .2)], (4,), "fill dimensions")
+            color = numbers(fill.get("color"), (3,), "fill color")
+            require(((0 <= color) & (color <= 1)).all() and fill["size"] > 0 and fill["energy"] > 0 and fill.get("clearance", .2) > 0,
+                    "invalid fill light")
+            require(fill.get("ceiling_objects") and set(fill["ceiling_objects"]) <= objects.keys(), "unknown fill ceiling")
+    excluded = job.get("excluded_objects", [])
+    require(isinstance(excluded, list) and all(row.get("name") and row.get("reason") for row in excluded), "name and explain excluded objects")
+    excluded_names = [row["name"] for row in excluded]
+    require(len(set(excluded_names)) == len(excluded_names) and not (set(excluded_names) & set(names)), "duplicate or conflicting excluded objects")
     return job
 
 

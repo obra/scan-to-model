@@ -8,3 +8,4 @@ __pycache__/
 /model/
 *.blend
 *.blend1
+node_modules/

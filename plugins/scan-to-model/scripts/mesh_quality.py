@@ -27,7 +27,7 @@ def overlap_area(first, second):
 
 
 def review_meshes(meshes, tolerance=1e-5):
-    findings, groups = [], defaultdict(list)
+    findings, contacts, groups = [], [], defaultdict(list)
     for mesh in meshes:
         vertices = np.asarray(mesh["vertices"], dtype=float)
         if not np.isfinite(vertices).all():
@@ -54,16 +54,18 @@ def review_meshes(meshes, tolerance=1e-5):
             if length <= tolerance**2:
                 continue
             normal /= length
+            outward = normal.copy()
             if normal[np.argmax(np.abs(normal))] < 0:
                 normal = -normal
                 points = points[::-1]
             # Angular bins screen candidates; distance and actual overlap decide findings.
             key = tuple(np.round(normal, 4))
             groups[key].append({"object": mesh["id"], "face": triangle["face"],
-                                "points": points, "normal": normal, "low": points.min(0), "high": points.max(0)})
+                                "points": points, "normal": normal, "outward": outward,
+                                "low": points.min(0), "high": points.max(0)})
         if edges and all(len(uses) == 2 for uses in edges.values()) and volume < -tolerance**3:
             findings.append({"kind": "inverted_closed_mesh", "object": mesh["id"]})
-    overlaps = defaultdict(float)
+    overlaps, opposed = defaultdict(float), defaultdict(float)
     for triangles in groups.values():
         active = []
         for current in sorted(triangles, key=lambda row: row["low"][0]):
@@ -85,9 +87,12 @@ def review_meshes(meshes, tolerance=1e-5):
                 area = overlap_area(first, second)
                 if area > tolerance**2:
                     pair = tuple(sorted([(current["object"], current["face"]), (previous["object"], previous["face"])]))
-                    overlaps[pair] += area
+                    target = opposed if current["outward"] @ previous["outward"] < -.99999 else overlaps
+                    target[pair] += area
             active.append(current)
     findings.extend({"kind": "coplanar_overlap", "surfaces": [list(surface) for surface in pair],
                      "area_m2": area} for pair, area in sorted(overlaps.items()))
-    return {"passed": not findings, "tolerance_m": tolerance, "findings": findings,
+    contacts.extend({"kind": "opposed_coplanar_contact", "surfaces": [list(surface) for surface in pair],
+                     "area_m2": area} for pair, area in sorted(opposed.items()))
+    return {"passed": not findings, "tolerance_m": tolerance, "findings": findings, "contacts_for_review": contacts,
             "scope": "Degeneracy, edge winding, closed-mesh orientation and coplanar triangle overlap. Open architectural surfaces are allowed. This does not establish physical accuracy or detect every self-intersection."}

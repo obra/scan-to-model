@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Explore the model</title>
+  <link rel="stylesheet" href="viewer.css">
+  <script src="viewer.bundle.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="index.html">⌂ <span>Model viewer</span></a><span class="subtitle">Explore the reconstruction</span><span class="badge">Tentative geometry</span></header>
+  <main id="viewport" aria-label="Interactive house model">
+    <canvas id="scene" aria-label="3D house. Use orbit controls or select Fly to move through the rooms."></canvas>
+    <div id="loading" role="status"><span class="spinner"></span><h1>Opening the house</h1><p id="load-message">Loading the model and its surface textures…</p></div>
+    <section class="toolbar" aria-label="View controls">
+      <div class="segmented" aria-label="Navigation mode"><button id="orbit" class="active" aria-pressed="true">Orbit</button><button id="fly" aria-pressed="false">Fly</button></div>
+      <select id="floor" aria-label="Visible floor"><option value="all">Whole model</option></select>
+      <label><input id="roof" type="checkbox" checked> Roof</label>
+      <label><input id="diagnostic" type="checkbox"> Amber view</label>
+      <button id="home" title="Return to the exterior overview">Reset view</button>
+    </section>
+    <aside class="places"><label for="room">Go to a room</label><select id="room"><option value="exterior">Outside · whole house</option></select><p id="place-note">Drag to orbit · scroll to zoom · right-drag to pan</p></aside>
+    <div id="crosshair" hidden aria-hidden="true">+</div>
+    <div class="touch-controls" id="touch-controls" hidden aria-label="Flight movement">
+      <div class="direction-pad"><button data-key="KeyW" aria-label="Move forward">↑</button><div><button data-key="KeyA" aria-label="Move left">←</button><button data-key="KeyS" aria-label="Move backward">↓</button><button data-key="KeyD" aria-label="Move right">→</button></div></div>
+      <div class="vertical-pad"><button data-key="KeyE" aria-label="Move up">Up</button><button data-key="KeyQ" aria-label="Move down">Down</button></div>
+    </div>
+    <div class="bottom"><span id="status">Source-guided appearance</span><span id="instructions">Choose a room to look inside.</span><button id="fullscreen" title="Toggle fullscreen" aria-label="Toggle fullscreen">⤢</button></div>
+  </main>
+  <footer><span>Source-guided appearance; unseen surfaces are interpolated. Free flight has no wall collisions.</span><a id="native-link" href="model.blend">Blender model ↗</a><a id="tour-link" href="tour.html">Screenshot tour ↗</a></footer>
+</body>
+</html>

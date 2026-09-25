@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rendered model tour</title>
+  <link rel="stylesheet" href="tour.css">
+  <script src="tour-data.js" defer></script>
+  <script src="tour.js" defer></script>
+</head>
+<body>
+  <header><h1 id="project">Model tour</h1><a id="viewer-link" href="index.html">Explore in 3D ↗</a></header>
+  <main>
+    <label for="contents">Go to a view</label><select id="contents"></select>
+    <figure><img id="shot" alt=""><figcaption><h2 id="title"></h2><p id="caption"></p></figcaption></figure>
+    <nav aria-label="Tour navigation"><button id="previous">← Previous</button><span id="count"></span><button id="next">Next →</button></nav>
+    <p id="limits"></p>
+  </main>
+</body>
+</html>
