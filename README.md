@@ -33,6 +33,8 @@ The workflow runs locally. It needs no server or API key. Supply your own projec
 
 The guidance keeps current architecture, historical concealed construction, movable contents, and unresolved geometry distinguishable. It supports repeated components when observations establish matching dimensions and trim. Newer scans take precedence when the project owner identifies them as the better record of current conditions.
 
+When requested, the [delivery workflow](plugins/scan-to-model/references/delivery.md) adds photographic materials, a packed Blender file, a complete GLB, rendered stills, a screenshot tour and a web fly-through that opens offline by double-clicking `index.html`. It carries authorized interpolation forward as tentative, preserves the original geometry and includes only used source dependencies. Geometry, appearance, image review and packaging have separate completion checks.
+
 ## Local tools and dependencies
 
 Use Python 3.11 or newer for the scan tools. Install their dependencies in a suitable environment:
@@ -43,6 +45,8 @@ python3 -m venv .venv
 ```
 
 Blender is required for model inspection and reconstruction. The Blender review script runs inside Blender; the scan tools run in the Python environment. The native reader currently supports Polycam keyframe exports with millimetre depth PNGs. Other formats require an explicit adapter and verified units, axes, poses, and calibration.
+
+Viewer construction requires Node.js/npm and Chrome/Chromium for its copied-directory offline test. These are producer dependencies; the delivered viewer needs only a browser. The [public synthetic delivery fixture](plugins/scan-to-model/tests/delivery-validation.md) exercises the complete path and known failure cases.
 
 See the [tool commands and input formats](plugins/scan-to-model/references/formats.md), [source-observation contract](plugins/scan-to-model/references/source-observations.md), [package overview](plugins/scan-to-model/README.md), and [Blender review guide](plugins/scan-to-model/references/blender-review.md).
 

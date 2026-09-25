@@ -1,6 +1,6 @@
 # Scan to Model
 
-Seven Codex skills and local Python tools for turning scan evidence into reviewable Blender architectural models. The tools preserve Polycam exports, unproject calibrated native depth, measure photographed surface patches, fit rigid registration, and inspect saved Blender candidates. They do not infer an entire house automatically from a ZIP.
+Seven Codex skills and local Python tools for turning scan evidence into reviewable Blender architectural models. The tools preserve Polycam exports, unproject calibrated native depth, measure photographed surface patches, fit rigid registration, inspect saved Blender candidates and produce requested photographic materials, rendered stills and offline model viewers. They do not infer an entire house automatically from a ZIP.
 
 The package contains no project address, private scans, accepted house transforms, or owner observations. Keep those in the working project. No server or API key is required. Blender and a Python 3.11+ environment with NumPy, Pillow, SciPy and Matplotlib are required for the respective tools; install the Python dependencies from `requirements.txt` into an existing suitable environment or a dedicated virtual environment.
 
@@ -31,8 +31,14 @@ Read [commands and scan-geometry JSON examples](references/formats.md), the [sou
 - `scripts/blender_review.py`: run inside Blender to inventory and render without saving the input.
 - `scripts/run_native_readback.py`: launch a no-save, no-render evaluated readback for an explicit room membership.
 - `scripts/presentation.py`: validate a reported presentation contract, run receipt and hash-bound sample evidence; it does not generate a tour or movie.
+- `scripts/delivery.py`: [prepare, review and package](references/delivery.md) an explicit complete candidate with photographic appearance, packed native/GLB files, still tours, used sources and an offline fly-through, according to the requested outputs.
+- `scripts/appearance.py` and `scripts/mesh_quality.py`: shared planar photo baking and early non-mutating mesh diagnostics used by the delivery producer.
 - `scripts/polycam.py`: shared native reader and calibrated unprojection.
 
 The supplied reader is for Polycam's keyframe export layout and millimetre depth PNGs. Another scanner format needs an explicit adapter and a verified units/axis/calibration contract. Preserve raw and Clean depth, raw and corrected poses as separate choices. Smoothing, sample density and confidence labels do not establish physical accuracy.
 
 Read the [evidence workflow](references/evidence-workflow.md) for coverage and uncertainty rules and [Blender review guidance](references/blender-review.md) for preservation limits. A source archive being ingested does not mean its rooms have been examined, aligned, modeled or visually verified.
+
+Rendered delivery uses a Blender build with the requested Cycles/denoising capabilities. Viewer construction also needs Node.js/npm for the pinned local bundle and Chrome/Chromium plus `websocket-client` for the offline browser check. Recipients need only a browser; double-click `index.html` or `tour.html`. The GLB is embedded in a classic script, so opening a local file needs no server, network or relaxed browser security setting. The browser viewer uses approximate lighting; Cycles stills remain separate artifacts.
+
+See [synthetic delivery validation](tests/delivery-validation.md) for executable integration tests and retained public screenshots. The fixture contains invented geometry and generated image samples, with no project photographs.

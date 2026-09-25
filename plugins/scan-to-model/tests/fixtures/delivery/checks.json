@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "fixture": "Synthetic two-room house",
+  "date": "2026-09-25",
+  "producer": {
+    "blender_version": "Blender 4.0.2",
+    "blender_sha256": "6fe78c9e0a1cca51a598eb37c3288b975357efbe86dcee18d5e6fdecaaf1847e",
+    "browser_version": "Google Chrome 153.0.8010.36"
+  },
+  "native": {
+    "passed": true,
+    "model_sha256": "143fcda2d4db186c0494a73b7e14824f2712c1306a3de2747dd2010a3cc98b8e",
+    "objects": 17,
+    "packed_images": 4,
+    "geometry_and_source_properties_preserved": true,
+    "materials_images_and_uv_verified": true
+  },
+  "glb": {
+    "passed": true,
+    "model_sha256": "be21e99ccdebf8d6771a50c6621e6a3391025748f8c8cc739dc0e088b33a06c3",
+    "object_count": 17,
+    "max_vertex_error_m": 0.0,
+    "embedded_image_hashes": [
+      "323824c723306babb66211b003aa7b578a4d15de8898f6fc2c666d7dfbe5db3e"
+    ],
+    "external_resources": false,
+    "scope": "Export fidelity; not survey accuracy"
+  },
+  "native_rejections": {
+    "unpacked_image_rejected_without_repair": true,
+    "nonmetre_scene_rejected": true,
+    "disconnected_shader_rejected": true,
+    "hidden_collection_ancestry_rejected": true
+  },
+  "mesh_rejection": {
+    "passed": false,
+    "tolerance_m": 1e-05,
+    "findings": [
+      {
+        "kind": "coplanar_overlap",
+        "surfaces": [
+          [
+            "duplicate-poster",
+            0
+          ],
+          [
+            "poster",
+            0
+          ]
+        ],
+        "area_m2": 1.2000001549720722
+      }
+    ],
+    "contacts_for_review": [],
+    "scope": "Degeneracy, edge winding, closed-mesh orientation and coplanar triangle overlap. Open architectural surfaces are allowed. This does not establish physical accuracy or detect every self-intersection."
+  },
+  "blocked_view": {
+    "id": "doorway",
+    "passed": false,
+    "missing_subjects": [
+      "floor-b"
+    ],
+    "minimum_pixels": 64,
+    "actual_raster_pixels": {
+      "object": {
+        "door": 76800
+      },
+      "material": {
+        "STM paint": 76800
+      }
+    },
+    "object_material_pixels": {
+      "floor-b": 0
+    },
+    "image_sha256": "f5e904b2c13b2a07f73997a401fd96112e74b76f8e3db478bfd22c4cc545e7f2",
+    "model_sha256": "a08564b1aec6a85cb5d311932927ad4dde718c81fb8a1f4a5e2493502afc7885"
+  },
+  "browser": {
+    "file_url_load_passed": true,
+    "network_disabled": true,
+    "browser_errors": [],
+    "external_requests": [],
+    "room_jumps": [
+      "exterior",
+      "studio",
+      "washroom"
+    ],
+    "object_count": 17,
+    "flight_distance_m": 0.7330000000000002,
+    "touch_distance_m": 1.6997999999999998,
+    "floor_roof_diagnostic_reset_passed": true,
+    "tour_images_loaded": [
+      "studio",
+      "washroom"
+    ],
+    "mobile_horizontal_overflow": false,
+    "copied_delivery_tested": true,
+    "bundle_sha256": "6b7c2b48703a3a7d2d44f85d220d8cc5ab2c3d40b8755a4c4da6e4b2e5a128f3",
+    "browser_version": "Google Chrome 153.0.8010.36"
+  },
+  "screenshots": {
+    "mobile-room.png": "6c9e983df845c64ec3205b86819ad5f161363f20479eabc105a80dc2d21e32fd",
+    "room.png": "6711c36dd1926f0add8bb49c0fb63f8b199310c4ea0a0b651fc21ec70818ef29",
+    "tour.png": "7b3bfec1176f23772d56791d2284c8182d1b97cee59a233a66e4ef3c1567ab8a"
+  },
+  "limits": "Invented fixture; pipeline verification only. No private house replay or metric acceptance."
+}
