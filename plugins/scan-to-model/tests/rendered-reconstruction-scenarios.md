@@ -107,3 +107,48 @@ This final comparison changed both guidance and model; it does not isolate the
 effect of wording. It supports capability-based routing on the observed task,
 not a universal ranking, latency claim or guarantee that any model can reconstruct
 a house. Decision tests also do not establish that an agent can execute its plan.
+
+## Native modeling trials
+
+Two fresh-context `gpt-6-sol` medium workers received the fixture-assembly task,
+the same packed candidate and three source photographs. One read the control
+instructions, the other the first constructive-method revision. Both produced
+rounded bowls and more representative faucets, preserved unrelated room meshes
+and packed all 99 file-backed images. The control already improved the shape;
+this is not evidence that the first instruction revision outperformed it.
+
+Independent saved-model inspection found both results incomplete: the faucet
+bases floated 5.5 mm and 8.5 mm above the countertop respectively, and neither
+modeled the source-visible ceramic support behind the bowl. The workers' final
+notes did not identify this defect. This prompted the shared-support construction
+recipe in the method reference, including deriving component positions from the
+support surface and checking the evaluated contact after reopening.
+
+The system Blender build lacked denoising. Both workers were given access to the
+same Cycles/OpenImageDenoise-capable executable for their final comparisons;
+failed runtime attempts were retained. These runs were source-bounded modeling
+exercises with runtime assistance, not complete autonomous house imports.
+
+A third fresh-context `gpt-6-sol` medium worker received the same sources and
+task, the usable renderer from the start, and the method with the shared-support
+recipe. It modeled the ceramic rear decks and placed the faucets on them. An
+independent ray cast in the saved candidate confirmed a 0.5 mm overlap at each
+base instead of a floating gap. All 99 file-backed images remained packed; the
+1,608 unrelated mesh objects retained their transforms, mesh data, material-slot
+assignments and render visibility. The worker also reopened and rendered its
+saved candidate. This is one successful execution of the support construction,
+not evidence that every agent or fixture will now succeed.
+
+The result still had a softer, rounder rim, flatter porcelain reflections and
+simplified hardware compared with the photographs. The worker reported those
+visual limits. It also invented zero-padded source aliases on its 20 new parts,
+which the evaluator corrected against the existing source registry after saving
+the raw trial. That metadata correction preserved geometry and other object
+properties on readback; it was supervised cleanup, not an unassisted pass.
+
+The native trials support a more concrete construction method and capability
+checks. They do not establish a fully rendered finish, whole-house parity with
+the original, or reliability across arbitrary agents. Retain raw candidates,
+before/after stills, authoring scripts, runtime receipts and evaluator findings
+in the private house evaluation; private source photographs and model files do
+not belong in this public plugin repository.
