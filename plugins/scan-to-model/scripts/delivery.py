@@ -31,7 +31,8 @@ def worker(blender, root, phase, *, blend=None, appearance_file=None, native=Non
     if phase != "inspect" and accepted.exists():
         require(executable_sha == read(accepted)["blender_sha256"], "Blender build differs from the prepared producer")
     inputs = {str(path): digest(path) for path in [root / "job.json", SCRIPTS / "blender_delivery.py",
-                                                 SCRIPTS / "delivery_contract.py", SCRIPTS / "blender_runtime.py"]}
+                                                 SCRIPTS / "delivery_contract.py", SCRIPTS / "blender_runtime.py",
+                                                 SCRIPTS / "delivery_runtime.py"]}
     for path in [blend, appearance_file, native]:
         if path:
             inputs[str(path)] = digest(path)
@@ -49,7 +50,8 @@ def worker(blender, root, phase, *, blend=None, appearance_file=None, native=Non
     if native:
         arguments += ["--native", native]
     receipt = run_worker(blender, SCRIPTS / "blender_delivery.py", arguments, root / "runs" / phase,
-                         blend=blend, helpers=[SCRIPTS / "delivery_contract.py"])
+                         blend=blend, helpers=[SCRIPTS / "delivery_contract.py"],
+                         threads=read(root / "job.json").get("renderer", {}).get("threads", 2))
     result = {"inputs": inputs, "blender_sha256": executable_sha,
               "outputs": {path.relative_to(root / phase).as_posix(): digest(path)
                           for path in sorted((root / phase).rglob("*")) if path.is_file()}}

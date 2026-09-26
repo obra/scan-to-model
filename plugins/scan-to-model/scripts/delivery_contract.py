@@ -120,6 +120,8 @@ def validate(job):
         require(view.get("minimum_pixels", 64) > 0, "view pixel threshold must be positive")
     renderer = job.get("renderer", {})
     require(renderer.get("engine", "CYCLES") == "CYCLES", "delivery renderer currently supports CYCLES")
+    threads = renderer.get("threads", 2)
+    require(type(threads) is int and threads > 0, "renderer threads must be a positive integer")
     for key, default in [("width", 1024), ("height", 768), ("samples", 32)]:
         require(isinstance(renderer.get(key, default), int) and renderer.get(key, default) > 0, f"invalid renderer {key}")
     require(isinstance(renderer.get("denoise", True), bool), "denoise must be boolean")

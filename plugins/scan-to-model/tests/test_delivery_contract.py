@@ -59,6 +59,15 @@ class DeliveryContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(data)
 
+    def test_render_thread_budget_must_be_a_positive_integer(self):
+        data = job()
+        data["renderer"] = {"threads": 8}
+        validate(data)
+        for invalid in [0, -1, True, 1.5, "8"]:
+            with self.subTest(threads=invalid), self.assertRaises(ValueError):
+                data["renderer"]["threads"] = invalid
+                validate(data)
+
     def test_unknown_sources_and_unauthorized_inference_are_rejected(self):
         data = job()
         data["materials"] = [{"id": "paint", "method": "inferred", "color": [200, 200, 200], "basis": "unknown paint"}]

@@ -31,6 +31,8 @@ After review, retain the packed native model, selected deliverables, source depe
 
 Probe the selected Blender build's real rendering and denoising capabilities before a batch; matching version strings do not guarantee the same build options. Plan atlas size and texel density before sampling textures. Position inferred fill lights beneath the actual ceiling above each light, including sloped ceilings.
 
+Set `renderer.threads` to a positive CPU thread budget appropriate to the machine and other active work. The default is two; larger still-render jobs can use an explicitly larger budget without changing resolution or samples. Worker receipts record the selected budget, and changing it requires a fresh preparation.
+
 Browser delivery uses a classic script with the GLB, embedded textures and libraries bundled locally. A delivery test must open a copied output directory through `file://` with networking disabled and normal file-origin rules, load all named views and stills, and exercise keyboard/touch navigation. Server-only success does not establish that double-clicking the delivered HTML works. Keep viewer lighting limitations distinct from Cycles still-render quality.
 
 ## Run the shared producer

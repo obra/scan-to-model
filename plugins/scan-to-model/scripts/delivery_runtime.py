@@ -29,7 +29,8 @@ def freeze_helpers(store, files):
     return root, hashes
 
 
-def run_worker(blender, worker, arguments, output, *, blend=None, helpers=()):
+def run_worker(blender, worker, arguments, output, *, blend=None, helpers=(), threads=2):
+    require(type(threads) is int and threads > 0, "Blender threads must be a positive integer")
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     worker = Path(worker).resolve(strict=True)
@@ -47,7 +48,7 @@ def run_worker(blender, worker, arguments, output, *, blend=None, helpers=()):
     environment["SCAN_TO_MODEL_BLENDER_RUNTIME_ROOT"] = str(output)
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     version = subprocess.check_output([str(executable), "--version"], text=True)
-    command = [str(executable), "-b", "--factory-startup", "--disable-autoexec", "--threads", "2",
+    command = [str(executable), "-b", "--factory-startup", "--disable-autoexec", "--threads", str(threads),
                "--python-exit-code", "1", "--python", str(frozen / "blender_runtime.py")]
     before = None
     if blend is not None:
@@ -55,7 +56,7 @@ def run_worker(blender, worker, arguments, output, *, blend=None, helpers=()):
         before = digest(blend)
         command.append(str(blend))
     command += ["--python", str(frozen / worker.name), "--", *map(str, arguments)]
-    receipt = {"blender_version": version, "blender_sha256": digest(executable),
+    receipt = {"blender_version": version, "blender_sha256": digest(executable), "threads": threads,
                "helper_revision": frozen.name, "helpers": hashes, "input_model_sha256": before,
                "arguments": list(map(str, arguments)), "status": "running"}
     write_json(output / "receipt.json", receipt)

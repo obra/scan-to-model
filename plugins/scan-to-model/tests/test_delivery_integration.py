@@ -71,9 +71,13 @@ class DeliveryIntegrationTests(unittest.TestCase):
 
     def test_complete_delivery_is_portable_and_reuses_unchanged_work(self):
         source = self.fixture("clean")
+        job = read(source / "job.json")
+        job["renderer"]["threads"] = 4
+        write_json(source / "job.json", job)
         original = {file: digest(file) for file in source.iterdir() if file.is_file()}
         prepared, output = self.root / "prepared", self.root / "delivered"
         self.cli("prepare", "--job", source / "job.json", "--output", prepared, "--blender", self.blender)
+        self.assertEqual(read(prepared / "runs/preview/receipt.json")["threads"], 4)
         self.assertTrue(read(prepared / "readback/checks.json")["passed"])
         appearance = read(prepared / "appearance.json")
         photo = next(row for row in appearance["faces"] if row["object"] == "poster")
