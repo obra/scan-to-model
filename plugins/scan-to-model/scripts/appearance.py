@@ -119,13 +119,15 @@ def plan_atlas(extents, density, minimum_density, max_size, padding=3):
     while True:
         sizes = [np.maximum(2, np.ceil(np.asarray(extent) * density).astype(int)).tolist() for extent in extents]
         x = y = row_height = 0
-        rectangles = []
-        for width, height in sizes:
+        rectangles = [None] * len(sizes)
+        # Group similar tile heights so narrow trim does not waste rows beside large faces.
+        for index in sorted(range(len(sizes)), key=lambda index: (sizes[index][1], sizes[index][0]), reverse=True):
+            width, height = sizes[index]
             if x + width + 2*padding > max_size:
                 x = 0
                 y += row_height
                 row_height = 0
-            rectangles.append([x + padding, y + padding, width, height])
+            rectangles[index] = [x + padding, y + padding, width, height]
             x += width + 2*padding
             row_height = max(row_height, height + 2*padding)
         total = y + row_height

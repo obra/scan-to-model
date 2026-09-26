@@ -71,6 +71,20 @@ class AppearanceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             appearance.plan_atlas([[100, 100]], 32, 16, 128)
 
+    def test_mixed_face_sizes_keep_density_and_source_order_without_overlap(self):
+        extents = [[28, 26], [27, 2], [26, 28], [25, 3], [24, 24], [23, 2]]
+        plan = appearance.plan_atlas(extents, 1, 1, 64, padding=1)
+        self.assertEqual(plan["density"], 1)
+        self.assertEqual([rectangle[2:] for rectangle in plan["rectangles"]], extents)
+        occupied = np.zeros((plan["size"][1], plan["size"][0]), dtype=bool)
+        for x, y, width, height in plan["rectangles"]:
+            self.assertGreaterEqual(min(x, y), 1)
+            self.assertLessEqual(x + width + 1, occupied.shape[1])
+            self.assertLessEqual(y + height + 1, occupied.shape[0])
+            tile = occupied[y-1:y+height+1, x-1:x+width+1]
+            self.assertFalse(tile.any())
+            tile[:] = True
+
     def test_light_uses_ceiling_at_its_position_not_lowest_eave(self):
         mesh = {"vertices": [[0, 0, 1], [4, 0, 3], [4, 4, 3], [0, 4, 1]], "faces": [[0, 1, 2, 3]]}
         self.assertAlmostEqual(appearance.ceiling_height_at([mesh], 3, 2, 0), 2.5)
