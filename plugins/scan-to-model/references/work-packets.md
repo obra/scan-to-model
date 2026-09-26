@@ -17,7 +17,8 @@ Use the fastest, lightest available model that can meet the task's acceptance ch
 
 - Run existing scripts directly for deterministic inventory, hashes, conversions and checks. Do not spawn a worker just to launch a script; choose a model only for the judgment the tool cannot supply.
 - Use a small model for bounded text, record and implementation work with clear inputs and a checkable return. For image interpretation, choose a model that can actually inspect the supplied images; a text-only worker cannot certify pixels from labels or receipts.
-- Start with a lighter capable model for clear visual checks. Use a stronger reasoning model for unresolved physical identity, conflicting controls or cross-region decisions when the lighter model fails the check or the known complexity requires it. Supply the concrete conflict and prior result. Missing evidence remains missing regardless of model strength; do not repeat unchanged attempts or manufacture certainty.
+- Establish the visual reviewer's capability on the first representative region. Source-to-model finish review can require perspective, occlusion, shape and material interpretation even for one room. A reviewer that invents an absence, mounting or fixture type has failed that check; give the unresolved comparison to a stronger image-capable model before authoring its proposed corrections. Keep the lighter model on work it has demonstrated it can do well.
+- Start with a lighter capable model for clear visual checks. Verify that its claimed discrepancy is visible in the supplied views: an out-of-frame object is not absent, and an ambiguous silhouette does not establish mounting or profile. Use another view or native inspection to resolve that ambiguity; escalate unresolved physical identity, conflicting controls or cross-region decisions to a stronger image-capable reasoning model. Supply the concrete conflict and prior result. Missing evidence remains missing regardless of model strength; do not repeat unchanged attempts or manufacture certainty.
 - Reconstructing an entire house from an unstructured RGB-D capture combines topology, coordinate interpretation, geometry and visual judgment. Treat that as complex reasoning when choosing the lead model; reserve small workers for bounded pieces with independently checkable returns. If a prior end-to-end run guessed the layout, missed source regions or evaded a failed check, change the method and escalate the lead model before a fresh retry. Lower latency is not success when the result fails the requested quality.
 - Keep tiny tasks in the current agent when dispatch costs more than it saves. If this runtime cannot switch models or delegate, do the authorized work with available capabilities and state a material limitation; never claim a model switch that did not happen.
 
@@ -71,6 +72,8 @@ For native extraction, preserve the exact producer bytes beside each attempt, wh
 ```
 
 Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-review.md](blender-review.md), and [manufactured-shapes.md](manufactured-shapes.md) for candidate, component and saved-file contracts.
+
+For a rendered result, include the context/detail source views, expected visible shape and finish, and the source-matched comparison in the brief. Apply [rendered-reconstruction.md](rendered-reconstruction.md) before repeating construction or material helpers across regions.
 
 ## Independent reviewer
 

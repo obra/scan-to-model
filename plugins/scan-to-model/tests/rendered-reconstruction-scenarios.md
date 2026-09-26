@@ -73,4 +73,37 @@ and flat finishes on prominent timber parts. Review notes accepted the presence
 and readability of those features. The failure is visual fidelity despite
 successful packaging; it is not explained by atlas count or object count.
 
-Independent comparisons and production results are recorded here after testing.
+## Decision comparisons
+
+On 2026-09-26, five fresh-context `gpt-6-luna` medium runs per variant received
+the same planning task and actual source/render comparison. The control read
+the `bc3500d` instructions; the revision also read the constructive rendering
+method. Workers had no assessment, other workers' answers or original benchmark
+model. Each opened the images. Answers were read individually, not scored by
+keyword matches.
+
+Both variants rejected the poor rendered finish and selected a capable lead
+for the whole-house interpretation. Those behaviors already worked in this
+bounded exercise. The revised answers consistently described a representative
+region through corrected final-size rendering before reusing its method and
+kept assembly count unresolved when only a close-up was supplied.
+
+The lighter model remained unreliable at fixture interpretation: three of the
+five revised answers asserted a wrong mounting relationship, and some confused
+a recessed bowl with an inset installation. This is a failed capability check,
+not a passing review merely because it rejected the candidate. The method now
+requires a support/contact view plus native inspection before a mounting change,
+and model selection explicitly routes a failed visual comparison to a more
+capable reviewer.
+
+Five fresh-context `gpt-6-sol` medium runs then used the refined instructions on
+the same task and images. All identified the simplified basin profiles and
+retained uncertainty about counts outside the supplied views. Their dominant
+shape findings were more useful, and they requested contact checks instead of
+prescribing the lighter model's unsupported mounting replacement. Other
+suggested finish or fixture changes still require source/native verification.
+
+This final comparison changed both guidance and model; it does not isolate the
+effect of wording. It supports capability-based routing on the observed task,
+not a universal ranking, latency claim or guarantee that any model can reconstruct
+a house. Decision tests also do not establish that an agent can execute its plan.

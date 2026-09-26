@@ -6,7 +6,7 @@ Contents: [decisions](#implementation-decisions), [review order](#review-order),
 
 ## Implementation decisions
 
-The shared tools operate on an existing Blender candidate and an explicit object/source register. House-specific names, material choices, geometry authoring and private photographs stay in the project. The delivery path adds materials and presentation lights without changing model vertices or source properties. Mesh defects go back to the geometry authoring step for a bounded correction; the exporter does not silently weld, move or delete architecture.
+The shared tools operate on an existing Blender candidate and an explicit object/source register. Establish source-faithful shape and appearance with [rendered-reconstruction.md](rendered-reconstruction.md) before treating this producer as a final delivery path. House-specific names, material choices, geometry authoring and private photographs stay in the project. The delivery path adds materials and presentation lights without changing model vertices or source properties. Mesh defects go back to the geometry authoring step for a bounded correction; the exporter does not silently weld, move or delete architecture.
 
 `delivery_contract.py` validates the requested outputs and source closure. `appearance.py` implements calibrated depth-filtered projection, native-pixel exclusion masks, rectified repeated samples, matched colors and explicit inferred fallback. `mesh_quality.py` reports degenerate geometry, winding defects and overlapping coplanar surfaces. `delivery_runtime.py` locates helpers relative to its installed package, isolates Blender runtime state, hashes inputs and keeps one frozen helper copy per revision across runs.
 
@@ -24,6 +24,8 @@ Optional broad-illumination normalization preserves limited detail around a revi
 Check the declared complete scene and geometry before baking. Inspect source comparisons for extent, placement and contacts. Fix avoidable trim overlaps and wrong normals in the authoring candidate. Open architectural surfaces are legitimate; the mesh checks do not require every room face to be a watertight solid.
 
 Use low-resolution views of the complete candidate before final renders. A named room camera can be blocked by adjoining architecture or a door in another capture state. Actual object/material raster passes establish which surfaces rendered. Passing pixel counts does not establish useful composition: inspect the image and reject empty corners, misleading crops or inappropriate camera roll. Do not silently remove a door to make a walkthrough view work.
+
+Use final-size crops or detail views to judge profiles, grain and veining that previews cannot resolve. In the existing review notes, name the source/view compared, its actual shape and finish match or discrepancy, and any unresolved limit. Presence, source tags and successful packaging do not establish visual fidelity. Correct visible discrepancies before recording a rendered-finish pass.
 
 After review, retain the packed native model, selected deliverables, source dependencies actually used, final views, visual findings and compact input/output hashes. Keep unique rejected evidence when it explains a decision. Deduplicate helpers by their content hash, and retire disposable caches and superseded outputs according to the project's retention request. A user's request to retain working evidence overrides the compact default.
 
