@@ -8,7 +8,7 @@ Show the constrained component clearly by default and label any raw trace overla
 
 ## Review physical relationships before presentation
 
-Before polishing the affected room or assembly, compare its saved-model extent, relative position, orientation and visible contacts with useful source views and owner corrections. Use a source-matched overview and a top/section or local detail where needed. For example, a worktop that stops after one cabinet bay when the photo shows several, or a fixture placed beside rather than behind its basin, is a physical conflict even when every object and source hash is correct. An approximate dimension label does not resolve a visible contradiction.
+Before polishing the affected room or assembly, use [geometry-review.md](geometry-review.md) for the source-matched overlay, plan/section and decision record. For example, a worktop that stops after one cabinet bay when the photo shows several, or a fixture placed beside rather than behind its basin, is a physical conflict even when every object and source hash is correct. An approximate dimension label does not resolve a visible contradiction.
 
 Correct and review supported conflicts before accepting affected final drawings or presentation. Missing metric evidence remains an explicit limit, not permission to invent a contact. Existing historical or diagnostic sheets can remain labeled with their model identity and unresolved conflict, but do not count as a completed physical review. Reuse accepted checks of unrelated, unchanged geometry; apply the bounded review and revalidation rules in [work-packets.md](work-packets.md) rather than launching another general room audit.
 

@@ -111,23 +111,16 @@ erases contrast cannot recover missing shape or grain.
 
 ## Compare, correct, then deliver
 
-Keep a source-matched review camera as well as any tour camera. Match viewpoint,
-verticals and field of view closely enough to compare proportions. An extreme
-wide-angle tour view can distort a correct fixture or conceal a poor one; use a
-detail view to resolve the question. A manually matched camera is diagnostic,
-not independently calibrated registration.
-
-Compare the source and saved-model render in this order: extent and contacts;
-silhouette and profile; major features and hardware; material pattern, scale,
-direction and color; then lighting and composition. Correct the largest visible
-differences and rerender the affected views. Low-resolution previews establish
+Complete the affected shape comparison and decision in
+[geometry-review.md](geometry-review.md) before tuning finishes. Keep a
+source-matched review camera as well as any tour camera. Then compare silhouette
+and profile, major features and hardware, material pattern, scale, direction
+and color, and finally lighting and composition. Correct the largest visible
+differences and rerender affected views. Low-resolution previews establish
 visibility cheaply; inspect final-size details for shape and finish decisions.
-
-In the existing review note, name the source/view compared, the observed match
-or discrepancy, and the remaining limitation. Distinguish an unknown dimension
-from a known visible mismatch. A fixture being present and recognizable is not
-enough to call a photographic finish complete. A passing raster, hash or browser
-test establishes only its mechanical contract.
+A fixture being present and recognizable is not enough to call a photographic
+finish complete. A passing raster, hash or browser test establishes only its
+mechanical contract.
 
 If an earlier model is the quality target, compare corresponding views before
 claiming parity, with source evidence deciding conflicts. For an independent

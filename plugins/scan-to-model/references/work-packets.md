@@ -71,7 +71,7 @@ For a room's native extraction or drawing, derive membership from accepted objec
 For native extraction, preserve the exact producer bytes beside each attempt, whether it succeeds or fails. If correction is needed, use a fresh runtime directory and bind that process to its own frozen producer, inputs and outputs; if failed-producer bytes are unavailable, record that gap explicitly rather than claiming complete preservation.
 ```
 
-Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [blender-review.md](blender-review.md), and [manufactured-shapes.md](manufactured-shapes.md) for candidate, component and saved-file contracts.
+Use [blender-reconstruct](../skills/blender-reconstruct/SKILL.md), [geometry-review.md](geometry-review.md), [blender-review.md](blender-review.md), and [manufactured-shapes.md](manufactured-shapes.md) for candidate, physical comparison, component and saved-file contracts. Return the source/render/overlay and top/section paths with the bounded geometry decision in the existing review note.
 
 For a rendered result, include the context/detail source views, expected visible shape and finish, and the source-matched comparison in the brief. Apply [rendered-reconstruction.md](rendered-reconstruction.md) before repeating construction or material helpers across regions.
 
@@ -83,7 +83,7 @@ Review the supplied candidate or evidence packet against its declared scope and 
 Check the declared physical relationships before reviewing presentation polish. A narrow documentation scope or approximate label cannot excuse a known source conflict in affected final sheets. Return the concrete findings together; on a corrected return, recheck those findings and affected preservation contracts rather than restarting unrelated accepted work. Reuse immutable-bound evidence unless a changed input or discovered failure invalidates it.
 ```
 
-Use [blender-review.md](blender-review.md) for saved-scene and presentation review. For scripted presentations, validate the contract and hash-bound sample receipt with `scripts/presentation.py`, then inspect the actual sample images.
+Use [geometry-review.md](geometry-review.md) for the physical comparison artifact and [blender-review.md](blender-review.md) for saved-scene and presentation review. For scripted presentations, validate the contract and hash-bound sample receipt with `scripts/presentation.py`, then inspect the actual sample images.
 
 ## Reusable-tool learning loop
 
